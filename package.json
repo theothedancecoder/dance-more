@@ -9,19 +9,43 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@clerk/nextjs": "^6.23.2",
+    "@headlessui/react": "^2.2.4",
+    "@heroicons/react": "^2.2.0",
+    "@portabletext/react": "^3.2.1",
+    "@sanity/client": "^7.6.0",
+    "@sanity/icons": "^3.7.4",
+    "@sanity/image-url": "^1.1.0",
+    "@sanity/vision": "^3.95.0",
+    "@stripe/stripe-js": "^7.4.0",
+    "@types/uuid": "^10.0.0",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "groq": "^3.95.0",
+    "next": "15.3.4",
+    "next-sanity": "^9.12.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "next": "15.3.4"
+    "react-hook-form": "^7.59.0",
+    "react-is": "^19.1.0",
+    "recharts": "^3.0.2",
+    "sanity": "^3.95.0",
+    "stripe": "^18.3.0",
+    "styled-components": "^6.1.19",
+    "svix": "^1.68.0",
+    "tailwind-merge": "^3.3.1",
+    "uuid": "^11.1.0",
+    "zod": "^3.25.67"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4",
     "eslint": "^9",
     "eslint-config-next": "15.3.4",
-    "@eslint/eslintrc": "^3"
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }
