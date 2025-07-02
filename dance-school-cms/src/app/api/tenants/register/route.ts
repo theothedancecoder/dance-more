@@ -58,7 +58,25 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create new tenant
+    // First, create or get the user document and set them as admin
+    let userDoc;
+    try {
+      userDoc = await writeClient.createIfNotExists({
+        _id: userId,
+        _type: 'user',
+        clerkId: userId,
+        email: contactEmail,
+        role: 'admin', // School registrant becomes admin
+      });
+    } catch (error) {
+      console.error('Error creating user:', error);
+      return NextResponse.json(
+        { error: 'Failed to create user' },
+        { status: 500 }
+      );
+    }
+
+    // Then create the tenant
     const tenant = await writeClient.create({
       _type: 'tenant',
       schoolName,
@@ -83,7 +101,7 @@ export async function POST(request: NextRequest) {
       }),
       createdBy: {
         _type: 'reference',
-        _ref: userId,
+        _ref: userDoc._id,
       },
     });
 

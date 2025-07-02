@@ -96,7 +96,7 @@ export default function DashboardPage() {
                 Dance School CMS
               </h1>
               <span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700">
-                {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                {user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'User'}
               </span>
             </div>
             <div className="flex items-center space-x-4">
