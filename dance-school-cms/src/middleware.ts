@@ -13,6 +13,20 @@ export default clerkMiddleware(async (auth, req) => {
   const host = req.headers.get('host') || '';
   const url = req.nextUrl.clone();
   
+  // Skip middleware for public routes and Clerk authentication
+  const publicPaths = [
+    '/sign-in',
+    '/sign-up',
+    '/.clerk',
+    '/register-school',
+    '/api/webhooks/clerk',
+    '/api/tenants/register'
+  ];
+
+  if (publicPaths.some(path => url.pathname.startsWith(path))) {
+    return NextResponse.next();
+  }
+
   // Extract tenant identifier
   let tenantIdentifier: string | null = null;
   
@@ -29,7 +43,8 @@ export default clerkMiddleware(async (auth, req) => {
         !pathSegments[1].startsWith('api') && 
         !pathSegments[1].startsWith('_next') &&
         !pathSegments[1].startsWith('sign-') &&
-        !pathSegments[1].startsWith('studio')) {
+        !pathSegments[1].startsWith('studio') &&
+        !pathSegments[1].startsWith('.clerk')) {
       tenantIdentifier = pathSegments[1];
     }
   }
@@ -52,9 +67,9 @@ export default clerkMiddleware(async (auth, req) => {
 
 export const config = {
   matcher: [
-    // Skip Next.js internals and all static files, unless found in search params
-    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
-    // Always run for API routes
-    '/(api|trpc)(.*)',
+    // Match all routes except static files and Clerk auth routes
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(svg|png|jpg|jpeg|gif|webp|ico)|.clerk|sign-in|sign-up).*)',
+    // Match API routes except Clerk webhooks and public endpoints
+    '/api/(?!webhooks/clerk|tenants/register).*'
   ],
 }
