@@ -4,10 +4,10 @@ import { urlFor } from '@/sanity/lib/image';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { identifier: string } }
+  { params }: { params: Promise<{ identifier: string }> }
 ) {
   try {
-    const { identifier } = params;
+    const { identifier } = await params;
 
     if (!identifier) {
       return NextResponse.json(

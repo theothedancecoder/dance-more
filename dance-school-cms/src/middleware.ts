@@ -75,6 +75,6 @@ export const config = {
      * - public folder
      * - auth related paths
      */
-    '/((?!_next/static|_next/image|favicon.ico|public|.well-known|sign-in|sign-up|.clerk|api/webhooks/clerk|api/tenants/register).*)',
+    '/((?!_next/static|_next/image|favicon.ico|public|.well-known).*)',
   ],
 }
