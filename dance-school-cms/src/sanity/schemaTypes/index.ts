@@ -7,11 +7,15 @@ import { userType } from './userType'
 import { blockContentType } from './blockContentType'
 import { subscriptionType } from './subscriptionType'
 import { passType } from './passType'
+import tenantType from './tenantType'
 
 export const schema: { types: SchemaTypeDefinition[] } = {
   types: [
     // Core types
     blockContentType,
+    
+    // Multi-tenant types
+    tenantType,
     
     // Dance school types
     classType,
