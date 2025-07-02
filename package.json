@@ -1,0 +1,15 @@
+{
+  "name": "dance-more",
+  "version": "1.0.0",
+  "description": "Dance school management system",
+  "scripts": {
+    "dev": "cd dance-school-cms && npm run dev",
+    "build": "cd dance-school-cms && npm run build",
+    "start": "cd dance-school-cms && npm start",
+    "lint": "cd dance-school-cms && npm run lint",
+    "install-deps": "cd dance-school-cms && npm install"
+  },
+  "keywords": ["dance", "school", "cms", "nextjs"],
+  "author": "",
+  "license": "ISC"
+}
