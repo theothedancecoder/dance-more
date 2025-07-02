@@ -67,9 +67,14 @@ export default clerkMiddleware(async (auth, req) => {
 
 export const config = {
   matcher: [
-    // Match all routes except static files and Clerk auth routes
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(svg|png|jpg|jpeg|gif|webp|ico)|.clerk|sign-in|sign-up).*)',
-    // Match API routes except Clerk webhooks and public endpoints
-    '/api/(?!webhooks/clerk|tenants/register).*'
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder
+     * - auth related paths
+     */
+    '/((?!_next/static|_next/image|favicon.ico|public|.well-known|sign-in|sign-up|.clerk|api/webhooks/clerk|api/tenants/register).*)',
   ],
 }
