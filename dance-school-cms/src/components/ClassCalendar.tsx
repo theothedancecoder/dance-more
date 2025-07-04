@@ -6,6 +6,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { useUser } from '@clerk/nextjs';
+import { useTenant } from '@/contexts/TenantContext';
 
 interface ClassInstance {
   id: string;
@@ -35,6 +36,7 @@ interface ClassCalendarProps {
 
 export default function ClassCalendar({ isAdmin = false }: ClassCalendarProps) {
   const { user } = useUser();
+  const { tenant } = useTenant();
   const [events, setEvents] = useState<ClassInstance[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<ClassInstance | null>(null);
@@ -42,20 +44,29 @@ export default function ClassCalendar({ isAdmin = false }: ClassCalendarProps) {
   const [userSubscriptions, setUserSubscriptions] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchEvents();
-    if (user) {
-      fetchUserSubscriptions();
+    if (tenant) {
+      fetchEvents();
+      if (user) {
+        fetchUserSubscriptions();
+      }
     }
-  }, [user]);
+  }, [user, tenant]);
 
   const fetchEvents = async () => {
+    if (!tenant) return;
+    
     try {
       const now = new Date();
       const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
       const endDate = new Date(now.getFullYear(), now.getMonth() + 2, 0);
 
       const response = await fetch(
-        `/api/classes/instances?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
+        `/api/classes/instances?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`,
+        {
+          headers: {
+            'x-tenant-id': tenant._id,
+          }
+        }
       );
       
       if (response.ok) {
@@ -70,8 +81,14 @@ export default function ClassCalendar({ isAdmin = false }: ClassCalendarProps) {
   };
 
   const fetchUserSubscriptions = async () => {
+    if (!tenant) return;
+    
     try {
-      const response = await fetch('/api/subscriptions');
+      const response = await fetch('/api/subscriptions', {
+        headers: {
+          'x-tenant-id': tenant._id
+        }
+      });
       if (response.ok) {
         const data = await response.json();
         setUserSubscriptions(data.subscriptions);
@@ -87,13 +104,14 @@ export default function ClassCalendar({ isAdmin = false }: ClassCalendarProps) {
   };
 
   const handleBookClass = async () => {
-    if (!selectedEvent || !user) return;
+    if (!selectedEvent || !user || !tenant) return;
 
     try {
       const response = await fetch('/api/bookings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-tenant-id': tenant._id,
         },
         body: JSON.stringify({
           classInstanceId: selectedEvent.id,
@@ -116,7 +134,7 @@ export default function ClassCalendar({ isAdmin = false }: ClassCalendarProps) {
   };
 
   const handleCancelClass = async (cancelSeries = false) => {
-    if (!selectedEvent || !isAdmin) return;
+    if (!selectedEvent || !isAdmin || !tenant) return;
 
     const reason = prompt('Cancellation reason (optional):');
     
@@ -125,6 +143,7 @@ export default function ClassCalendar({ isAdmin = false }: ClassCalendarProps) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-tenant-id': tenant._id,
         },
         body: JSON.stringify({
           classInstanceId: selectedEvent.id,

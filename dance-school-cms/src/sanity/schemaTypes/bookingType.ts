@@ -85,6 +85,14 @@ export const bookingType = defineType({
       initialValue: () => new Date().toISOString(),
     }),
     defineField({
+      name: 'tenant',
+      title: 'Tenant',
+      type: 'reference',
+      to: [{ type: 'tenant' }],
+      validation: (rule) => rule.required(),
+      description: 'The dance school this booking belongs to',
+    }),
+    defineField({
       name: 'updatedAt',
       title: 'Updated At',
       type: 'datetime',

@@ -87,7 +87,7 @@ export async function getTenantUsers(tenantId: string, role?: string) {
 export async function getTenantBookings(tenantId: string, userId?: string) {
   const userFilter = userId ? ` && user._ref == "${userId}"` : '';
   return await client.fetch(
-    `*[_type == "booking" && tenant._ref == $tenantId${userFilter}] | order(bookingDate desc) {
+    `*[_type == "booking" && tenant._ref == $tenantId${userFilter}] | order(createdAt desc) {
       _id,
       user->{
         _id,
@@ -99,10 +99,12 @@ export async function getTenantBookings(tenantId: string, userId?: string) {
         title,
         instructor->{name}
       },
-      bookingDate,
       status,
       paymentStatus,
-      createdAt
+      amount,
+      currency,
+      createdAt,
+      updatedAt
     }`,
     { tenantId }
   );

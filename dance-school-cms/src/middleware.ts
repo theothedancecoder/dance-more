@@ -12,6 +12,11 @@ const isProtectedRoute = createRouteMatcher([
   '/instructor(.*)',
 ])
 
+const isDebugRoute = createRouteMatcher([
+  '/debug(.*)',
+  '/api/debug/(.*)',
+])
+
 const isPublicRoute = createRouteMatcher([
   '/',
   '/sign-in(.*)',
@@ -20,10 +25,9 @@ const isPublicRoute = createRouteMatcher([
   '/unauthorized',
   '/api/webhooks(.*)',
   '/api/tenants/register',
+  '/api/tenants/validate',
   '/studio(.*)',
   '/.clerk(.*)',
-  '/debug(.*)',
-  '/api/debug/(.*)', // Allow debug API endpoints
 ])
 
 async function getUserByClerkId(clerkId: string) {
@@ -62,8 +66,13 @@ export default clerkMiddleware(async (auth, req) => {
   const url = req.nextUrl.clone();
   const host = req.headers.get('host') || '';
 
-  // Skip middleware for public routes
-  if (isPublicRoute(req)) {
+  // Block debug routes in production
+  if (isDebugRoute(req) && process.env.NODE_ENV === 'production') {
+    return NextResponse.redirect(new URL('/unauthorized', req.url));
+  }
+
+  // Skip middleware for public routes and debug routes in development
+  if (isPublicRoute(req) || (isDebugRoute(req) && process.env.NODE_ENV === 'development')) {
     return NextResponse.next();
   }
 
@@ -89,20 +98,20 @@ export default clerkMiddleware(async (auth, req) => {
     }
   }
 
-    // For protected routes, check authentication first
-    if (isProtectedRoute(req)) {
-      console.log('Protected route detected, checking auth...');
-      console.log('URL path:', req.nextUrl.pathname);
-      console.log('Path segments:', req.nextUrl.pathname.split('/').filter(Boolean));
-      const { userId } = await auth();
-      
-      console.log('userId from Clerk:', userId);
-
-    // If not authenticated, let Clerk handle the redirect
+  // For protected routes, check authentication first
+  if (isProtectedRoute(req)) {
+    const { userId } = await auth();
+    
+    // If not authenticated, handle based on route type
     if (!userId) {
-      const { userId: protectedUserId } = await auth.protect();
-      console.log('UserId from auth.protect():', protectedUserId);
-      return NextResponse.next();
+      // For API routes, return 401 instead of redirecting
+      if (req.nextUrl.pathname.startsWith('/api/')) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      // For web routes, redirect to sign in
+      const signInUrl = new URL('/sign-in', req.url);
+      signInUrl.searchParams.set('redirect_url', req.url);
+      return NextResponse.redirect(signInUrl);
     }
 
     // Get user from Sanity to check their tenant and role
@@ -126,29 +135,38 @@ export default clerkMiddleware(async (auth, req) => {
         );
 
         if (!tenant) {
+          // For API routes, return 403 instead of redirecting
+          if (req.nextUrl.pathname.startsWith('/api/')) {
+            return NextResponse.json(
+              { error: 'Invalid or inactive tenant' },
+              { status: 403 }
+            );
+          }
           return NextResponse.redirect(new URL('/unauthorized', req.url));
         }
 
         // Check if user belongs to this tenant
-        console.log('🔍 Tenant validation:', {
-          userExists: !!user,
-          userTenant: user?.tenant?.slug,
-          expectedTenant: tenantSlug,
-          userRole: user?.role
-        });
-        
         if (!user || !user.tenant || user.tenant.slug !== tenantSlug) {
-          console.log('❌ User access denied:', {
-            reason: !user ? 'No user found' : !user.tenant ? 'No tenant assigned' : 'Tenant mismatch',
-            userTenant: user?.tenant?.slug,
-            expectedTenant: tenantSlug
-          });
+          // For API routes, return 403 instead of redirecting
+          if (req.nextUrl.pathname.startsWith('/api/')) {
+            return NextResponse.json(
+              { error: 'User does not have access to this tenant' },
+              { status: 403 }
+            );
+          }
           return NextResponse.redirect(new URL('/unauthorized', req.url));
         }
 
         // For admin routes, check admin role
         const pathSegments = url.pathname.split('/').filter(Boolean);
         if (requiresAdminRole(pathSegments) && user.role.toLowerCase() !== 'admin') {
+          // For API routes, return 403 instead of redirecting
+          if (req.nextUrl.pathname.startsWith('/api/')) {
+            return NextResponse.json(
+              { error: 'Admin access required' },
+              { status: 403 }
+            );
+          }
           return NextResponse.redirect(new URL('/unauthorized', req.url));
         }
 
@@ -163,6 +181,13 @@ export default clerkMiddleware(async (auth, req) => {
 
       } catch (error) {
         console.error('Middleware error:', error);
+        // For API routes, return 500 instead of redirecting
+        if (req.nextUrl.pathname.startsWith('/api/')) {
+          return NextResponse.json(
+            { error: 'Internal server error' },
+            { status: 500 }
+          );
+        }
         return NextResponse.redirect(new URL('/unauthorized', req.url));
       }
     }

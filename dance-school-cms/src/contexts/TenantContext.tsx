@@ -10,7 +10,11 @@ export interface Tenant {
     current: string;
   };
   status: 'active' | 'inactive' | 'suspended';
-  logo?: any;
+  logo?: {
+    asset?: {
+      url: string;
+    };
+  };
   description?: string;
   branding?: {
     primaryColor: string;
@@ -48,46 +52,81 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const { isLoaded: isAuthLoaded, userId } = useAuth();
 
   useEffect(() => {
-    // Extract subdomain from hostname
-    const extractTenantSubdomain = () => {
-      if (typeof window === 'undefined') return null;
+    // Extract tenant info from URL or subdomain
+    const getTenantInfo = () => {
+      if (typeof window === 'undefined') return { subdomain: null, pathSlug: null };
+      
+      // Check subdomain first
       const hostname = window.location.hostname;
       const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || 'dancemore.com';
-      if (hostname === 'localhost' || hostname === baseDomain) {
-        return null;
+      let subdomain = null;
+      
+      if (hostname !== 'localhost' && hostname !== baseDomain) {
+        const parts = hostname.split('.');
+        if (parts.length >= 3) {
+          subdomain = parts[0];
+        }
       }
-      const parts = hostname.split('.');
-      if (parts.length < 3) {
-        // No subdomain present
-        return null;
-      }
-      return parts[0];
+
+      // Check URL path for tenant slug
+      const pathSegments = window.location.pathname.split('/').filter(Boolean);
+      const skipRoutes = [
+        'api', '_next', 'sign-in', 'sign-up', 'studio', '.clerk', 
+        'register-school', 'unauthorized', 'dashboard', 'admin', 
+        'student', 'my-classes', 'payment', 'classes', 'calendar', 
+        'my-subscriptions', 'subscriptions', 'instructor', 'blog', 
+        'auth-status', 'check-admin', 'promote-admin', 'debug'
+      ];
+      
+      // Only consider path-based tenant if we're not on the root path
+      const pathSlug = pathSegments.length > 0 && 
+                      window.location.pathname !== '/' && 
+                      !skipRoutes.includes(pathSegments[0])
+        ? pathSegments[0]
+        : null;
+
+      return { subdomain, pathSlug };
     };
 
-    const subdomain = extractTenantSubdomain();
+    const { subdomain, pathSlug } = getTenantInfo();
     setTenantSubdomain(subdomain);
 
     const fetchTenant = async () => {
-      if (!subdomain) {
-        setTenant(null);
-        setIsLoading(false);
-        return;
-      }
+      // Clear any existing tenant data first
+      setTenant(null);
+      setError(null);
 
-      try {
-        const response = await fetch(`/api/tenants/by-subdomain/${subdomain}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch tenant');
+      // Only fetch tenant data if we're on a tenant-specific context
+      if (subdomain || pathSlug) {
+        try {
+          const response = await fetch('/api/tenants/validate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              subdomain: subdomain || pathSlug,
+              userId: userId || undefined
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to validate tenant access');
+          }
+
+          const { tenant, error } = await response.json();
+          
+          if (error) {
+            throw new Error(error);
+          }
+
+          setTenant(tenant);
+        } catch (err) {
+          setError(err instanceof Error ? err : new Error('Unknown error'));
         }
-        const data = await response.json();
-        setTenant(data);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error('Unknown error'));
-        setTenant(null);
-      } finally {
-        setIsLoading(false);
       }
+      
+      setIsLoading(false);
     };
 
     if (isAuthLoaded) {

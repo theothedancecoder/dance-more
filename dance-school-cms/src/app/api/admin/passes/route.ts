@@ -18,27 +18,31 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }
 
-    // Get tenant from headers (set by middleware)
+    // Get tenant from headers (set by middleware) - REQUIRED for security
     const tenantId = request.headers.get('x-tenant-id');
     
-    // Fetch tenant-specific passes from Sanity
-    let query = `*[_type == "pass"`;
-    let params = {};
-    
-    if (tenantId) {
-      // Get tenant document first
-      const tenant = await sanityClient.fetch(
-        `*[_type == "tenant" && subdomain.current == $tenantId][0]`,
-        { tenantId }
+    if (!tenantId) {
+      return NextResponse.json(
+        { error: 'Tenant context required' },
+        { status: 403 }
       );
-      
-      if (tenant) {
-        query += ` && tenant._ref == $tenantRef`;
-        params = { tenantRef: tenant._id };
-      }
+    }
+
+    // Validate tenant exists and is active
+    const tenant = await sanityClient.fetch(
+      `*[_type == "tenant" && _id == $tenantId && status == "active"][0]`,
+      { tenantId }
+    );
+    
+    if (!tenant) {
+      return NextResponse.json(
+        { error: 'Invalid or inactive tenant' },
+        { status: 403 }
+      );
     }
     
-    query += `] | order(_createdAt desc) {
+    // Fetch tenant-specific passes from Sanity with mandatory tenant filter
+    const query = `*[_type == "pass" && tenant._ref == $tenantId] | order(_createdAt desc) {
       _id,
       name,
       description,
@@ -56,7 +60,7 @@ export async function GET(request: NextRequest) {
       _updatedAt
     }`;
 
-    const passes = await sanityClient.fetch(query, params);
+    const passes = await sanityClient.fetch(query, { tenantId });
 
     return NextResponse.json({ passes });
   } catch (error) {
@@ -102,20 +106,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get tenant from headers (set by middleware)
+    // Get tenant from headers (set by middleware) - REQUIRED for security
     const tenantId = request.headers.get('x-tenant-id');
     if (!tenantId) {
-      return NextResponse.json({ error: 'Tenant ID is required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Tenant context required' },
+        { status: 403 }
+      );
     }
 
-    // Get tenant document
+    // Validate tenant exists and is active
     const tenant = await sanityClient.fetch(
-      `*[_type == "tenant" && subdomain.current == $tenantId][0]`,
+      `*[_type == "tenant" && _id == $tenantId && status == "active"][0]`,
       { tenantId }
     );
 
     if (!tenant) {
-      return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Invalid or inactive tenant' },
+        { status: 403 }
+      );
     }
 
     // Create pass document in Sanity

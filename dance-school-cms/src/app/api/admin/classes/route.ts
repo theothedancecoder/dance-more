@@ -146,20 +146,26 @@ export async function POST(request: NextRequest) {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
 
-    // Get tenant from headers (set by middleware)
+    // Get tenant from headers (set by middleware) - REQUIRED for security
     const tenantId = request.headers.get('x-tenant-id');
     if (!tenantId) {
-      return NextResponse.json({ error: 'Tenant ID is required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Tenant context required' },
+        { status: 403 }
+      );
     }
 
-    // Get tenant document
+    // Validate tenant exists and is active
     const tenant = await sanityClient.fetch(
-      `*[_type == "tenant" && subdomain.current == $tenantId][0]`,
+      `*[_type == "tenant" && _id == $tenantId && status == "active"][0]`,
       { tenantId }
     );
 
     if (!tenant) {
-      return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Invalid or inactive tenant' },
+        { status: 403 }
+      );
     }
 
     // Create the class document in Sanity
@@ -241,27 +247,31 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }
 
-    // Get tenant from headers (set by middleware)
+    // Get tenant from headers (set by middleware) - REQUIRED for security
     const tenantId = request.headers.get('x-tenant-id');
     
-    // Fetch tenant-specific classes from Sanity
-    let query = `*[_type == "class"`;
-    let params = {};
-    
-    if (tenantId) {
-      // Get tenant document first
-      const tenant = await sanityClient.fetch(
-        `*[_type == "tenant" && subdomain.current == $tenantId][0]`,
-        { tenantId }
+    if (!tenantId) {
+      return NextResponse.json(
+        { error: 'Tenant context required' },
+        { status: 403 }
       );
-      
-      if (tenant) {
-        query += ` && tenant._ref == $tenantRef`;
-        params = { tenantRef: tenant._id };
-      }
+    }
+
+    // Validate tenant exists and is active
+    const tenant = await sanityClient.fetch(
+      `*[_type == "tenant" && _id == $tenantId && status == "active"][0]`,
+      { tenantId }
+    );
+    
+    if (!tenant) {
+      return NextResponse.json(
+        { error: 'Invalid or inactive tenant' },
+        { status: 403 }
+      );
     }
     
-    query += `] | order(_createdAt desc) {
+    // Fetch tenant-specific classes from Sanity with mandatory tenant filter
+    const query = `*[_type == "class" && tenant._ref == $tenantId] | order(_createdAt desc) {
       _id,
       title,
       slug,
@@ -289,7 +299,7 @@ export async function GET(request: NextRequest) {
       _updatedAt
     }`;
 
-    const classes = await sanityClient.fetch(query, params);
+    const classes = await sanityClient.fetch(query, { tenantId });
 
     return NextResponse.json({
       success: true,

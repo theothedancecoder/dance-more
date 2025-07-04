@@ -15,28 +15,36 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get tenant from headers (set by middleware)
+    // Get tenant from headers (set by middleware) - REQUIRED for security
     const tenantId = request.headers.get('x-tenant-id');
     
-    // Build query with tenant filter
-    let query = `*[_type == "classInstance" && date >= $startDate && date <= $endDate`;
-    let params: any = { 
-      startDate: new Date(startDate).toISOString(),
-      endDate: new Date(endDate).toISOString()
-    };
-
-    if (tenantId) {
-      // Get tenant document first
-      const tenant = await sanityClient.fetch(
-        `*[_type == "tenant" && _id == $tenantId][0]`,
-        { tenantId }
+    if (!tenantId) {
+      return NextResponse.json(
+        { error: 'Tenant context required' },
+        { status: 403 }
       );
-      
-      if (tenant) {
-        query += ` && parentClass->tenant._ref == $tenantRef`;
-        params.tenantRef = tenant._id;
-      }
     }
+
+    // Validate tenant exists and is active
+    const tenant = await sanityClient.fetch(
+      `*[_type == "tenant" && _id == $tenantId && status == "active"][0]`,
+      { tenantId }
+    );
+    
+    if (!tenant) {
+      return NextResponse.json(
+        { error: 'Invalid or inactive tenant' },
+        { status: 403 }
+      );
+    }
+    
+    // Build query with mandatory tenant filter
+    const query = `*[_type == "classInstance" && date >= $startDate && date <= $endDate && parentClass->tenant._ref == $tenantId`;
+    const params = { 
+      startDate: new Date(startDate).toISOString(),
+      endDate: new Date(endDate).toISOString(),
+      tenantId
+    };
 
     // Get class instances within the date range
     const instances = await sanityClient.fetch(

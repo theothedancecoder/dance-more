@@ -13,17 +13,17 @@ export default function Navigation() {
 
   if (!isLoaded) return null;
 
-  const brandName = tenant?.schoolName || 'Dance School CMS';
-  const brandColor = tenant?.primaryColor || '#3B82F6';
+  const brandName = tenant?.schoolName || 'DANCE-MORE SCHOOL MANAGEMENT SYSTEM';
+  const brandColor = tenant?.branding?.primaryColor || '#3B82F6';
 
   return (
     <nav className="bg-white shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center space-x-3">
-            {tenant?.logoUrl && (
+            {tenant?.logo && (
               <Image
-                src={tenant.logoUrl}
+                src={tenant.logo.asset?.url || '/placeholder-logo.png'}
                 alt={`${tenant.schoolName} logo`}
                 width={40}
                 height={40}
@@ -41,21 +41,33 @@ export default function Navigation() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-6 lg:space-x-8">
-            <Link href="/classes" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
-              Classes
-            </Link>
-            <Link href="/calendar" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
-              Calendar
-            </Link>
-            {user && (
-              <Link href="/subscriptions" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
-                My Subscriptions
-              </Link>
-            )}
-            {user && (
-              <Link href="/dashboard" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
-                Dashboard
-              </Link>
+            {tenant ? (
+              // Tenant-specific navigation
+              <>
+                <Link href="/classes" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                  Classes
+                </Link>
+                <Link href="/calendar" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                  Calendar
+                </Link>
+                {user && (
+                  <Link href="/subscriptions" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                    My Subscriptions
+                  </Link>
+                )}
+              </>
+            ) : (
+              // Platform navigation
+              <>
+                {user && (
+                  <Link href="/dashboard" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                    Dashboard
+                  </Link>
+                )}
+                <Link href="/register-school" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                  Register School
+                </Link>
+              </>
             )}
             
             {user ? (
@@ -127,37 +139,53 @@ export default function Navigation() {
 
             <div className="flex-1 overflow-y-auto">
               <nav className="px-4 py-4 space-y-2">
-                <Link 
-                  href="/classes" 
-                  className="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors font-medium"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Classes
-                </Link>
-                <Link 
-                  href="/calendar" 
-                  className="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors font-medium"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Calendar
-                </Link>
-                {user && (
-                  <Link 
-                    href="/subscriptions" 
-                    className="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors font-medium"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    My Subscriptions
-                  </Link>
-                )}
-                {user && (
-                  <Link 
-                    href="/dashboard" 
-                    className="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors font-medium"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Dashboard
-                  </Link>
+                {tenant ? (
+                  // Tenant-specific navigation
+                  <>
+                    <Link 
+                      href="/classes" 
+                      className="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors font-medium"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Classes
+                    </Link>
+                    <Link 
+                      href="/calendar" 
+                      className="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors font-medium"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Calendar
+                    </Link>
+                    {user && (
+                      <Link 
+                        href="/subscriptions" 
+                        className="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors font-medium"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        My Subscriptions
+                      </Link>
+                    )}
+                  </>
+                ) : (
+                  // Platform navigation
+                  <>
+                    {user && (
+                      <Link 
+                        href="/dashboard" 
+                        className="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors font-medium"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        Dashboard
+                      </Link>
+                    )}
+                    <Link 
+                      href="/register-school" 
+                      className="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors font-medium"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Register School
+                    </Link>
+                  </>
                 )}
               </nav>
             </div>

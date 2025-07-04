@@ -10,33 +10,21 @@ export async function GET(
     const { userId } = await auth();
     const { slug } = await params;
 
-    // Fetch tenant data
+    // Require authentication for tenant data access
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    // First, fetch basic tenant info to verify it exists
     const tenant = await client.fetch(
       `*[_type == "tenant" && slug.current == $slug && status == "active"][0]{
         _id,
         schoolName,
         "slug": slug.current,
-        status,
-        contactEmail,
-        contactPhone,
-        description,
-        branding,
-        settings,
-        subscription,
-        createdAt,
-        updatedAt,
-        "stats": {
-          "totalUsers": count(*[_type == "user" && references(^._id)]),
-          "activeClasses": count(*[_type == "class" && references(^._id) && status == "active"]),
-          "activeSubscriptions": count(*[_type == "subscription" && references(^._id) && status == "active"]),
-          "thisWeeksClasses": count(*[_type == "classInstance" && references(^._id) && dateTime >= now() && dateTime <= now() + 60*60*24*7]),
-          "monthlyRevenue": coalesce(
-            *[_type == "payment" && references(^._id) && dateTime >= now() - 60*60*24*30] {
-              "total": amount
-            }[0].total,
-            0
-          )
-        }
+        status
       }`,
       { slug }
     );
@@ -48,18 +36,71 @@ export async function GET(
       );
     }
 
-    // If user is authenticated, verify they belong to this tenant
-    if (userId) {
-      const user = await client.fetch(
-        `*[_type == "user" && clerkId == $userId && references($tenantId)][0]`,
-        { userId, tenantId: tenant._id }
-      );
+    // Verify user belongs to this tenant
+    const user = await client.fetch(
+      `*[_type == "user" && clerkId == $userId && tenant._ref == $tenantId][0]{
+        _id,
+        role,
+        tenant->{_id, "slug": slug.current}
+      }`,
+      { userId, tenantId: tenant._id }
+    );
 
-      // Add user access level to response
-      tenant.userAccess = user ? user.role : 'none';
+    if (!user || user.tenant.slug !== slug) {
+      return NextResponse.json(
+        { error: 'Access denied: User does not belong to this tenant' },
+        { status: 403 }
+      );
     }
 
-    return NextResponse.json(tenant);
+    // Return different data based on user role
+    if (user.role.toLowerCase() === 'admin') {
+      // Admin gets full tenant data including sensitive information
+      const fullTenantData = await client.fetch(
+        `*[_type == "tenant" && _id == $tenantId][0]{
+          _id,
+          schoolName,
+          "slug": slug.current,
+          status,
+          contactEmail,
+          contactPhone,
+          description,
+          branding,
+          settings,
+          subscription,
+          createdAt,
+          updatedAt,
+          "stats": {
+            "totalUsers": count(*[_type == "user" && tenant._ref == ^._id]),
+            "activeClasses": count(*[_type == "class" && tenant._ref == ^._id && isActive == true]),
+            "totalBookings": count(*[_type == "booking" && tenant._ref == ^._id])
+          }
+        }`,
+        { tenantId: tenant._id }
+      );
+
+      return NextResponse.json({
+        ...fullTenantData,
+        userAccess: user.role
+      });
+    } else {
+      // Regular users get limited public information
+      const publicTenantData = await client.fetch(
+        `*[_type == "tenant" && _id == $tenantId][0]{
+          _id,
+          schoolName,
+          "slug": slug.current,
+          description,
+          branding
+        }`,
+        { tenantId: tenant._id }
+      );
+
+      return NextResponse.json({
+        ...publicTenantData,
+        userAccess: user.role
+      });
+    }
 
   } catch (error) {
     console.error('Get tenant error:', error);

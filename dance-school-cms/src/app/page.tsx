@@ -1,15 +1,45 @@
 'use client';
 
-import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/nextjs';
+import { SignedIn, SignedOut, SignInButton, UserButton, useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 import { useTenant } from '@/contexts/TenantContext';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function HomePage() {
   const { tenant, isLoading } = useTenant();
+  const { isSignedIn, isLoaded, userId } = useAuth();
+  const router = useRouter();
+  const [userTenants, setUserTenants] = useState<any[]>([]);
+  const [loadingUserData, setLoadingUserData] = useState(false);
 
-  if (isLoading) {
+  // Fetch user's tenants when signed in and not in a tenant context
+  useEffect(() => {
+    if (isSignedIn && !tenant && isLoaded) {
+      fetchUserTenants();
+    }
+  }, [isSignedIn, tenant, isLoaded]);
+
+  const fetchUserTenants = async () => {
+    setLoadingUserData(true);
+    try {
+      const response = await fetch('/api/auth/user');
+      if (response.ok) {
+        const userData = await response.json();
+        if (userData.tenant) {
+          setUserTenants([userData.tenant]);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user tenants:', error);
+    } finally {
+      setLoadingUserData(false);
+    }
+  };
+
+  if (isLoading || loadingUserData) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -17,7 +47,7 @@ export default function HomePage() {
     );
   }
 
-  // If we have a tenant, show the tenant-specific landing page
+  // If we have a tenant context (subdomain or path), show the tenant-specific landing page
   if (tenant) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -147,29 +177,115 @@ export default function HomePage() {
     );
   }
 
-  // If no tenant, show the main CMS landing page
+  // Platform homepage - show different content based on user state
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation />
       
       <main className="flex flex-col items-center justify-center py-12">
         <div className="w-full max-w-6xl px-4">
+          {/* Signed-in users with tenants - Platform Dashboard */}
+          <SignedIn>
+            {userTenants.length > 0 ? (
+              <div className="text-center mb-12">
+                <h1 className="text-4xl font-bold text-gray-900 mb-4">
+                  Welcome Back!
+                </h1>
+                <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
+                  Access your dance school management portal below.
+                </p>
+                
+                {/* User's Schools */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                  {userTenants.map((userTenant) => (
+                    <div key={userTenant.id} className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
+                      {userTenant.logo && (
+                        <div className="mb-4">
+                          <Image
+                            src={userTenant.logo.asset?.url || '/placeholder-logo.png'}
+                            alt={`${userTenant.schoolName} logo`}
+                            width={80}
+                            height={80}
+                            className="mx-auto rounded-lg"
+                          />
+                        </div>
+                      )}
+                      <h3 className="text-xl font-semibold text-center mb-2">{userTenant.schoolName}</h3>
+                      <div className="flex flex-col gap-2">
+                        <Link
+                          href={`/${userTenant.slug}`}
+                          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-center hover:bg-blue-700 transition-colors"
+                        >
+                          Visit School Portal
+                        </Link>
+                        <Link
+                          href={`/${userTenant.slug}/admin`}
+                          className="bg-gray-600 text-white px-4 py-2 rounded-lg text-center hover:bg-gray-700 transition-colors"
+                        >
+                          Admin Dashboard
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Quick Actions */}
+                <div className="bg-white p-6 rounded-lg shadow-md">
+                  <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
+                  <div className="flex flex-wrap justify-center gap-4">
+                    <Link
+                      href="/register-school"
+                      className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      Register Another School
+                    </Link>
+                    <Link
+                      href="/dashboard"
+                      className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Platform Dashboard
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Signed-in users without tenants */
+              <div className="text-center mb-12">
+                <h1 className="text-4xl font-bold text-gray-900 mb-4">
+                  Welcome to Dance School CMS
+                </h1>
+                <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
+                  You're signed in! Ready to create your dance school portal?
+                </p>
+                <Link
+                  href="/register-school"
+                  className="inline-block bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-700 transition-colors"
+                >
+                  Register Your Dance School
+                </Link>
+              </div>
+            )}
+          </SignedIn>
+
+          {/* Non-signed-in users - Marketing page */}
+          <SignedOut>
           <div className="text-center mb-12">
             <h1 className="text-4xl font-bold text-gray-900 mb-4">
-              Dance School CMS
+              DANCE-MORE SCHOOL MANAGEMENT SYSTEM
             </h1>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
               The complete management system for dance schools. Create your own branded portal today.
             </p>
-            <Link
-              href="/register-school"
-              className="inline-block bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-700 transition-colors"
-            >
-              Register Your Dance School
-            </Link>
-          </div>
+              <Link
+                href="/register-school"
+                className="inline-block bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-700 transition-colors"
+              >
+                Register Your Dance School
+              </Link>
+            </div>
+          </SignedOut>
 
-          {/* Features Grid */}
+          {/* Features Grid - Show for all users */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
             <div className="bg-white p-6 rounded-lg shadow-md">
               <div className="text-blue-600 mb-4">
@@ -202,19 +318,19 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="text-center">
-            <SignedIn>
+          {/* Additional CTA for non-signed-in users */}
+          <SignedOut>
+            <div className="text-center">
               <div className="bg-white p-6 rounded-lg shadow-md inline-block">
-                <p className="text-gray-600 mb-4">Already registered? Go to your dashboard:</p>
-                <Link
-                  href="/dashboard"
-                  className="bg-blue-600 text-white px-6 py-3 rounded-lg inline-block hover:bg-blue-700 transition-colors"
-                >
-                  Dashboard
-                </Link>
+                <p className="text-gray-600 mb-4">Already have an account?</p>
+                <SignInButton mode="modal">
+                  <button className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-colors">
+                    Sign In
+                  </button>
+                </SignInButton>
               </div>
-            </SignedIn>
-          </div>
+            </div>
+          </SignedOut>
         </div>
       </main>
     </div>
