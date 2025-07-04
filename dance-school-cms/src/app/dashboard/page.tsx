@@ -12,6 +12,7 @@ import { User, UserRole } from '@/types';
 export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
+  const [tenant, setTenant] = useState<any>(null);
   const [sanityClasses, setSanityClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -31,6 +32,7 @@ export default function DashboardPage() {
         }
 
         setUser(data.user);
+        setTenant(data.tenant);
         fetchClasses();
       } catch (error) {
         console.error('Error checking auth:', error);
@@ -93,7 +95,7 @@ export default function DashboardPage() {
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center space-x-4">
               <h1 className="text-xl font-semibold text-gray-900">
-                Dance School CMS
+                {tenant?.schoolName || 'Dance School CMS'}
               </h1>
               <span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700">
                 {user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'User'}
@@ -118,7 +120,7 @@ export default function DashboardPage() {
               Welcome back, {user.name}!
             </h2>
             <p className="mt-2 text-gray-600">
-              Here's what's happening in your dance school today.
+              Here's what's happening at {tenant?.schoolName || 'your dance school'} today.
             </p>
           </div>
 

@@ -18,21 +18,45 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }
 
-    // Fetch all passes from Sanity
-    const passes = await sanityClient.fetch(`
-      *[_type == "pass"] | order(createdAt desc) {
-        _id,
-        name,
-        description,
-        type,
-        price,
-        validityDays,
-        classesLimit,
-        isActive,
-        createdAt,
-        updatedAt
+    // Get tenant from headers (set by middleware)
+    const tenantId = request.headers.get('x-tenant-id');
+    
+    // Fetch tenant-specific passes from Sanity
+    let query = `*[_type == "pass"`;
+    let params = {};
+    
+    if (tenantId) {
+      // Get tenant document first
+      const tenant = await sanityClient.fetch(
+        `*[_type == "tenant" && subdomain.current == $tenantId][0]`,
+        { tenantId }
+      );
+      
+      if (tenant) {
+        query += ` && tenant._ref == $tenantRef`;
+        params = { tenantRef: tenant._id };
       }
-    `);
+    }
+    
+    query += `] | order(_createdAt desc) {
+      _id,
+      name,
+      description,
+      type,
+      price,
+      validityDays,
+      classesLimit,
+      isActive,
+      tenant->{
+        _id,
+        schoolName,
+        "subdomain": subdomain.current
+      },
+      _createdAt,
+      _updatedAt
+    }`;
+
+    const passes = await sanityClient.fetch(query, params);
 
     return NextResponse.json({ passes });
   } catch (error) {
@@ -78,6 +102,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get tenant from headers (set by middleware)
+    const tenantId = request.headers.get('x-tenant-id');
+    if (!tenantId) {
+      return NextResponse.json({ error: 'Tenant ID is required' }, { status: 400 });
+    }
+
+    // Get tenant document
+    const tenant = await sanityClient.fetch(
+      `*[_type == "tenant" && subdomain.current == $tenantId][0]`,
+      { tenantId }
+    );
+
+    if (!tenant) {
+      return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
+    }
+
     // Create pass document in Sanity
     const passDoc = {
       _type: 'pass',
@@ -88,6 +128,10 @@ export async function POST(request: NextRequest) {
       validityDays,
       classesLimit: type === 'multi' ? classesLimit : null,
       isActive: isActive ?? true,
+      tenant: {
+        _type: 'reference',
+        _ref: tenant._id
+      },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };

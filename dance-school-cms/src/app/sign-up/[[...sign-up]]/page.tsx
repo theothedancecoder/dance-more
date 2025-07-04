@@ -7,7 +7,7 @@ export default function Page() {
         <h1 className="mb-6 text-center text-3xl font-bold text-gray-800">
           Sign Up
         </h1>
-        <SignUp />
+        <SignUp fallbackRedirectUrl="/register-school" />
       </div>
     </main>
   );

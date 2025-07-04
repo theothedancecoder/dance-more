@@ -15,9 +15,32 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Get tenant from headers (set by middleware)
+    const tenantId = request.headers.get('x-tenant-id');
+    
+    // Build query with tenant filter
+    let query = `*[_type == "classInstance" && date >= $startDate && date <= $endDate`;
+    let params: any = { 
+      startDate: new Date(startDate).toISOString(),
+      endDate: new Date(endDate).toISOString()
+    };
+
+    if (tenantId) {
+      // Get tenant document first
+      const tenant = await sanityClient.fetch(
+        `*[_type == "tenant" && _id == $tenantId][0]`,
+        { tenantId }
+      );
+      
+      if (tenant) {
+        query += ` && parentClass->tenant._ref == $tenantRef`;
+        params.tenantRef = tenant._id;
+      }
+    }
+
     // Get class instances within the date range
     const instances = await sanityClient.fetch(
-      `*[_type == "classInstance" && date >= $startDate && date <= $endDate] {
+      query + `] {
         _id,
         date,
         isCancelled,
@@ -37,11 +60,8 @@ export async function GET(request: NextRequest) {
             image
           }
         }
-      } | order(date asc)`,
-      { 
-        startDate: new Date(startDate).toISOString(),
-        endDate: new Date(endDate).toISOString()
-      }
+        } | order(date asc)`,
+      params
     );
 
     // Transform data for calendar display

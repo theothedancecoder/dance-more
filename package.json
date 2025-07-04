@@ -9,7 +9,25 @@
     "lint": "cd dance-school-cms && npm run lint",
     "install-deps": "cd dance-school-cms && npm install"
   },
-  "keywords": ["dance", "school", "cms", "nextjs"],
+  "keywords": [
+    "dance",
+    "school",
+    "cms",
+    "nextjs"
+  ],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "main": "next.config.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/theothedancecoder/dance-more.git"
+  },
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/theothedancecoder/dance-more/issues"
+  },
+  "homepage": "https://github.com/theothedancecoder/dance-more#readme",
+  "dependencies": {
+    "@sanity/client": "^7.6.0"
+  }
 }

@@ -60,6 +60,13 @@ export const classInstanceType = defineType({
               title: 'Booking Time',
               type: 'datetime',
             },
+            {
+              name: 'tenant',
+              title: 'Tenant',
+              type: 'reference',
+              to: [{ type: 'tenant' }],
+              validation: (Rule) => Rule.required(),
+            },
           ],
         },
       ],

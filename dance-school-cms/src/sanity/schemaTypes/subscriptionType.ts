@@ -81,6 +81,14 @@ export const subscriptionType = defineType({
       title: 'Stripe Payment ID',
       type: 'string',
     }),
+    defineField({
+      name: 'tenant',
+      title: 'Tenant',
+      type: 'reference',
+      to: [{ type: 'tenant' }],
+      validation: (Rule) => Rule.required(),
+      description: 'The dance school this subscription belongs to',
+    }),
   ],
   preview: {
     select: {

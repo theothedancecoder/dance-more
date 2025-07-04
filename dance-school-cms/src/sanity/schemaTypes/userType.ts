@@ -38,6 +38,13 @@ export const userType = defineType({
       type: 'string',
     }),
     defineField({
+      name: 'tenant',
+      title: 'Tenant',
+      type: 'reference',
+      to: [{ type: 'tenant' }],
+      description: 'The tenant/school this user belongs to',
+    }),
+    defineField({
       name: 'role',
       title: 'Role',
       type: 'string',

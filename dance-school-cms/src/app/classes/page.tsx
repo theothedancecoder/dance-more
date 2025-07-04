@@ -114,7 +114,7 @@ export default async function ClassesPage() {
                   
                   <div className="mt-6">
                     <Link
-                      href={`/classes/${classItem.slug.current}`}
+                      href={`/classes/${classItem.slug?.current || classItem._id}`}
                       className="w-full bg-blue-600 text-white text-center py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors inline-block"
                     >
                       View Details

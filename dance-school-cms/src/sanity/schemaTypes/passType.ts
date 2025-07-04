@@ -70,6 +70,14 @@ export const passType = defineType({
       type: 'datetime',
       readOnly: true,
     }),
+    defineField({
+      name: 'tenant',
+      title: 'Tenant',
+      type: 'reference',
+      to: [{ type: 'tenant' }],
+      validation: (Rule) => Rule.required(),
+      description: 'The dance school this pass belongs to',
+    }),
   ],
   preview: {
     select: {

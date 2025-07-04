@@ -1,106 +1,111 @@
 'use client';
 
-import { createContext, useContext, ReactNode, useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { createContext, useContext, useEffect, useState } from 'react';
+import { useAuth } from '@clerk/nextjs';
 
-interface Tenant {
+export interface Tenant {
   _id: string;
   schoolName: string;
-  subdomain: string;
-  logoUrl?: string;
-  primaryColor?: string;
-  secondaryColor?: string;
+  slug: {
+    current: string;
+  };
+  status: 'active' | 'inactive' | 'suspended';
+  logo?: any;
   description?: string;
-  contactEmail?: string;
-  contactPhone?: string;
-  address?: string;
+  branding?: {
+    primaryColor: string;
+    secondaryColor: string;
+    accentColor: string;
+  };
+  settings?: {
+    timezone: string;
+    currency: string;
+    allowPublicRegistration: boolean;
+    requireApproval: boolean;
+  };
 }
 
 interface TenantContextType {
   tenant: Tenant | null;
   isLoading: boolean;
-  error: string | null;
+  error: Error | null;
+  tenantSubdomain: string | null;
 }
 
 const TenantContext = createContext<TenantContextType>({
   tenant: null,
   isLoading: true,
   error: null,
+  tenantSubdomain: null,
 });
 
-export const useTenant = () => {
-  const context = useContext(TenantContext);
-  if (!context) {
-    throw new Error('useTenant must be used within a TenantProvider');
-  }
-  return context;
-};
-
-interface TenantProviderProps {
-  children: ReactNode;
-}
-
-export function TenantProvider({ children }: TenantProviderProps) {
+export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const pathname = usePathname();
+  const [error, setError] = useState<Error | null>(null);
+  const [tenantSubdomain, setTenantSubdomain] = useState<string | null>(null);
+
+  const { isLoaded: isAuthLoaded, userId } = useAuth();
 
   useEffect(() => {
+    // Extract subdomain from hostname
+    const extractTenantSubdomain = () => {
+      if (typeof window === 'undefined') return null;
+      const hostname = window.location.hostname;
+      const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || 'dancemore.com';
+      if (hostname === 'localhost' || hostname === baseDomain) {
+        return null;
+      }
+      const parts = hostname.split('.');
+      if (parts.length < 3) {
+        // No subdomain present
+        return null;
+      }
+      return parts[0];
+    };
+
+    const subdomain = extractTenantSubdomain();
+    setTenantSubdomain(subdomain);
+
     const fetchTenant = async () => {
+      if (!subdomain) {
+        setTenant(null);
+        setIsLoading(false);
+        return;
+      }
+
       try {
-        setIsLoading(true);
-        setError(null);
-
-        // Get tenant identifier from either subdomain or path
-        const host = window.location.host;
-        let tenantIdentifier: string;
-
-        if (host.includes('.')) {
-          // Subdomain approach
-          const subdomain = host.split('.')[0];
-          if (subdomain === 'www' || subdomain === 'localhost:3000') {
-            // Handle root domain
-            if (pathname === '/') {
-              setIsLoading(false);
-              return; // Show landing page
-            }
-            // Try to get tenant from path
-            tenantIdentifier = pathname.split('/')[1];
-          } else {
-            tenantIdentifier = subdomain;
-          }
-        } else {
-          // Path-based approach
-          tenantIdentifier = pathname.split('/')[1];
-        }
-
-        if (!tenantIdentifier) {
-          setIsLoading(false);
-          return; // Show landing page
-        }
-
-        // Fetch tenant data
-        const response = await fetch(`/api/tenants/${tenantIdentifier}`);
+        const response = await fetch(`/api/tenants/by-subdomain/${subdomain}`);
         if (!response.ok) {
-          throw new Error('Failed to fetch tenant data');
+          throw new Error('Failed to fetch tenant');
         }
-
         const data = await response.json();
         setTenant(data);
+        setError(null);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
+        setError(err instanceof Error ? err : new Error('Unknown error'));
+        setTenant(null);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchTenant();
-  }, [pathname]);
+    if (isAuthLoaded) {
+      fetchTenant();
+    }
+  }, [isAuthLoaded, userId]);
 
   return (
-    <TenantContext.Provider value={{ tenant, isLoading, error }}>
+    <TenantContext.Provider value={{ tenant, isLoading, error, tenantSubdomain }}>
       {children}
     </TenantContext.Provider>
   );
+}
+
+export function useTenant() {
+  const context = useContext(TenantContext);
+  if (context === undefined) {
+    throw new Error('useTenant must be used within a TenantProvider');
+  }
+  return context;
 }

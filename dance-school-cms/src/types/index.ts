@@ -21,6 +21,21 @@ export const UserSchema = z.object({
 
 export type User = z.infer<typeof UserSchema>;
 
+// Tenant Types
+export const TenantSchema = z.object({
+  id: z.string(),
+  schoolName: z.string(),
+  slug: z.string(),
+  branding: z.object({
+    primaryColor: z.string(),
+    secondaryColor: z.string(),
+    accentColor: z.string(),
+  }).optional(),
+  logo: z.any().optional(), // Sanity image type
+});
+
+export type Tenant = z.infer<typeof TenantSchema>;
+
 // Extended user type that combines Clerk user with our role system
 export type ExtendedUser = {
   id: string;
@@ -29,6 +44,7 @@ export type ExtendedUser = {
   name: string;
   role: UserRole;
   clerkUser: ClerkUser;
+  tenant?: Tenant;
   createdAt: Date;
   updatedAt: Date;
 };

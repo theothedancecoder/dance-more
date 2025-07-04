@@ -146,6 +146,22 @@ export async function POST(request: NextRequest) {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
 
+    // Get tenant from headers (set by middleware)
+    const tenantId = request.headers.get('x-tenant-id');
+    if (!tenantId) {
+      return NextResponse.json({ error: 'Tenant ID is required' }, { status: 400 });
+    }
+
+    // Get tenant document
+    const tenant = await sanityClient.fetch(
+      `*[_type == "tenant" && subdomain.current == $tenantId][0]`,
+      { tenantId }
+    );
+
+    if (!tenant) {
+      return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
+    }
+
     // Create the class document in Sanity
     const classDoc: any = {
       _type: 'class',
@@ -164,6 +180,10 @@ export async function POST(request: NextRequest) {
       instructor: {
         _type: 'reference',
         _ref: finalInstructorId
+      },
+      tenant: {
+        _type: 'reference',
+        _ref: tenant._id
       },
       isRecurring: !!isRecurring,
       isActive: true
@@ -221,30 +241,55 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }
 
-    // Fetch all classes from Sanity
-    const classes = await sanityClient.fetch(`
-      *[_type == "class"] | order(startTime desc) {
-        _id,
-        title,
-        slug,
-        description,
-        category,
-        level,
-        duration,
-        capacity,
-        price,
-        location,
-        startTime,
-        endTime,
-        instructor->{
-          _id,
-          name,
-          email
-        },
-        createdAt,
-        updatedAt
+    // Get tenant from headers (set by middleware)
+    const tenantId = request.headers.get('x-tenant-id');
+    
+    // Fetch tenant-specific classes from Sanity
+    let query = `*[_type == "class"`;
+    let params = {};
+    
+    if (tenantId) {
+      // Get tenant document first
+      const tenant = await sanityClient.fetch(
+        `*[_type == "tenant" && subdomain.current == $tenantId][0]`,
+        { tenantId }
+      );
+      
+      if (tenant) {
+        query += ` && tenant._ref == $tenantRef`;
+        params = { tenantRef: tenant._id };
       }
-    `);
+    }
+    
+    query += `] | order(_createdAt desc) {
+      _id,
+      title,
+      slug,
+      description,
+      danceStyle,
+      level,
+      duration,
+      capacity,
+      price,
+      location,
+      isRecurring,
+      singleClassDate,
+      recurringSchedule,
+      instructor->{
+        _id,
+        name,
+        email
+      },
+      tenant->{
+        _id,
+        schoolName,
+        "subdomain": subdomain.current
+      },
+      _createdAt,
+      _updatedAt
+    }`;
+
+    const classes = await sanityClient.fetch(query, params);
 
     return NextResponse.json({
       success: true,

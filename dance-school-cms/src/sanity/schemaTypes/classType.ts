@@ -205,6 +205,14 @@ export const classType = defineType({
       type: 'array',
       of: [{ type: 'string' }],
     }),
+    defineField({
+      name: 'tenant',
+      title: 'Tenant',
+      type: 'reference',
+      to: [{ type: 'tenant' }],
+      validation: (Rule) => Rule.required(),
+      description: 'The dance school this class belongs to',
+    }),
   ],
   preview: {
     select: {
