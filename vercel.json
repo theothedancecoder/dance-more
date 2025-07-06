@@ -1,7 +1,6 @@
 {
-  "buildCommand": "npm run build",
-  "devCommand": "npm run dev", 
-  "installCommand": "npm install",
-  "outputDirectory": ".next",
-  "rootDirectory": "dance-school-cms"
+  "buildCommand": "cd dance-school-cms && npm run build",
+  "devCommand": "cd dance-school-cms && npm run dev", 
+  "installCommand": "cd dance-school-cms && npm install",
+  "outputDirectory": "dance-school-cms/.next"
 }

@@ -200,7 +200,7 @@ export default function AdminDashboard({ stats, user }: AdminDashboardProps) {
               <p className="mt-2 text-gray-600">Access Sanity Studio to manage content</p>
               <span className="mt-4 inline-block text-blue-600 font-medium">Open Studio →</span>
             </Link>
-            <Link href={getTenantUrl("/dashboard")} className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
+            <Link href={tenantSlug ? `/${tenantSlug}` : "/dashboard"} className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
               <h3 className="text-xl font-semibold text-gray-900">Main Dashboard</h3>
               <p className="mt-2 text-gray-600">Return to the main dashboard</p>
               <span className="mt-4 inline-block text-blue-600 font-medium">Go to Dashboard →</span>
@@ -223,7 +223,7 @@ export default function AdminDashboard({ stats, user }: AdminDashboardProps) {
                 Admin Dashboard
               </h1>
               <Link 
-                href={getTenantUrl("/dashboard")} 
+                href={tenantSlug ? `/${tenantSlug}` : "/dashboard"} 
                 className="text-sm text-blue-600 hover:text-blue-800"
               >
                 ← Back to Main Dashboard
