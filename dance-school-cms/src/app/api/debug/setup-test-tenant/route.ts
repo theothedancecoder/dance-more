@@ -6,10 +6,10 @@ export async function POST(request: NextRequest) {
     // Create a test tenant
     const tenantDoc = {
       _type: 'tenant',
-      schoolName: 'Dance with DanceCity',
+      schoolName: 'DanceZone Studio',
       slug: {
         _type: 'slug',
-        current: 'dance-with-dancecity'
+        current: 'dancezone'
       },
       status: 'active',
       branding: {

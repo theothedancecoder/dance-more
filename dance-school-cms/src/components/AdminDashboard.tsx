@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { UserButton } from '@clerk/nextjs';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { 
   UserGroupIcon, 
   CreditCardIcon, 
@@ -42,6 +43,16 @@ const tabs = [
 
 export default function AdminDashboard({ stats, user }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState('overview');
+  const params = useParams();
+  const tenantSlug = params?.slug as string;
+
+  // Helper function to create tenant-aware URLs
+  const getTenantUrl = (path: string) => {
+    if (tenantSlug) {
+      return `/${tenantSlug}${path}`;
+    }
+    return path;
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -109,12 +120,12 @@ export default function AdminDashboard({ stats, user }: AdminDashboardProps) {
       case 'users':
         return (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <Link href="/admin/users" className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
+            <Link href={getTenantUrl("/admin/users")} className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
               <h3 className="text-xl font-semibold text-gray-900">User Management</h3>
               <p className="mt-2 text-gray-600">Manage user roles and promote users to admin</p>
               <span className="mt-4 inline-block text-blue-600 font-medium">Manage Users →</span>
             </Link>
-            <Link href="/promote-admin" className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
+            <Link href={getTenantUrl("/promote-admin")} className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
               <h3 className="text-xl font-semibold text-gray-900">Promote Admin</h3>
               <p className="mt-2 text-gray-600">Promote users to admin role</p>
               <span className="mt-4 inline-block text-blue-600 font-medium">Promote Users →</span>
@@ -124,12 +135,12 @@ export default function AdminDashboard({ stats, user }: AdminDashboardProps) {
       case 'classes':
         return (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <Link href="/admin/classes/new" className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
+            <Link href={getTenantUrl("/admin/classes/new")} className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
               <h3 className="text-xl font-semibold text-gray-900">Create Class</h3>
               <p className="mt-2 text-gray-600">Add new dance classes to the schedule</p>
               <span className="mt-4 inline-block text-blue-600 font-medium">Create Class →</span>
             </Link>
-            <Link href="/admin/schedule" className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
+            <Link href={getTenantUrl("/admin/schedule")} className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
               <h3 className="text-xl font-semibold text-gray-900">Schedule Management</h3>
               <p className="mt-2 text-gray-600">Manage recurring classes and generate instances</p>
               <span className="mt-4 inline-block text-blue-600 font-medium">Manage Schedule →</span>
@@ -139,12 +150,12 @@ export default function AdminDashboard({ stats, user }: AdminDashboardProps) {
       case 'passes':
         return (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <Link href="/admin/passes" className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
+            <Link href={getTenantUrl("/admin/passes")} className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
               <h3 className="text-xl font-semibold text-gray-900">Passes & Clipcards</h3>
               <p className="mt-2 text-gray-600">Create and manage subscription passes and clipcards</p>
               <span className="mt-4 inline-block text-blue-600 font-medium">Manage Passes →</span>
             </Link>
-            <Link href="/admin/payments" className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
+            <Link href={getTenantUrl("/admin/payments")} className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
               <h3 className="text-xl font-semibold text-gray-900">Payments & Bookings</h3>
               <p className="mt-2 text-gray-600">View payment transactions and class bookings</p>
               <span className="mt-4 inline-block text-blue-600 font-medium">View Payments →</span>
@@ -154,12 +165,12 @@ export default function AdminDashboard({ stats, user }: AdminDashboardProps) {
       case 'schedule':
         return (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <Link href="/admin/schedule" className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
+            <Link href={getTenantUrl("/admin/schedule")} className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
               <h3 className="text-xl font-semibold text-gray-900">Schedule Management</h3>
               <p className="mt-2 text-gray-600">Manage recurring classes and generate instances</p>
               <span className="mt-4 inline-block text-blue-600 font-medium">Manage Schedule →</span>
             </Link>
-            <Link href="/calendar" className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
+            <Link href={getTenantUrl("/calendar")} className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
               <h3 className="text-xl font-semibold text-gray-900">Class Calendar</h3>
               <p className="mt-2 text-gray-600">View the full class calendar</p>
               <span className="mt-4 inline-block text-blue-600 font-medium">View Calendar →</span>
@@ -169,12 +180,12 @@ export default function AdminDashboard({ stats, user }: AdminDashboardProps) {
       case 'reports':
         return (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <Link href="/admin/reports" className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
+            <Link href={getTenantUrl("/admin/reports")} className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
               <h3 className="text-xl font-semibold text-gray-900">Reports & Analytics</h3>
               <p className="mt-2 text-gray-600">View business insights and performance metrics</p>
               <span className="mt-4 inline-block text-blue-600 font-medium">View Reports →</span>
             </Link>
-            <Link href="/admin/payments" className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
+            <Link href={getTenantUrl("/admin/payments")} className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
               <h3 className="text-xl font-semibold text-gray-900">Financial Reports</h3>
               <p className="mt-2 text-gray-600">View payment and revenue reports</p>
               <span className="mt-4 inline-block text-blue-600 font-medium">View Financials →</span>
@@ -184,12 +195,12 @@ export default function AdminDashboard({ stats, user }: AdminDashboardProps) {
       case 'settings':
         return (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <Link href="/studio" className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
+            <Link href={getTenantUrl("/studio")} className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
               <h3 className="text-xl font-semibold text-gray-900">Content Studio</h3>
               <p className="mt-2 text-gray-600">Access Sanity Studio to manage content</p>
               <span className="mt-4 inline-block text-blue-600 font-medium">Open Studio →</span>
             </Link>
-            <Link href="/dashboard" className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
+            <Link href={getTenantUrl("/dashboard")} className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
               <h3 className="text-xl font-semibold text-gray-900">Main Dashboard</h3>
               <p className="mt-2 text-gray-600">Return to the main dashboard</p>
               <span className="mt-4 inline-block text-blue-600 font-medium">Go to Dashboard →</span>
@@ -212,7 +223,7 @@ export default function AdminDashboard({ stats, user }: AdminDashboardProps) {
                 Admin Dashboard
               </h1>
               <Link 
-                href="/dashboard" 
+                href={getTenantUrl("/dashboard")} 
                 className="text-sm text-blue-600 hover:text-blue-800"
               >
                 ← Back to Main Dashboard

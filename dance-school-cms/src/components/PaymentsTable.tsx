@@ -158,12 +158,14 @@ export default function PaymentsTable({ transactions }: PaymentsTableProps) {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
                         <div className="text-sm font-medium text-gray-900">
-                          {transaction.user?.firstName && transaction.user?.lastName 
+                          {(typeof transaction.user?.firstName === 'string' && typeof transaction.user?.lastName === 'string') 
                             ? `${transaction.user.firstName} ${transaction.user.lastName}`
-                            : transaction.user?.name || 'Unknown User'}
+                            : (typeof transaction.user?.name === 'string' ? transaction.user.name : 'Unknown User')}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {transaction.user?.email || transaction.email}
+                          {(typeof transaction.user?.email === 'string' ? transaction.user.email : null) || 
+                           (typeof transaction.email === 'string' ? transaction.email : null) || 
+                           'No email'}
                         </div>
                       </div>
                     </td>

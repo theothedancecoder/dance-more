@@ -117,9 +117,41 @@ export default clerkMiddleware(async (auth, req) => {
     // Get user from Sanity to check their tenant and role
     const user = await getUserByClerkId(userId);
     
+    // For API routes without tenant context, try to get tenant from referer or user's default tenant
+    if (!tenantSlug && req.nextUrl.pathname.startsWith('/api/')) {
+      // Check if the request has a referer header that contains tenant info
+      const referer = req.headers.get('referer');
+      if (referer) {
+        const refererUrl = new URL(referer);
+        const refererPathSegments = refererUrl.pathname.split('/').filter(Boolean);
+        if (refererPathSegments.length > 0) {
+          const refererFirstSegment = refererPathSegments[0];
+          const skipRoutes = [
+            'api', '_next', 'sign-in', 'sign-up', 'studio', '.clerk', 
+            'register-school', 'unauthorized',
+            'dashboard', 'admin', 'student', 'my-classes', 'payment',
+            'classes', 'calendar', 'my-subscriptions', 'subscriptions',
+            'instructor', 'blog', 'auth-status', 'check-admin', 'promote-admin', 'debug'
+          ];
+          if (!skipRoutes.includes(refererFirstSegment)) {
+            tenantSlug = refererFirstSegment;
+          }
+        }
+      }
+      
+      // If still no tenant slug, use user's default tenant
+      if (!tenantSlug && user && user.tenant && user.tenant.slug) {
+        tenantSlug = user.tenant.slug;
+      }
+    }
+    
     // For non-tenant routes (like /dashboard), just check if user exists
     if (!tenantSlug) {
       if (!user) {
+        // For API routes, return 403 instead of redirecting
+        if (req.nextUrl.pathname.startsWith('/api/')) {
+          return NextResponse.json({ error: 'No tenant context available' }, { status: 403 });
+        }
         return NextResponse.redirect(new URL('/register-school', req.url));
       }
       return NextResponse.next();

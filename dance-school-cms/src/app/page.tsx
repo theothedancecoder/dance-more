@@ -4,6 +4,7 @@ import { SignedIn, SignedOut, SignInButton, UserButton, useAuth } from '@clerk/n
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 import { useTenant } from '@/contexts/TenantContext';
+import AuthRedirect from '@/components/AuthRedirect';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -28,8 +29,28 @@ export default function HomePage() {
       const response = await fetch('/api/auth/user');
       if (response.ok) {
         const userData = await response.json();
-        if (userData.tenant) {
-          setUserTenants([userData.tenant]);
+        if (userData.tenant && userData.tenant.slug) {
+          const tenantSlug = userData.tenant.slug;
+          
+          // Try to validate the tenant by making a simple request to the public tenant API
+          try {
+            const tenantCheckResponse = await fetch(`/api/tenants/${tenantSlug}/public`, {
+              method: 'GET',
+            });
+
+            if (tenantCheckResponse.ok) {
+              setUserTenants([userData.tenant]);
+              
+              // Only auto-redirect if user explicitly wants to go to their tenant
+              // Don't auto-redirect from the main homepage - let them choose
+              // This prevents the unwanted automatic redirect issue
+            } else {
+              // Tenant doesn't exist or isn't accessible
+              console.warn('Tenant not accessible:', tenantSlug, 'Status:', tenantCheckResponse.status);
+            }
+          } catch (validationError) {
+            console.error('Error checking tenant accessibility:', validationError);
+          }
         }
       }
     } catch (error) {
@@ -228,7 +249,7 @@ export default function HomePage() {
                   {/* User's Schools */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                     {userTenants.map((userTenant, index) => (
-                      <div key={userTenant.id} className={`modern-card p-8 rounded-3xl hover-lift transition-smooth animate-slide-in-left animate-stagger-${index + 1}`}>
+                      <div key={userTenant._id || userTenant.slug || index} className={`modern-card p-8 rounded-3xl hover-lift transition-smooth animate-slide-in-left animate-stagger-${index + 1}`}>
                         {userTenant.logo && (
                           <div className="mb-6">
                             <Image

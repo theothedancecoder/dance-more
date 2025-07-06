@@ -29,6 +29,14 @@ export default function TenantAdminPage() {
   const { isLoaded, isSignedIn, userId } = useAuth();
   const [tenant, setTenant] = useState<TenantData | null>(null);
   const [user, setUser] = useState<UserData | null>(null);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    activeClasses: 0,
+    activeSubscriptions: 0,
+    thisWeeksClasses: 0,
+    monthlyRevenue: 0,
+    systemStatus: 'Healthy'
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,6 +72,32 @@ export default function TenantAdminPage() {
         }
         
         setUser(userData);
+
+        // Fetch stats data
+        const [usersResponse, classesResponse, bookingsResponse] = await Promise.all([
+          fetch('/api/admin/stats/users', {
+            headers: { 'x-tenant-slug': tenantSlug },
+          }),
+          fetch('/api/admin/stats/classes', {
+            headers: { 'x-tenant-slug': tenantSlug },
+          }),
+          fetch('/api/admin/stats/bookings', {
+            headers: { 'x-tenant-slug': tenantSlug },
+          }),
+        ]);
+
+        const usersData = usersResponse.ok ? await usersResponse.json() : { totalUsers: 0 };
+        const classesData = classesResponse.ok ? await classesResponse.json() : { totalClasses: 0 };
+        const bookingsData = bookingsResponse.ok ? await bookingsResponse.json() : { totalBookings: 0, totalRevenue: 0 };
+
+        setStats({
+          totalUsers: usersData.totalUsers || 0,
+          activeClasses: classesData.totalClasses || 0,
+          activeSubscriptions: 0, // This would need a separate API
+          thisWeeksClasses: bookingsData.totalBookings || 0,
+          monthlyRevenue: bookingsData.totalRevenue || 0,
+          systemStatus: 'Healthy'
+        });
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
@@ -139,17 +173,10 @@ export default function TenantAdminPage() {
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <AdminDashboard 
-          stats={{
-            totalUsers: 0,
-            activeClasses: 0,
-            activeSubscriptions: 0,
-            thisWeeksClasses: 0,
-            monthlyRevenue: 0,
-            systemStatus: 'Healthy'
-          }}
+          stats={stats}
           user={{
-            fullName: 'Admin User',
-            firstName: 'Admin'
+            fullName: user.firstName || 'Admin User',
+            firstName: user.firstName || 'Admin'
           }}
         />
       </div>

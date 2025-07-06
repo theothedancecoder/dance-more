@@ -67,10 +67,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user is admin
-    const userIsAdmin = await isAdmin(userId);
-    if (!userIsAdmin) {
-      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
+    // Check if user is admin - with fallback to Sanity-only check
+    let userIsAdmin = false;
+    try {
+      userIsAdmin = await isAdmin(userId);
+    } catch (error) {
+      console.warn('Clerk admin check failed, falling back to Sanity check:', error);
+      // We'll check admin status after getting tenant context
     }
 
     const body = await request.json();
@@ -146,13 +149,45 @@ export async function POST(request: NextRequest) {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
 
-    // Get tenant from headers (set by middleware) - REQUIRED for security
-    const tenantId = request.headers.get('x-tenant-id');
+    // Get tenant from headers or URL parameter
+    let tenantId = request.headers.get('x-tenant-id');
+    const tenantSlug = request.headers.get('x-tenant-slug');
+    
+    // If no tenant ID from middleware, try to get it from tenant slug
+    if (!tenantId && tenantSlug) {
+      const tenant = await sanityClient.fetch(
+        `*[_type == "tenant" && slug.current == $tenantSlug && status == "active"][0]`,
+        { tenantSlug }
+      );
+      if (tenant) {
+        tenantId = tenant._id;
+      }
+    }
+    
     if (!tenantId) {
       return NextResponse.json(
         { error: 'Tenant context required' },
         { status: 403 }
       );
+    }
+
+    // Complete admin check with fallback if Clerk failed
+    if (!userIsAdmin) {
+      try {
+        userIsAdmin = await isAdmin(userId, tenantId);
+      } catch (error) {
+        console.warn('Clerk admin check failed, falling back to Sanity check:', error);
+        // Fallback: Check admin status directly in Sanity
+        const sanityUser = await sanityClient.fetch(
+          `*[_type == "user" && clerkId == $userId && tenant._ref == $tenantId && role == "admin"][0]`,
+          { userId, tenantId }
+        );
+        userIsAdmin = !!sanityUser;
+      }
+    }
+    
+    if (!userIsAdmin) {
+      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }
 
     // Validate tenant exists and is active
@@ -241,20 +276,44 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user is admin
-    const userIsAdmin = await isAdmin(userId);
-    if (!userIsAdmin) {
-      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
+    // Get tenant from headers or URL parameter
+    let tenantId = request.headers.get('x-tenant-id');
+    const tenantSlug = request.headers.get('x-tenant-slug');
+    
+    // If no tenant ID from middleware, try to get it from tenant slug
+    if (!tenantId && tenantSlug) {
+      const tenant = await sanityClient.fetch(
+        `*[_type == "tenant" && slug.current == $tenantSlug && status == "active"][0]`,
+        { tenantSlug }
+      );
+      if (tenant) {
+        tenantId = tenant._id;
+      }
     }
-
-    // Get tenant from headers (set by middleware) - REQUIRED for security
-    const tenantId = request.headers.get('x-tenant-id');
     
     if (!tenantId) {
       return NextResponse.json(
         { error: 'Tenant context required' },
         { status: 403 }
       );
+    }
+
+    // Check if user is admin - with fallback to Sanity-only check
+    let userIsAdmin = false;
+    try {
+      userIsAdmin = await isAdmin(userId, tenantId);
+    } catch (error) {
+      console.warn('Clerk admin check failed, falling back to Sanity check:', error);
+      // Fallback: Check admin status directly in Sanity
+      const sanityUser = await sanityClient.fetch(
+        `*[_type == "user" && clerkId == $userId && tenant._ref == $tenantId && role == "admin"][0]`,
+        { userId, tenantId }
+      );
+      userIsAdmin = !!sanityUser;
+    }
+    
+    if (!userIsAdmin) {
+      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }
 
     // Validate tenant exists and is active

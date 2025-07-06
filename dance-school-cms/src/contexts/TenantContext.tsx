@@ -99,27 +99,19 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       // Only fetch tenant data if we're on a tenant-specific context
       if (subdomain || pathSlug) {
         try {
-          const response = await fetch('/api/tenants/validate', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              subdomain: subdomain || pathSlug,
-              userId: userId || undefined
-            })
+          const tenantSlug = subdomain || pathSlug;
+          const response = await fetch(`/api/tenants/${tenantSlug}/public`, {
+            method: 'GET',
           });
 
           if (!response.ok) {
-            throw new Error('Failed to validate tenant access');
+            if (response.status === 404) {
+              throw new Error(`Tenant "${tenantSlug}" not found`);
+            }
+            throw new Error('Failed to fetch tenant data');
           }
 
-          const { tenant, error } = await response.json();
-          
-          if (error) {
-            throw new Error(error);
-          }
-
+          const tenant = await response.json();
           setTenant(tenant);
         } catch (err) {
           setError(err instanceof Error ? err : new Error('Unknown error'));

@@ -74,7 +74,7 @@ export default function UpcomingClasses({ user, sanityClasses }: UpcomingClasses
                       {format(classItem.startTime, 'MMM dd, yyyy • h:mm a')} - {format(classItem.endTime, 'h:mm a')}
                     </p>
                     <p className="text-sm text-gray-500">
-                      Instructor: {instructor?.name} • {classItem.location}
+                      Instructor: {instructor?.name || 'TBA'} • {classItem.location}
                     </p>
                   </div>
                   <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
