@@ -11,26 +11,21 @@ import Navigation from '@/components/Navigation';
 export default function TenantHomePage() {
   const params = useParams();
   const { tenant, isLoading, error } = useTenant();
-  const [isValidating, setIsValidating] = useState(true);
 
-  useEffect(() => {
-    // Give the tenant context time to validate
-    const timer = setTimeout(() => {
-      setIsValidating(false);
-    }, 2000);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (isLoading || isValidating) {
+  // Show loading while tenant context is loading
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading school information...</p>
+        </div>
       </div>
     );
   }
 
-  if (error || !tenant) {
+  // Only show error after loading is complete and we have an actual error
+  if (!isLoading && (error || !tenant)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -38,12 +33,20 @@ export default function TenantHomePage() {
           <p className="text-gray-600 mb-6">
             The dance school "{params.slug}" could not be found or is not available.
           </p>
-          <Link
-            href="/"
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Return to Homepage
-          </Link>
+          <div className="space-y-4">
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-colors mr-4"
+            >
+              Try Again
+            </button>
+            <Link
+              href="/"
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Return to Homepage
+            </Link>
+          </div>
         </div>
       </div>
     );

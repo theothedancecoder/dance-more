@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
+import { usePathname } from 'next/navigation';
 
 export interface Tenant {
   _id: string;
@@ -48,8 +49,10 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [tenantSubdomain, setTenantSubdomain] = useState<string | null>(null);
+  const [currentTenantSlug, setCurrentTenantSlug] = useState<string | null>(null);
 
   const { isLoaded: isAuthLoaded, userId } = useAuth();
+  const pathname = usePathname();
 
   useEffect(() => {
     // Extract tenant info from URL or subdomain
@@ -68,8 +71,8 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Check URL path for tenant slug
-      const pathSegments = window.location.pathname.split('/').filter(Boolean);
+      // Check URL path for tenant slug using current pathname
+      const pathSegments = pathname.split('/').filter(Boolean);
       const skipRoutes = [
         'api', '_next', 'sign-in', 'sign-up', 'studio', '.clerk', 
         'register-school', 'unauthorized', 'dashboard', 'admin', 
@@ -80,7 +83,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       
       // Only consider path-based tenant if we're not on the root path
       const pathSlug = pathSegments.length > 0 && 
-                      window.location.pathname !== '/' && 
+                      pathname !== '/' && 
                       !skipRoutes.includes(pathSegments[0])
         ? pathSegments[0]
         : null;
@@ -89,33 +92,50 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     };
 
     const { subdomain, pathSlug } = getTenantInfo();
+    const newTenantSlug = subdomain || pathSlug;
+    
     setTenantSubdomain(subdomain);
 
     const fetchTenant = async () => {
-      // Clear any existing tenant data first
-      setTenant(null);
-      setError(null);
+      // Set loading state
+      setIsLoading(true);
+      
+      // If tenant slug changed, clear existing data
+      if (newTenantSlug !== currentTenantSlug) {
+        setTenant(null);
+        setError(null);
+        setCurrentTenantSlug(newTenantSlug);
+      }
 
       // Only fetch tenant data if we're on a tenant-specific context
-      if (subdomain || pathSlug) {
+      if (newTenantSlug) {
         try {
-          const tenantSlug = subdomain || pathSlug;
-          const response = await fetch(`/api/tenants/${tenantSlug}/public`, {
+          console.log('🔄 Fetching tenant data for:', newTenantSlug);
+          const response = await fetch(`/api/tenants/${newTenantSlug}/public`, {
             method: 'GET',
+            cache: 'no-store', // Prevent caching issues
           });
 
           if (!response.ok) {
             if (response.status === 404) {
-              throw new Error(`Tenant "${tenantSlug}" not found`);
+              throw new Error(`Tenant "${newTenantSlug}" not found`);
             }
             throw new Error('Failed to fetch tenant data');
           }
 
-          const tenant = await response.json();
-          setTenant(tenant);
+          const tenantData = await response.json();
+          console.log('✅ Tenant data loaded:', tenantData.schoolName);
+          setTenant(tenantData);
+          setError(null);
         } catch (err) {
+          console.error('❌ Tenant fetch error:', err);
           setError(err instanceof Error ? err : new Error('Unknown error'));
+          setTenant(null);
         }
+      } else {
+        // No tenant context, clear data
+        setTenant(null);
+        setError(null);
       }
       
       setIsLoading(false);
@@ -124,7 +144,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     if (isAuthLoaded) {
       fetchTenant();
     }
-  }, [isAuthLoaded, userId]);
+  }, [isAuthLoaded, userId, pathname, currentTenantSlug]);
 
   return (
     <TenantContext.Provider value={{ tenant, isLoading, error, tenantSubdomain }}>
