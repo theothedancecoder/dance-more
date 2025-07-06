@@ -135,6 +135,15 @@ export default clerkMiddleware(async (auth, req) => {
     // Get user from Sanity to check their tenant and role
     const user = await getUserByClerkId(userId);
     
+    console.log('🔍 Middleware user check:', {
+      userId,
+      userFound: !!user,
+      userRole: user?.role,
+      userTenant: user?.tenant?.slug,
+      requestPath: req.nextUrl.pathname,
+      tenantSlug
+    });
+    
     // For API routes without tenant context, try to get tenant from referer or user's default tenant
     if (!tenantSlug && req.nextUrl.pathname.startsWith('/api/')) {
       // Check if the request has a referer header that contains tenant info
@@ -209,7 +218,7 @@ export default clerkMiddleware(async (auth, req) => {
 
         // For admin routes, check admin role
         const pathSegments = url.pathname.split('/').filter(Boolean);
-        if (requiresAdminRole(pathSegments) && user.role.toLowerCase() !== 'admin') {
+        if (requiresAdminRole(pathSegments) && user.role !== 'admin') {
           // For API routes, return 403 instead of redirecting
           if (req.nextUrl.pathname.startsWith('/api/')) {
             return NextResponse.json(

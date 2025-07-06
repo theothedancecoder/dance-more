@@ -84,6 +84,7 @@ export async function POST(request: NextRequest) {
     };
 
     const tenant = await client.create(tenantDoc);
+    console.log('✅ Created tenant:', { tenantId: tenant._id, slug, ownerId: userId });
 
     // Get user details from Clerk
     const clerkUser = await clerkClient.users.getUser(userId);
@@ -94,14 +95,26 @@ export async function POST(request: NextRequest) {
     const phone = clerkUser.phoneNumbers?.[0]?.phoneNumber || '';
 
     // Create or update user document with admin role
-    const existingUser = await client.fetch(
+    // Note: We need to handle the case where Clerk webhook might have already created a user
+    let existingUser = await client.fetch(
       `*[_type == "user" && clerkId == $clerkId][0]`,
       { clerkId: userId }
     );
 
+    // If webhook created user but we need to wait for it to be available
+    if (!existingUser) {
+      // Wait a bit and try again in case webhook is still processing
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      existingUser = await client.fetch(
+        `*[_type == "user" && clerkId == $clerkId][0]`,
+        { clerkId: userId }
+      );
+    }
+
     let userRecord;
     if (existingUser) {
-      // Update existing user with complete details
+      console.log('📝 Updating existing user:', { userId, existingRole: existingUser.role });
+      // Update existing user with complete details and admin role
       userRecord = await client
         .patch(existingUser._id)
         .set({
@@ -114,12 +127,14 @@ export async function POST(request: NextRequest) {
             _type: 'reference',
             _ref: tenant._id,
           },
-          role: 'admin',
+          role: 'admin', // Ensure admin role is set
           isActive: true,
           updatedAt: new Date().toISOString(),
         })
         .commit();
+      console.log('✅ Updated user to admin:', { userId, newRole: 'admin' });
     } else {
+      console.log('🆕 Creating new user as admin:', { userId });
       // Create new user document with complete details
       const userDoc = {
         _type: 'user',
@@ -140,6 +155,7 @@ export async function POST(request: NextRequest) {
       };
 
       userRecord = await client.create(userDoc);
+      console.log('✅ Created new user as admin:', { userId, userRecordId: userRecord._id });
     }
 
     // Verify user record was created/updated successfully with retry mechanism
