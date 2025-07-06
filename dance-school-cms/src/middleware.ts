@@ -175,6 +175,11 @@ export default clerkMiddleware(async (auth, req) => {
     // For non-tenant routes (like /dashboard), just check if user exists
     if (!tenantSlug) {
       if (!user) {
+        // In production, be more lenient - allow access and let the frontend handle the redirect
+        if (process.env.NODE_ENV === 'production') {
+          console.warn('⚠️ Production: User not found in Sanity, allowing access for frontend to handle');
+          return NextResponse.next();
+        }
         // For API routes, return 403 instead of redirecting
         if (req.nextUrl.pathname.startsWith('/api/')) {
           return NextResponse.json({ error: 'No tenant context available' }, { status: 403 });

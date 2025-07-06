@@ -23,11 +23,15 @@ export default function AuthRedirect({ fallbackUrl = '/register-school' }: AuthR
         // Check if user has tenant data
         const response = await fetch('/api/auth/user');
         
+        console.log('🔍 AuthRedirect: API response status:', response.status);
+        
         if (response.ok) {
           const userData = await response.json();
+          console.log('🔍 AuthRedirect: User data received:', userData);
           
           if (userData.tenant && userData.tenant.slug) {
             const tenantSlug = userData.tenant.slug;
+            console.log('🔍 AuthRedirect: Found tenant slug:', tenantSlug);
             
             // Try to validate the tenant by making a simple request to the tenant page
             try {
@@ -35,10 +39,14 @@ export default function AuthRedirect({ fallbackUrl = '/register-school' }: AuthR
                 method: 'GET',
               });
 
+              console.log('🔍 AuthRedirect: Tenant check response:', tenantCheckResponse.status);
+
               if (tenantCheckResponse.ok) {
                 // Tenant exists and is accessible
                 const currentPath = window.location.pathname;
                 const currentHost = window.location.host;
+                
+                console.log('🔍 AuthRedirect: Redirecting to tenant:', { currentPath, currentHost, tenantSlug });
                 
                 // If we're on a subdomain that matches the tenant, go to root
                 if (currentHost.includes(tenantSlug)) {
@@ -56,15 +64,23 @@ export default function AuthRedirect({ fallbackUrl = '/register-school' }: AuthR
             } catch (validationError) {
               console.error('Error checking tenant accessibility:', validationError);
             }
+          } else {
+            console.warn('🔍 AuthRedirect: No tenant data found in user response');
           }
+        } else {
+          console.warn('🔍 AuthRedirect: API call failed with status:', response.status);
+          const errorText = await response.text();
+          console.warn('🔍 AuthRedirect: Error response:', errorText);
         }
         
         // User doesn't have a valid tenant or API call failed, redirect to fallback
+        console.log('🔍 AuthRedirect: Redirecting to fallback URL:', fallbackUrl);
         router.push(fallbackUrl);
         
       } catch (error) {
         console.error('Error checking user tenant status:', error);
         // On error, redirect to fallback
+        console.log('🔍 AuthRedirect: Error occurred, redirecting to fallback URL:', fallbackUrl);
         router.push(fallbackUrl);
       }
     };
