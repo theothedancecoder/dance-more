@@ -21,6 +21,35 @@ const nextConfig = {
       },
     ],
   },
+  // Environment-specific configurations
+  env: {
+    NEXT_PUBLIC_BASE_DOMAIN: process.env.NEXT_PUBLIC_BASE_DOMAIN,
+    NEXT_PUBLIC_VERCEL_PROJECT_NAME: process.env.NEXT_PUBLIC_VERCEL_PROJECT_NAME,
+  },
+  // Ensure proper handling of dynamic routes
+  trailingSlash: false,
+  // Optimize for Vercel deployment
+  experimental: {
+    optimizePackageImports: ['@clerk/nextjs', '@sanity/client'],
+  },
+  // Headers for security and caching
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'X-DNS-Prefetch-Control',
+            value: 'on'
+          },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains; preload'
+          },
+        ],
+      },
+    ];
+  },
 }
 
 module.exports = nextConfig

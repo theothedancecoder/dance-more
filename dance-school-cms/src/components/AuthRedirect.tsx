@@ -48,13 +48,45 @@ export default function AuthRedirect({ fallbackUrl = '/register-school' }: AuthR
                 
                 console.log('🔍 AuthRedirect: Redirecting to tenant:', { currentPath, currentHost, tenantSlug });
                 
-                // If we're on a subdomain that matches the tenant, go to root
-                if (currentHost.includes(tenantSlug)) {
+                // Determine the correct redirect based on current environment
+                const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || 'dancemore.com';
+                const vercelProjectName = process.env.NEXT_PUBLIC_VERCEL_PROJECT_NAME || 'dance-school-cms';
+                
+                // Check if we're already on the correct tenant context
+                let isOnCorrectTenant = false;
+                
+                if (currentHost.includes('localhost')) {
+                  // On localhost, use path-based routing
+                  isOnCorrectTenant = currentPath.startsWith(`/${tenantSlug}`);
+                } else if (currentHost.endsWith('.vercel.app')) {
+                  // On Vercel, check if subdomain matches tenant
+                  const hostWithoutVercel = currentHost.replace('.vercel.app', '');
+                  const parts = hostWithoutVercel.split('.');
+                  if (parts.length > 1 && parts[0] === tenantSlug) {
+                    isOnCorrectTenant = true;
+                  } else {
+                    isOnCorrectTenant = currentPath.startsWith(`/${tenantSlug}`);
+                  }
+                } else if (currentHost.endsWith(baseDomain)) {
+                  // On production domain, check subdomain
+                  const hostWithoutBase = currentHost.replace(`.${baseDomain}`, '');
+                  if (hostWithoutBase === tenantSlug) {
+                    isOnCorrectTenant = true;
+                  } else {
+                    isOnCorrectTenant = currentPath.startsWith(`/${tenantSlug}`);
+                  }
+                } else {
+                  // For other domains, use path-based routing
+                  isOnCorrectTenant = currentPath.startsWith(`/${tenantSlug}`);
+                }
+                
+                if (isOnCorrectTenant) {
+                  // Already on correct tenant context, go to root of tenant
                   router.push('/');
                   return;
                 }
                 
-                // If we're on the main domain, redirect to tenant-specific page
+                // Redirect to tenant-specific page using path-based routing
                 router.push(`/${tenantSlug}`);
                 return;
               } else {

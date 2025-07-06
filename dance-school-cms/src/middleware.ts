@@ -67,17 +67,57 @@ function requiresAdminRole(pathSegments: string[]) {
   return pathSegments.includes('admin');
 }
 
-// Extract tenant from host (subdomain)
+// Extract tenant from host (subdomain) - handles localhost, Vercel, and custom domains
 function getTenantFromHost(host: string): string | null {
   const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || 'dancemore.com';
+  const vercelProjectName = process.env.NEXT_PUBLIC_VERCEL_PROJECT_NAME || 'dance-school-cms';
 
-  if (host.includes('localhost') || host === baseDomain) {
+  // Localhost should bypass tenant detection
+  if (host.includes('localhost')) {
     return null;
   }
 
-  const [subdomain] = host.replace(`.${baseDomain}`, '').split('.');
+  // Handle Vercel preview domains (tenant.vercel.app or main.vercel.app)
+  if (host.endsWith('.vercel.app')) {
+    const hostWithoutVercel = host.replace('.vercel.app', '');
+    const parts = hostWithoutVercel.split('.');
+    
+    // If it's the main app deployment, there is no tenant
+    if (hostWithoutVercel === vercelProjectName || parts.length === 1) {
+      return null;
+    }
+    
+    // Extract subdomain from tenant.project-name.vercel.app or tenant.vercel.app
+    const subdomain = parts[0];
+    return subdomain;
+  }
 
-  return subdomain;
+  // Handle production domains (tenant.dancemore.com)
+  if (host.endsWith(baseDomain)) {
+    const hostWithoutBase = host.replace(`.${baseDomain}`, '');
+    
+    // If it's the main domain or www, there is no tenant
+    if (hostWithoutBase === '' || hostWithoutBase === 'www' || hostWithoutBase === baseDomain) {
+      return null;
+    }
+    
+    const [subdomain] = hostWithoutBase.split('.');
+    return subdomain;
+  }
+
+  // For any other domains, try to extract the first part as tenant
+  // This handles cases like tenant.custom-domain.com
+  const parts = host.split('.');
+  if (parts.length >= 2) {
+    const potentialTenant = parts[0];
+    // Skip common non-tenant subdomains
+    if (['www', 'api', 'admin', 'app'].includes(potentialTenant)) {
+      return null;
+    }
+    return potentialTenant;
+  }
+
+  return null;
 }
 
 export default clerkMiddleware(async (auth, req) => {
@@ -141,7 +181,8 @@ export default clerkMiddleware(async (auth, req) => {
       userRole: user?.role,
       userTenant: user?.tenant?.slug,
       requestPath: req.nextUrl.pathname,
-      tenantSlug
+      tenantSlug,
+      host
     });
     
     // For API routes without tenant context, try to get tenant from referer or user's default tenant

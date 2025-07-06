@@ -55,19 +55,54 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    // Extract tenant info from URL or subdomain
+    // Extract tenant info from URL or subdomain - handles localhost, Vercel, and custom domains
     const getTenantInfo = () => {
       if (typeof window === 'undefined') return { subdomain: null, pathSlug: null };
       
       // Check subdomain first
       const hostname = window.location.hostname;
       const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || 'dancemore.com';
+      const vercelProjectName = process.env.NEXT_PUBLIC_VERCEL_PROJECT_NAME || 'dance-school-cms';
       let subdomain = null;
       
-      if (hostname !== 'localhost' && hostname !== baseDomain) {
-        const parts = hostname.split('.');
-        if (parts.length >= 3) {
+      // Localhost should bypass tenant detection
+      if (hostname.includes('localhost')) {
+        subdomain = null;
+      }
+      // Handle Vercel preview domains (tenant.vercel.app or main.vercel.app)
+      else if (hostname.endsWith('.vercel.app')) {
+        const hostWithoutVercel = hostname.replace('.vercel.app', '');
+        const parts = hostWithoutVercel.split('.');
+        
+        // If it's the main app deployment, there is no tenant
+        if (hostWithoutVercel === vercelProjectName || parts.length === 1) {
+          subdomain = null;
+        } else {
+          // Extract subdomain from tenant.project-name.vercel.app or tenant.vercel.app
           subdomain = parts[0];
+        }
+      }
+      // Handle production domains (tenant.dancemore.com)
+      else if (hostname.endsWith(baseDomain)) {
+        const hostWithoutBase = hostname.replace(`.${baseDomain}`, '');
+        
+        // If it's the main domain or www, there is no tenant
+        if (hostWithoutBase === '' || hostWithoutBase === 'www' || hostWithoutBase === baseDomain) {
+          subdomain = null;
+        } else {
+          const [subdomainPart] = hostWithoutBase.split('.');
+          subdomain = subdomainPart;
+        }
+      }
+      // For any other domains, try to extract the first part as tenant
+      else {
+        const parts = hostname.split('.');
+        if (parts.length >= 2) {
+          const potentialTenant = parts[0];
+          // Skip common non-tenant subdomains
+          if (!['www', 'api', 'admin', 'app'].includes(potentialTenant)) {
+            subdomain = potentialTenant;
+          }
         }
       }
 
