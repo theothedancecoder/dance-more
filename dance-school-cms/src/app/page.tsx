@@ -239,10 +239,10 @@ export default function HomePage() {
             <SignedIn>
               {userTenants.length > 0 ? (
                 <div className="text-center">
-                  <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white mb-8 animate-slide-up">
+                  <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-gray-800 mb-8 animate-slide-up">
                     Welcome Back to <span className="text-gradient-alt">Dance-More</span>
                   </h1>
-                  <p className="text-xl sm:text-2xl text-white/90 max-w-3xl mx-auto mb-8 animate-slide-up-delay">
+                  <p className="text-xl sm:text-2xl text-gray-700 max-w-3xl mx-auto mb-8 animate-slide-up-delay">
                     Access your dance school management portal and continue building your community.
                   </p>
                   
@@ -302,10 +302,10 @@ export default function HomePage() {
               ) : (
                 /* Signed-in users without tenants */
                 <div className="text-center">
-                  <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white mb-8 animate-slide-up">
+                  <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-gray-800 mb-8 animate-slide-up">
                     Welcome to <span className="text-gradient-alt">Dance-More CMS</span>
                   </h1>
-                  <p className="text-xl sm:text-2xl text-white/90 max-w-4xl mx-auto mb-8 animate-slide-up-delay">
+                  <p className="text-xl sm:text-2xl text-gray-700 max-w-4xl mx-auto mb-8 animate-slide-up-delay">
                     You're signed in! Ready to create your dance school portal and start building your community?
                   </p>
                   <div className="animate-scale-in">
@@ -353,7 +353,7 @@ export default function HomePage() {
                           </div>
                           <div>
                             <h3 className="text-lg font-bold text-gradient mb-1">Custom Branding</h3>
-                            <p className="text-gray-600 text-sm leading-relaxed">Your own branded portal with custom logo, colors, and domain.</p>
+                            <p className="text-gray-600 text-sm leading-relaxed">Your own branded portal with custom logo, colors, and subdomain.</p>
                           </div>
                         </div>
                       </div>
@@ -366,8 +366,8 @@ export default function HomePage() {
                             </svg>
                           </div>
                           <div>
-                            <h3 className="text-lg font-bold text-gradient mb-1">Smart Scheduling</h3>
-                            <p className="text-gray-600 text-sm leading-relaxed">Advanced class scheduling with automated notifications and waitlists.</p>
+                            <h3 className="text-lg font-bold text-gradient mb-1">Online Booking</h3>
+                            <p className="text-gray-600 text-sm leading-relaxed">Streamlined class scheduling with integrated booking and capacity management.</p>
                           </div>
                         </div>
                       </div>
