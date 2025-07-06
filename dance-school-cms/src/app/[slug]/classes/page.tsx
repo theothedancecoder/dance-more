@@ -11,7 +11,11 @@ interface ClassData {
   _id: string;
   title: string;
   description: string;
-  instructor: string;
+  instructor: {
+    _id: string;
+    name: string;
+    email: string;
+  };
   duration: number;
   capacity: number;
   level: string;
@@ -150,7 +154,7 @@ export default function ClassesPage() {
                 <div className="space-y-2 mb-6">
                   <div className="flex items-center text-sm text-gray-500">
                     <AcademicCapIcon className="h-4 w-4 mr-2" />
-                    <span>Instructor: {classItem.instructor}</span>
+                    <span>Instructor: {classItem.instructor?.name || 'TBA'}</span>
                   </div>
                   <div className="flex items-center text-sm text-gray-500">
                     <ClockIcon className="h-4 w-4 mr-2" />

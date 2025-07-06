@@ -9,7 +9,11 @@ import { CalendarIcon, PlusIcon, ClockIcon } from '@heroicons/react/24/outline';
 interface ClassData {
   _id: string;
   title: string;
-  instructor: string;
+  instructor: {
+    _id: string;
+    name: string;
+    email: string;
+  };
   duration: number;
   capacity: number;
   dayOfWeek: string;
@@ -189,7 +193,7 @@ export default function ScheduleManagementPage() {
                             <ClockIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
                             <p>
                               {classItem.dayOfWeek}s at {classItem.startTime} • {classItem.duration} min • 
-                              Capacity: {classItem.capacity} • Instructor: {classItem.instructor}
+                              Capacity: {classItem.capacity} • Instructor: {classItem.instructor?.name || 'No instructor assigned'}
                             </p>
                           </div>
                         </div>
