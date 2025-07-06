@@ -198,10 +198,10 @@ export default function HomePage() {
         <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
           <SignedOut>
             <div className="glass-card rounded-3xl p-12 text-center animate-scale-in">
-              <h2 className="text-3xl sm:text-4xl font-bold mb-6 text-white">
+              <h2 className="text-3xl sm:text-4xl font-bold mb-6 text-gray-800">
                 Ready to Start Your <span className="text-gradient-alt">Dance Journey?</span>
               </h2>
-              <p className="text-xl text-white/90 mb-10 max-w-2xl mx-auto leading-relaxed">
+              <p className="text-xl text-gray-700 mb-10 max-w-2xl mx-auto leading-relaxed">
                 Join thousands of dancers who have discovered their passion with us. Your transformation begins today!
               </p>
               <div className="flex flex-col sm:flex-row gap-6 justify-center">
@@ -282,7 +282,7 @@ export default function HomePage() {
 
                   {/* Quick Actions */}
                   <div className="glass-card p-8 rounded-3xl animate-scale-in">
-                    <h3 className="text-2xl font-bold mb-6 text-white">Quick Actions</h3>
+                    <h3 className="text-2xl font-bold mb-6 text-gray-800">Quick Actions</h3>
                     <div className="flex flex-wrap justify-center gap-6">
                       <Link
                         href="/register-school"
