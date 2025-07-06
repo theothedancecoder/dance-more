@@ -78,11 +78,39 @@ export default function RegisterSchoolPage() {
       // Show success message with both URLs and redirect to path-based URL
       alert(`School registered successfully!\n\nPath-based URL: ${window.location.origin}${result.urls.pathBased}\nSubdomain URL: ${result.urls.subdomain}`);
       
-      // Add a small delay to ensure user record is created in Sanity
-      setTimeout(() => {
-        // Redirect to the path-based admin dashboard
-        router.push(result.urls.pathBased);
-      }, 1000);
+      // Add a longer delay and retry mechanism to ensure user record is accessible
+      const redirectWithRetry = async (url: string, maxAttempts = 3) => {
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          try {
+            // Wait progressively longer between attempts
+            await new Promise(resolve => setTimeout(resolve, attempt * 1500));
+            
+            // Test if the admin route is accessible before redirecting
+            const testResponse = await fetch(`/api/auth/status`, {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+            
+            if (testResponse.ok) {
+              // If auth status is good, proceed with redirect
+              router.push(url);
+              return;
+            }
+          } catch (error) {
+            console.warn(`Redirect attempt ${attempt} failed:`, error);
+          }
+          
+          if (attempt === maxAttempts) {
+            // Final attempt - redirect anyway and let the user try refreshing if needed
+            console.warn('Max redirect attempts reached, proceeding with redirect');
+            router.push(url);
+          }
+        }
+      };
+      
+      redirectWithRetry(result.urls.pathBased);
 
     } catch (error) {
       if (error instanceof z.ZodError) {

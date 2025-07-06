@@ -30,19 +30,37 @@ const isPublicRoute = createRouteMatcher([
   '/.clerk(.*)',
 ])
 
-async function getUserByClerkId(clerkId: string) {
+async function getUserByClerkId(clerkId: string, retryAttempts = 3) {
   const query = `*[_type == "user" && clerkId == $clerkId][0]{
     _id,
     tenant->{_id, "slug": slug.current},
     role
   }`
-  const user = await client.fetch(query, { clerkId });
-
-  if (!user) {
-    console.warn(`⚠️ No Sanity user found for clerkId: ${clerkId}`);
+  
+  for (let attempt = 1; attempt <= retryAttempts; attempt++) {
+    try {
+      const user = await client.fetch(query, { clerkId });
+      
+      if (user) {
+        return user;
+      }
+      
+      // If no user found and we have more attempts, wait before retrying
+      if (attempt < retryAttempts) {
+        console.warn(`⚠️ No Sanity user found for clerkId: ${clerkId} (attempt ${attempt}/${retryAttempts}), retrying...`);
+        await new Promise(resolve => setTimeout(resolve, 500 * attempt)); // Progressive delay
+      }
+    } catch (error) {
+      console.error(`Error fetching user on attempt ${attempt}:`, error);
+      if (attempt === retryAttempts) {
+        throw error;
+      }
+      await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+    }
   }
 
-  return user;
+  console.warn(`⚠️ No Sanity user found for clerkId: ${clerkId} after ${retryAttempts} attempts`);
+  return null;
 }
 
 function requiresAdminRole(pathSegments: string[]) {

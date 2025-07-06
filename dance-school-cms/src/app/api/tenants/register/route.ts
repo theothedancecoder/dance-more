@@ -99,9 +99,10 @@ export async function POST(request: NextRequest) {
       { clerkId: userId }
     );
 
+    let userRecord;
     if (existingUser) {
       // Update existing user with complete details
-      await client
+      userRecord = await client
         .patch(existingUser._id)
         .set({
           email: userEmail,
@@ -138,7 +139,35 @@ export async function POST(request: NextRequest) {
         updatedAt: new Date().toISOString(),
       };
 
-      await client.create(userDoc);
+      userRecord = await client.create(userDoc);
+    }
+
+    // Verify user record was created/updated successfully with retry mechanism
+    let verificationAttempts = 0;
+    const maxVerificationAttempts = 5;
+    let verifiedUser = null;
+
+    while (verificationAttempts < maxVerificationAttempts && !verifiedUser) {
+      await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms between attempts
+      
+      verifiedUser = await client.fetch(
+        `*[_type == "user" && clerkId == $clerkId && tenant._ref == $tenantId][0]{
+          _id,
+          tenant->{_id, "slug": slug.current},
+          role
+        }`,
+        { clerkId: userId, tenantId: tenant._id }
+      );
+      
+      verificationAttempts++;
+    }
+
+    if (!verifiedUser) {
+      console.error('Failed to verify user record creation after registration');
+      return NextResponse.json(
+        { error: 'Registration completed but verification failed. Please try signing in.' },
+        { status: 500 }
+      );
     }
 
     // Return success with both path-based and subdomain URLs
