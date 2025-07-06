@@ -49,3 +49,38 @@ next-env.d.ts
 
 # OS
 Thumbs.db
+
+# Large files (prevent files over 1MB from being committed)
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tiff
+*.webp
+*.svg
+*.ico
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.pdf
+*.zip
+*.tar.gz
+*.rar
+
+# Allow specific small image files (override above rules)
+!public/favicon.ico
+!public/next.svg
+!public/vercel.svg
+!public/file.svg
+!public/globe.svg
+!public/window.svg
+!dance-school-cms/public/favicon.ico
+!dance-school-cms/public/next.svg
+!dance-school-cms/public/vercel.svg
+!dance-school-cms/public/file.svg
+!dance-school-cms/public/globe.svg
+!dance-school-cms/public/window.svg
+!dance-school-cms/public/dancemore.png
+!public/dancemore.png
