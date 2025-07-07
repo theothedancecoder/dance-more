@@ -13,7 +13,7 @@ interface ClassData {
   instructor: {
     _id: string;
     name: string;
-    email: string;
+    email?: string;
   };
   duration: number;
   capacity: number;
@@ -29,9 +29,12 @@ interface ClassData {
     weeklySchedule: Array<{
       dayOfWeek: string;
       startTime: string;
+      endTime?: string;
     }>;
   };
   isActive?: boolean;
+  _createdAt?: string;
+  _updatedAt?: string;
 }
 
 export default function ScheduleManagementPage() {
@@ -72,15 +75,14 @@ export default function ScheduleManagementPage() {
 
   const generateInstances = async (classId: string) => {
     try {
-      const response = await fetch('/api/classes/instances', {
+      const response = await fetch('/api/debug/generate-instances', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-tenant-slug': tenantSlug,
         },
         body: JSON.stringify({
-          classId,
-          weeks: 4, // Generate instances for next 4 weeks
+          tenantSlug,
+          classId, // Optional: generate for specific class only
         }),
       });
 
@@ -88,7 +90,34 @@ export default function ScheduleManagementPage() {
         throw new Error('Failed to generate instances');
       }
 
-      alert('Class instances generated successfully!');
+      const result = await response.json();
+      alert(`Success! Generated ${result.totalInstancesCreated} instances for ${result.totalClassesProcessed} class(es).`);
+    } catch (err) {
+      alert('Error generating instances: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    }
+  };
+
+  const generateAllInstances = async () => {
+    try {
+      const response = await fetch('/api/debug/generate-instances', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tenantSlug,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate instances');
+      }
+
+      const result = await response.json();
+      alert(`Success! Generated ${result.totalInstancesCreated} instances for ${result.totalClassesProcessed} class(es).`);
+      
+      // Refresh the page to show updated data
+      window.location.reload();
     } catch (err) {
       alert('Error generating instances: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }
@@ -141,6 +170,13 @@ export default function ScheduleManagementPage() {
               <p className="text-sm text-gray-500">Manage recurring classes and generate instances</p>
             </div>
             <div className="flex space-x-4">
+              <button
+                onClick={generateAllInstances}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center space-x-2"
+              >
+                <CalendarIcon className="h-5 w-5" />
+                <span>Generate All Instances</span>
+              </button>
               <Link
                 href={`/${tenantSlug}/admin/classes/new`}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2"
@@ -206,18 +242,26 @@ export default function ScheduleManagementPage() {
                             <ClockIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
                             <p>
                               {classItem.isRecurring ? (
-                                classItem.recurringSchedule?.weeklySchedule?.map((schedule, index) => (
-                                  <span key={index}>
-                                    {schedule.dayOfWeek}s at {schedule.startTime}
-                                    {index < (classItem.recurringSchedule?.weeklySchedule?.length || 0) - 1 ? ', ' : ''}
-                                  </span>
-                                ))
+                                classItem.recurringSchedule?.weeklySchedule?.length ? (
+                                  classItem.recurringSchedule.weeklySchedule.map((schedule, index) => (
+                                    <span key={index} className="capitalize">
+                                      {schedule.dayOfWeek}s at {schedule.startTime}
+                                      {schedule.endTime && ` - ${schedule.endTime}`}
+                                      {index < (classItem.recurringSchedule?.weeklySchedule?.length || 0) - 1 ? ', ' : ''}
+                                    </span>
+                                  ))
+                                ) : (
+                                  'Recurring class - no schedule set'
+                                )
                               ) : (
                                 classItem.singleClassDate ? 
                                   `Single class on ${new Date(classItem.singleClassDate).toLocaleDateString()} at ${new Date(classItem.singleClassDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` :
                                   'No schedule set'
                               )} • {classItem.duration} min • 
-                              Capacity: {classItem.capacity} • Instructor: {classItem.instructor?.name || 'No instructor assigned'}
+                              Capacity: {classItem.capacity} • 
+                              Level: {classItem.level} • 
+                              Style: {classItem.danceStyle} • 
+                              Instructor: {classItem.instructor?.name || 'No instructor assigned'}
                             </p>
                           </div>
                         </div>
