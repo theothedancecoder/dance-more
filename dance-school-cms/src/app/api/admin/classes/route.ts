@@ -239,13 +239,34 @@ export async function POST(request: NextRequest) {
 
     const result = await writeClient.create(classDoc);
 
-    // If it's a recurring class, automatically generate instances
+    // Generate instances for both recurring and single classes
     let generatedInstances = [];
     if (isRecurring) {
       try {
         generatedInstances = await generateClassInstances(result._id, { recurringSchedule, capacity });
       } catch (instanceError) {
         console.error('Error generating instances:', instanceError);
+        // Don't fail the class creation if instance generation fails
+      }
+    } else {
+      // Create a single instance for non-recurring classes
+      try {
+        const singleInstance = {
+          _type: 'classInstance',
+          parentClass: {
+            _type: 'reference',
+            _ref: result._id,
+          },
+          date: new Date(singleClassDate).toISOString(),
+          isCancelled: false,
+          bookings: [],
+          remainingCapacity: capacity,
+        };
+        
+        const createdInstance = await writeClient.create(singleInstance);
+        generatedInstances = [createdInstance];
+      } catch (instanceError) {
+        console.error('Error creating single class instance:', instanceError);
         // Don't fail the class creation if instance generation fails
       }
     }
@@ -256,7 +277,7 @@ export async function POST(request: NextRequest) {
       instancesCreated: generatedInstances.length,
       message: isRecurring 
         ? `Recurring class created successfully with ${generatedInstances.length} instances generated`
-        : 'Single class created successfully'
+        : `Single class created successfully with ${generatedInstances.length} instance generated`
     });
 
   } catch (error) {

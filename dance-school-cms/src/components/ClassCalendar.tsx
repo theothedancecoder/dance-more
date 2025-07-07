@@ -65,16 +65,21 @@ export default function ClassCalendar({ isAdmin = false }: ClassCalendarProps) {
         {
           headers: {
             'x-tenant-id': tenant._id,
+            'x-tenant-slug': tenant.slug?.current || '',
           }
         }
       );
       
       if (response.ok) {
         const data = await response.json();
-        setEvents(data.instances);
+        setEvents(data.instances || []);
+      } else {
+        console.error('Failed to fetch events:', response.statusText);
+        setEvents([]);
       }
     } catch (error) {
       console.error('Error fetching events:', error);
+      setEvents([]);
     } finally {
       setLoading(false);
     }

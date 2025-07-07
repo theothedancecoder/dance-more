@@ -34,11 +34,7 @@ export default function ClassesPage() {
   useEffect(() => {
     const fetchClasses = async () => {
       try {
-        const response = await fetch('/api/admin/classes', {
-          headers: {
-            'x-tenant-slug': tenantSlug,
-          },
-        });
+        const response = await fetch(`/api/classes/public?tenantSlug=${tenantSlug}`);
 
         if (response.ok) {
           const data = await response.json();

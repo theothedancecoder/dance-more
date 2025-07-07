@@ -13,6 +13,8 @@ export async function POST(request: NextRequest) {
       'event',
       'post',
       'class',
+      'classInstance',
+      'subscription',
       'instructor',
       'user',
       'tenant'
