@@ -3,7 +3,7 @@ import { auth } from '@clerk/nextjs/server';
 import { sanityClient, writeClient } from '@/lib/sanity';
 
 // Get user's bookings
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const { userId } = await auth();
     
@@ -14,9 +14,34 @@ export async function GET() {
       );
     }
 
-    // Get class instances with user's bookings
+    // Get tenant slug from header
+    const tenantSlug = request.headers.get('x-tenant-slug');
+    
+    if (!tenantSlug) {
+      return NextResponse.json(
+        { error: 'Tenant slug is required' },
+        { status: 400 }
+      );
+    }
+
+    // First get the tenant ID
+    const tenant = await sanityClient.fetch(
+      `*[_type == "tenant" && slug.current == $tenantSlug][0] {
+        _id
+      }`,
+      { tenantSlug }
+    );
+
+    if (!tenant) {
+      return NextResponse.json(
+        { error: 'Tenant not found' },
+        { status: 404 }
+      );
+    }
+
+    // Get class instances with user's bookings for this specific tenant
     const bookings = await sanityClient.fetch(
-      `*[_type == "classInstance" && $userId in bookings[].student._ref] {
+      `*[_type == "classInstance" && $userId in bookings[].student._ref && parentClass->tenant._ref == $tenantId] {
         _id,
         date,
         isCancelled,
@@ -24,11 +49,15 @@ export async function GET() {
           title,
           instructor->{name},
           danceStyle,
-          location
+          location,
+          tenant->{
+            _id,
+            slug
+          }
         },
         "userBooking": bookings[student._ref == $userId][0]
       } | order(date asc)`,
-      { userId }
+      { userId, tenantId: tenant._id }
     );
 
     return NextResponse.json({ bookings });
