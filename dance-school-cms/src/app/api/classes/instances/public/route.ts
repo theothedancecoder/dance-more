@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     
     // Get class instances within the date range for this tenant
     const instances = await sanityClient.fetch(
-      `*[_type == "classInstance" && date >= $startDate && date <= $endDate && parentClass->tenant._ref == $tenantId] {
+      `*[_type == "classInstance" && date >= $startDate && date <= $endDate && tenant._ref == $tenantId] {
         _id,
         date,
         isCancelled,

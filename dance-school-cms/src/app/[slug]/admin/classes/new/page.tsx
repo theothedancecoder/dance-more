@@ -276,7 +276,7 @@ export default function CreateClassPage() {
 
               <div>
                 <label htmlFor="price" className="block text-sm font-medium text-gray-700">
-                  Price ($) *
+                  Price (kr) *
                 </label>
                 <input
                   type="number"

@@ -39,6 +39,10 @@ async function generateClassInstances(classId: string, classData: any) {
             _type: 'reference',
             _ref: classId,
           },
+          tenant: {
+            _type: 'reference',
+            _ref: classData.tenant._ref,
+          },
           date: instanceDate.toISOString(),
           isCancelled: false,
           bookings: [],
@@ -256,6 +260,10 @@ export async function POST(request: NextRequest) {
           parentClass: {
             _type: 'reference',
             _ref: result._id,
+          },
+          tenant: {
+            _type: 'reference',
+            _ref: tenant._id,
           },
           date: new Date(singleClassDate).toISOString(),
           isCancelled: false,
