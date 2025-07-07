@@ -9,6 +9,7 @@ import { CalendarIcon, PlusIcon, ClockIcon } from '@heroicons/react/24/outline';
 interface ClassData {
   _id: string;
   title: string;
+  description: string;
   instructor: {
     _id: string;
     name: string;
@@ -16,9 +17,21 @@ interface ClassData {
   };
   duration: number;
   capacity: number;
-  dayOfWeek: string;
-  startTime: string;
-  isActive: boolean;
+  price: number;
+  location: string;
+  level: string;
+  danceStyle: string;
+  isRecurring: boolean;
+  singleClassDate?: string;
+  recurringSchedule?: {
+    startDate: string;
+    endDate: string;
+    weeklySchedule: Array<{
+      dayOfWeek: string;
+      startTime: string;
+    }>;
+  };
+  isActive?: boolean;
 }
 
 export default function ScheduleManagementPage() {
@@ -182,17 +195,28 @@ export default function ScheduleManagementPage() {
                               {classItem.title}
                             </p>
                             <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              classItem.isActive 
+                              (classItem.isActive !== false) 
                                 ? 'bg-green-100 text-green-800' 
                                 : 'bg-red-100 text-red-800'
                             }`}>
-                              {classItem.isActive ? 'Active' : 'Inactive'}
+                              {(classItem.isActive !== false) ? 'Active' : 'Inactive'}
                             </span>
                           </div>
                           <div className="mt-2 flex items-center text-sm text-gray-500">
                             <ClockIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
                             <p>
-                              {classItem.dayOfWeek}s at {classItem.startTime} • {classItem.duration} min • 
+                              {classItem.isRecurring ? (
+                                classItem.recurringSchedule?.weeklySchedule?.map((schedule, index) => (
+                                  <span key={index}>
+                                    {schedule.dayOfWeek}s at {schedule.startTime}
+                                    {index < (classItem.recurringSchedule?.weeklySchedule?.length || 0) - 1 ? ', ' : ''}
+                                  </span>
+                                ))
+                              ) : (
+                                classItem.singleClassDate ? 
+                                  `Single class on ${new Date(classItem.singleClassDate).toLocaleDateString()} at ${new Date(classItem.singleClassDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` :
+                                  'No schedule set'
+                              )} • {classItem.duration} min • 
                               Capacity: {classItem.capacity} • Instructor: {classItem.instructor?.name || 'No instructor assigned'}
                             </p>
                           </div>
