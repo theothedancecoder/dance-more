@@ -27,8 +27,52 @@ export default function CalendarPage() {
   const [classInstances, setClassInstances] = useState<ClassInstance[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [bookingLoading, setBookingLoading] = useState<string | null>(null);
+  const [bookingMessage, setBookingMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const tenantSlug = params.slug as string;
+
+  const handleBookClass = async (classInstanceId: string) => {
+    setBookingLoading(classInstanceId);
+    setBookingMessage(null);
+
+    try {
+      const response = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-slug': tenantSlug,
+        },
+        body: JSON.stringify({ classInstanceId }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setBookingMessage({ type: 'success', text: 'Class booked successfully!' });
+        
+        // Update the class instance in the local state
+        setClassInstances(prev => prev.map(instance => 
+          instance._id === classInstanceId 
+            ? { ...instance, booked: instance.booked + 1 }
+            : instance
+        ));
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => setBookingMessage(null), 3000);
+      } else {
+        setBookingMessage({ type: 'error', text: data.error || 'Failed to book class' });
+        // Clear error message after 5 seconds
+        setTimeout(() => setBookingMessage(null), 5000);
+      }
+    } catch (error) {
+      console.error('Error booking class:', error);
+      setBookingMessage({ type: 'error', text: 'Network error. Please try again.' });
+      setTimeout(() => setBookingMessage(null), 5000);
+    } finally {
+      setBookingLoading(null);
+    }
+  };
 
   useEffect(() => {
     const fetchClassInstances = async () => {
@@ -130,6 +174,19 @@ export default function CalendarPage() {
           </div>
         </div>
       </section>
+
+      {/* Booking Message */}
+      {bookingMessage && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-4">
+          <div className={`p-4 rounded-lg ${
+            bookingMessage.type === 'success' 
+              ? 'bg-green-100 text-green-800 border border-green-200' 
+              : 'bg-red-100 text-red-800 border border-red-200'
+          }`}>
+            {bookingMessage.text}
+          </div>
+        </div>
+      )}
 
       {/* Calendar Content */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
@@ -268,10 +325,12 @@ export default function CalendarPage() {
                                 </SignedOut>
                                 <SignedIn>
                                   <button 
-                                    className="px-6 py-2 rounded-lg text-white font-medium transition-colors hover:opacity-90"
+                                    onClick={() => handleBookClass(instance._id)}
+                                    disabled={bookingLoading === instance._id}
+                                    className="px-6 py-2 rounded-lg text-white font-medium transition-colors hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                                     style={{ backgroundColor: tenant.branding?.primaryColor || '#3B82F6' }}
                                   >
-                                    Book Now
+                                    {bookingLoading === instance._id ? 'Booking...' : 'Book Now'}
                                   </button>
                                 </SignedIn>
                               </>
