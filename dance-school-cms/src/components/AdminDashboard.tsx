@@ -44,7 +44,7 @@ const tabs = [
 export default function AdminDashboard({ stats, user }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState('overview');
   const params = useParams();
-  const tenantSlug = params?.slug as string;
+  const tenantSlug = typeof params?.slug === 'string' ? params.slug : null;
 
   // Helper function to create tenant-aware URLs
   const getTenantUrl = (path: string) => {

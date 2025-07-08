@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useTenant } from '@/contexts/TenantContext';
-import { SignedIn, SignedOut, SignInButton } from '@clerk/nextjs';
+import { SignedIn, SignedOut } from '@clerk/nextjs';
 import Link from 'next/link';
 import { CreditCardIcon, TicketIcon, CheckIcon, StarIcon } from '@heroicons/react/24/outline';
 
@@ -60,7 +60,7 @@ export default function SubscriptionsPage() {
   useEffect(() => {
     const fetchPasses = async () => {
       try {
-        const response = await fetch('/api/admin/passes', {
+        const response = await fetch('/api/passes/public', {
           headers: {
             'x-tenant-slug': tenantSlug,
           },
@@ -130,9 +130,9 @@ export default function SubscriptionsPage() {
               <Link href={`/${tenantSlug}/calendar`} className="text-gray-500 hover:text-gray-900">Calendar</Link>
               <Link href={`/${tenantSlug}/subscriptions`} className="text-gray-900 font-medium">Passes</Link>
               <SignedOut>
-                <SignInButton mode="modal">
-                  <button className="text-gray-500 hover:text-gray-900">Sign In</button>
-                </SignInButton>
+                <Link href={`/${tenantSlug}/sign-in`} className="text-gray-500 hover:text-gray-900">
+                  Sign In
+                </Link>
               </SignedOut>
               <SignedIn>
                 <Link href={`/${tenantSlug}/my-classes`} className="text-gray-500 hover:text-gray-900">My Classes</Link>
@@ -219,21 +219,20 @@ export default function SubscriptionsPage() {
                 </ul>
 
                 <SignedOut>
-                  <SignInButton mode="modal">
-                    <button 
-                      className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
-                        pass.isPopular
-                          ? 'bg-blue-600 text-white hover:bg-blue-700'
-                          : 'border-2 text-blue-600 hover:bg-blue-50'
-                      }`}
-                      style={pass.isPopular ? {} : { 
-                        borderColor: tenant.branding?.primaryColor || '#3B82F6',
-                        color: tenant.branding?.primaryColor || '#3B82F6'
-                      }}
-                    >
-                      Sign In to Purchase
-                    </button>
-                  </SignInButton>
+                  <Link
+                    href={`/${tenantSlug}/sign-in`}
+                    className={`w-full py-3 px-4 rounded-lg font-medium transition-colors block text-center ${
+                      pass.isPopular
+                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                        : 'border-2 text-blue-600 hover:bg-blue-50'
+                    }`}
+                    style={pass.isPopular ? {} : { 
+                      borderColor: tenant.branding?.primaryColor || '#3B82F6',
+                      color: tenant.branding?.primaryColor || '#3B82F6'
+                    }}
+                  >
+                    Sign In to Purchase
+                  </Link>
                 </SignedOut>
                 <SignedIn>
                   <button 

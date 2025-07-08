@@ -112,10 +112,10 @@ export default function Navigation() {
               </div>
             ) : (
               <div className="flex items-center space-x-3">
-                <Link href="/sign-in" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                <Link href={getTenantUrl("/sign-in")} className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
                   Sign In
                 </Link>
-                <Link href="/sign-up" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                <Link href={getTenantUrl("/sign-up")} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium">
                   Sign Up
                 </Link>
               </div>
@@ -232,14 +232,14 @@ export default function Navigation() {
               <div className="p-4 border-t border-gray-200">
                 <div className="grid grid-cols-2 gap-4">
                   <Link
-                    href="/sign-in"
+                    href={getTenantUrl("/sign-in")}
                     className="flex justify-center items-center px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     Sign In
                   </Link>
                   <Link
-                    href="/sign-up"
+                    href={getTenantUrl("/sign-up")}
                     className="flex justify-center items-center px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
                     onClick={() => setIsMenuOpen(false)}
                   >

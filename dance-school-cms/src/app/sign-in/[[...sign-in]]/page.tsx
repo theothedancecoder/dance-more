@@ -17,7 +17,14 @@ export default function Page() {
         <h1 className="mb-6 text-center text-3xl font-bold text-gray-800">
           Sign In
         </h1>
-        <SignIn />
+        <SignIn 
+          routing="path"
+          path="/sign-in"
+          fallbackRedirectUrl="/dashboard"
+          afterSignInUrl="/dashboard"
+          signUpUrl="/sign-up"
+          redirectUrl="/dashboard"
+        />
       </div>
     </main>
   );
