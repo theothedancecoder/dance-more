@@ -75,7 +75,11 @@ async function getAdminStats() {
 export default async function AdminPage() {
   const user = await getServerUser();
   
-  if (!user || user.role !== 'admin') {
+  // Restrict global admin access to only theothecoder@gmail.com
+  const allowedGlobalAdmin = 'theothecoder@gmail.com';
+  const userEmail = user?.clerkUser?.emailAddresses?.[0]?.emailAddress || user?.email || '';
+  
+  if (!user || user.role !== 'admin' || userEmail !== allowedGlobalAdmin) {
     redirect('/dashboard');
   }
 

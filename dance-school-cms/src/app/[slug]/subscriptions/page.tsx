@@ -28,6 +28,35 @@ export default function SubscriptionsPage() {
 
   const tenantSlug = params.slug as string;
 
+  const handlePurchase = async (pass: PassData) => {
+    try {
+      // Create Stripe checkout session for pass purchase
+      const response = await fetch('/api/stripe/checkout-pass', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          passId: pass._id,
+          successUrl: `${window.location.origin}/${tenantSlug}/payment/success`,
+          cancelUrl: window.location.href,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.url) {
+        // Redirect to Stripe checkout
+        window.location.href = data.url;
+      } else {
+        throw new Error(data.error || 'Failed to create checkout session');
+      }
+    } catch (error) {
+      console.error('Purchase error:', error);
+      alert('Failed to process purchase. Please try again.');
+    }
+  };
+
   useEffect(() => {
     const fetchPasses = async () => {
       try {
@@ -181,7 +210,7 @@ export default function SubscriptionsPage() {
                 <p className="text-gray-600 mb-6">{pass.description}</p>
 
                 <ul className="space-y-3 mb-8">
-                  {pass.features.map((feature, index) => (
+                  {(pass.features || []).map((feature, index) => (
                     <li key={index} className="flex items-center text-sm">
                       <CheckIcon className="h-4 w-4 text-green-500 mr-3 flex-shrink-0" />
                       <span>{feature}</span>
@@ -208,6 +237,7 @@ export default function SubscriptionsPage() {
                 </SignedOut>
                 <SignedIn>
                   <button 
+                    onClick={() => handlePurchase(pass)}
                     className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
                       pass.isPopular
                         ? 'text-white hover:opacity-90'

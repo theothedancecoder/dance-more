@@ -33,72 +33,54 @@ export default function AuthRedirect({ fallbackUrl = '/register-school' }: AuthR
             const tenantSlug = userData.tenant.slug;
             console.log('🔍 AuthRedirect: Found tenant slug:', tenantSlug);
             
-            // Try to validate the tenant by making a simple request to the tenant page
-            try {
-              const tenantCheckResponse = await fetch(`/api/tenants/${tenantSlug}`, {
-                method: 'GET',
-              });
-
-              console.log('🔍 AuthRedirect: Tenant check response:', tenantCheckResponse.status);
-
-              if (tenantCheckResponse.ok) {
-                // Tenant exists and is accessible
-                const currentPath = window.location.pathname;
-                const currentHost = window.location.host;
-                
-                console.log('🔍 AuthRedirect: Redirecting to tenant:', { currentPath, currentHost, tenantSlug });
-                
-                // Determine the correct redirect based on current environment
-                const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || 'dancemore.com';
-                const vercelProjectName = process.env.NEXT_PUBLIC_VERCEL_PROJECT_NAME || 'dance-school-cms';
-                
-                // Check if we're already on the correct tenant context
-                let isOnCorrectTenant = false;
-                
-                if (currentHost.includes('localhost')) {
-                  // On localhost, use path-based routing
-                  isOnCorrectTenant = currentPath.startsWith(`/${tenantSlug}`);
-                } else if (currentHost.endsWith('.vercel.app')) {
-                  // On Vercel, check if subdomain matches tenant
-                  const hostWithoutVercel = currentHost.replace('.vercel.app', '');
-                  const parts = hostWithoutVercel.split('.');
-                  if (parts.length > 1 && parts[0] === tenantSlug) {
-                    isOnCorrectTenant = true;
-                  } else {
-                    isOnCorrectTenant = currentPath.startsWith(`/${tenantSlug}`);
-                  }
-                } else if (currentHost.endsWith(baseDomain)) {
-                  // On production domain, check subdomain
-                  const hostWithoutBase = currentHost.replace(`.${baseDomain}`, '');
-                  if (hostWithoutBase === tenantSlug) {
-                    isOnCorrectTenant = true;
-                  } else {
-                    isOnCorrectTenant = currentPath.startsWith(`/${tenantSlug}`);
-                  }
-                } else {
-                  // For other domains, use path-based routing
-                  isOnCorrectTenant = currentPath.startsWith(`/${tenantSlug}`);
-                }
-                
-                if (isOnCorrectTenant) {
-                  // Already on correct tenant context, go to root of tenant
-                  router.push('/');
-                  return;
-                }
-                
-                // Redirect to tenant-specific page using path-based routing
-                router.push(`/${tenantSlug}`);
-                return;
-              } else {
-                // Tenant doesn't exist or isn't accessible
-                console.warn('Tenant not accessible:', tenantSlug, 'Status:', tenantCheckResponse.status);
-              }
-            } catch (validationError) {
-              console.error('Error checking tenant accessibility:', validationError);
+            // Check if we're already on the correct tenant context
+            const currentPath = window.location.pathname;
+            const isOnCorrectTenant = currentPath.startsWith(`/${tenantSlug}`);
+            
+            if (isOnCorrectTenant) {
+              // Already on correct tenant context, stay in tenant context
+              router.push(`/${tenantSlug}`);
+              return;
             }
+            
+            // Redirect to tenant-specific page using path-based routing
+            router.push(`/${tenantSlug}`);
+            return;
           } else {
             console.warn('🔍 AuthRedirect: No tenant data found in user response');
           }
+        } else if (response.status === 401 || response.status === 404) {
+          // User not found in Sanity or not authenticated
+          // Check if we're already on a tenant page and should stay there
+          const currentPath = window.location.pathname;
+          const pathParts = currentPath.split('/').filter(Boolean);
+          
+          if (pathParts.length >= 1) {
+            const potentialTenantSlug = pathParts[0];
+            
+            // Check if this looks like a tenant slug (not a global route)
+            const globalRoutes = ['classes', 'calendar', 'subscriptions', 'dashboard', 'register-school', 'sign-in', 'sign-up', 'admin', 'studio', 'api'];
+            
+            if (!globalRoutes.includes(potentialTenantSlug)) {
+              // This looks like a tenant slug, try to validate it
+              try {
+                const tenantCheckResponse = await fetch(`/api/tenants/${potentialTenantSlug}/public`, {
+                  method: 'GET',
+                });
+
+                if (tenantCheckResponse.ok) {
+                  // Valid tenant, stay on this tenant page
+                  console.log('🔍 AuthRedirect: Staying on valid tenant page:', potentialTenantSlug);
+                  router.push(`/${potentialTenantSlug}`);
+                  return;
+                }
+              } catch (error) {
+                console.warn('Error checking tenant:', error);
+              }
+            }
+          }
+          
+          console.warn('🔍 AuthRedirect: User not found in system, redirecting to fallback');
         } else {
           console.warn('🔍 AuthRedirect: API call failed with status:', response.status);
           const errorText = await response.text();

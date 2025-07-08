@@ -32,43 +32,20 @@ export default function PaymentsPage() {
 
     const fetchPayments = async () => {
       try {
-        // For now, we'll show placeholder data since we don't have a payments API endpoint yet
-        setPayments([
-          {
-            _id: '1',
-            amount: 299,
-            currency: 'NOK',
-            status: 'completed',
-            customerName: 'John Doe',
-            customerEmail: 'john@example.com',
-            passName: 'Monthly Subscription',
-            createdAt: '2024-01-15T10:30:00Z',
-            paymentMethod: 'card'
+        const response = await fetch('/api/admin/payments', {
+          headers: {
+            'x-tenant-slug': tenantSlug,
           },
-          {
-            _id: '2',
-            amount: 150,
-            currency: 'NOK',
-            status: 'completed',
-            customerName: 'Jane Smith',
-            customerEmail: 'jane@example.com',
-            passName: '5-Class Clipcard',
-            createdAt: '2024-01-14T14:20:00Z',
-            paymentMethod: 'vipps'
-          },
-          {
-            _id: '3',
-            amount: 199,
-            currency: 'NOK',
-            status: 'pending',
-            customerName: 'Mike Johnson',
-            customerEmail: 'mike@example.com',
-            passName: 'Drop-in Class',
-            createdAt: '2024-01-13T16:45:00Z',
-            paymentMethod: 'card'
-          }
-        ]);
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch payments');
+        }
+
+        const data = await response.json();
+        setPayments(data.payments || []);
       } catch (err) {
+        console.error('Error fetching payments:', err);
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
         setLoading(false);

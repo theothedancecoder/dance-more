@@ -4,17 +4,51 @@ import Link from 'next/link';
 import { useUser, UserButton } from '@clerk/nextjs';
 import { useState } from 'react';
 import { useTenant } from '@/contexts/TenantContext';
+import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 
 export default function Navigation() {
   const { user, isLoaded } = useUser();
   const { tenant } = useTenant();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const pathname = usePathname();
 
   if (!isLoaded) return null;
 
   const brandName = tenant?.schoolName || 'DANCE-MORE SCHOOL MANAGEMENT SYSTEM';
   const brandColor = tenant?.branding?.primaryColor || '#3B82F6';
+
+  // Extract tenant slug from pathname if we're on a tenant route
+  // Check if we're on a tenant-specific route (e.g., /tenant-slug/classes, /tenant-slug/calendar, etc.)
+  const pathParts = pathname.split('/').filter(Boolean);
+  
+  // Global routes that should never be considered tenant slugs
+  const globalRoutes = ['classes', 'calendar', 'subscriptions', 'dashboard', 'register-school', 'sign-in', 'sign-up', 'admin', 'studio', 'api'];
+  
+  let tenantSlug = null;
+  
+  if (pathParts.length >= 1) {
+    const firstPart = pathParts[0];
+    
+    // If the first part is not a global route, it's likely a tenant slug
+    if (!globalRoutes.includes(firstPart)) {
+      tenantSlug = firstPart;
+    }
+  }
+  
+  // Also check if we have tenant context from the TenantContext
+  const contextTenantSlug = tenant?.slug;
+  
+  // Use context tenant slug if we don't have one from the URL but we have tenant context
+  const finalTenantSlug = tenantSlug || contextTenantSlug || null;
+
+  // Helper function to get tenant-aware URLs
+  const getTenantUrl = (path: string) => {
+    if (finalTenantSlug) {
+      return `/${finalTenantSlug}${path}`;
+    }
+    return path;
+  };
 
   return (
     <nav className="bg-white shadow-lg">
@@ -31,7 +65,7 @@ export default function Navigation() {
               />
             )}
             <Link 
-              href="/" 
+              href={finalTenantSlug ? `/${finalTenantSlug}` : "/"} 
               className="text-xl font-bold"
               style={{ color: brandColor }}
             >
@@ -41,32 +75,34 @@ export default function Navigation() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-6 lg:space-x-8">
-            {tenant ? (
+            {tenant || finalTenantSlug ? (
               // Tenant-specific navigation
               <>
-                <Link href="/classes" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                <Link href={getTenantUrl("/classes")} className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
                   Classes
                 </Link>
-                <Link href="/calendar" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                <Link href={getTenantUrl("/calendar")} className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
                   Calendar
                 </Link>
                 {user && (
-                  <Link href="/subscriptions" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                  <Link href={getTenantUrl("/subscriptions")} className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
                     My Subscriptions
                   </Link>
                 )}
               </>
             ) : (
-              // Platform navigation
+              // Platform navigation (only show when NOT in tenant context)
               <>
-                {user && (
+                {user && !finalTenantSlug && (
                   <Link href="/dashboard" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
                     Dashboard
                   </Link>
                 )}
-                <Link href="/register-school" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
-                  Register School
-                </Link>
+                {!finalTenantSlug && (
+                  <Link href="/register-school" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                    Register School
+                  </Link>
+                )}
               </>
             )}
             
@@ -139,18 +175,18 @@ export default function Navigation() {
 
             <div className="flex-1 overflow-y-auto">
               <nav className="px-4 py-4 space-y-2">
-                {tenant ? (
+                {tenant || finalTenantSlug ? (
                   // Tenant-specific navigation
                   <>
                     <Link 
-                      href="/classes" 
+                      href={getTenantUrl("/classes")} 
                       className="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors font-medium"
                       onClick={() => setIsMenuOpen(false)}
                     >
                       Classes
                     </Link>
                     <Link 
-                      href="/calendar" 
+                      href={getTenantUrl("/calendar")} 
                       className="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors font-medium"
                       onClick={() => setIsMenuOpen(false)}
                     >
@@ -158,7 +194,7 @@ export default function Navigation() {
                     </Link>
                     {user && (
                       <Link 
-                        href="/subscriptions" 
+                        href={getTenantUrl("/subscriptions")} 
                         className="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors font-medium"
                         onClick={() => setIsMenuOpen(false)}
                       >
@@ -167,9 +203,9 @@ export default function Navigation() {
                     )}
                   </>
                 ) : (
-                  // Platform navigation
+                  // Platform navigation (only show when NOT in tenant context)
                   <>
-                    {user && (
+                    {user && !finalTenantSlug && (
                       <Link 
                         href="/dashboard" 
                         className="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors font-medium"
@@ -178,13 +214,15 @@ export default function Navigation() {
                         Dashboard
                       </Link>
                     )}
-                    <Link 
-                      href="/register-school" 
-                      className="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors font-medium"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      Register School
-                    </Link>
+                    {!finalTenantSlug && (
+                      <Link 
+                        href="/register-school" 
+                        className="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors font-medium"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        Register School
+                      </Link>
+                    )}
                   </>
                 )}
               </nav>

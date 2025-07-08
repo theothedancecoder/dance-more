@@ -55,6 +55,20 @@ export async function GET(
 
     // Return different data based on user role
     if (user.role.toLowerCase() === 'admin') {
+      // Calculate comprehensive stats for admin
+      const now = new Date();
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+      
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(endOfWeek.getDate() + 6);
+      endOfWeek.setHours(23, 59, 59, 999);
+      
+      const startOfMonth = new Date(now);
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+
       // Admin gets full tenant data including sensitive information
       const fullTenantData = await client.fetch(
         `*[_type == "tenant" && _id == $tenantId][0]{
@@ -73,11 +87,22 @@ export async function GET(
           "stats": {
             "totalUsers": count(*[_type == "user" && tenant._ref == ^._id]),
             "activeClasses": count(*[_type == "class" && tenant._ref == ^._id && isActive == true]),
-            "totalBookings": count(*[_type == "booking" && tenant._ref == ^._id])
+            "activeSubscriptions": count(*[_type == "subscription" && tenant._ref == ^._id && isActive == true]),
+            "thisWeeksClasses": count(*[_type == "classInstance" && tenant._ref == ^._id && dateTime >= "${startOfWeek.toISOString()}" && dateTime <= "${endOfWeek.toISOString()}"]),
+            "totalBookings": count(*[_type == "booking" && tenant._ref == ^._id]),
+            "monthlyRevenue": *[_type == "booking" && tenant._ref == ^._id && paymentStatus == "completed" && bookingDate >= "${startOfMonth.toISOString()}"] {
+              amount
+            }
           }
         }`,
         { tenantId: tenant._id }
       );
+
+      // Calculate monthly revenue from bookings
+      const monthlyRevenue = fullTenantData.stats.monthlyRevenue?.reduce((sum: number, booking: any) => sum + (booking.amount || 0), 0) || 0;
+      
+      // Update stats with calculated revenue
+      fullTenantData.stats.monthlyRevenue = monthlyRevenue;
 
       return NextResponse.json({
         ...fullTenantData,

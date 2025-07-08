@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@clerk/nextjs';
+import { useAuth, useUser } from '@clerk/nextjs';
 import { z } from 'zod';
 
 const registerSchema = z.object({
@@ -26,6 +26,7 @@ export default function RegisterSchoolPage() {
 
   const router = useRouter();
   const { isSignedIn, isLoaded } = useAuth();
+  const { user } = useUser();
 
   useEffect(() => {
     if (!isSignedIn && isLoaded) {
@@ -75,42 +76,23 @@ export default function RegisterSchoolPage() {
         throw new Error(result.error || 'Failed to register school');
       }
 
-      // Show success message with both URLs and redirect to path-based URL
+      // Show success message with both URLs
       alert(`School registered successfully!\n\nPath-based URL: ${window.location.origin}${result.urls.pathBased}\nSubdomain URL: ${result.urls.subdomain}`);
       
-      // Add a longer delay and retry mechanism to ensure user record is accessible
-      const redirectWithRetry = async (url: string, maxAttempts = 3) => {
-        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-          try {
-            // Wait progressively longer between attempts
-            await new Promise(resolve => setTimeout(resolve, attempt * 1500));
-            
-            // Test if the admin route is accessible before redirecting
-            const testResponse = await fetch(`/api/auth/status`, {
-              method: 'GET',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            });
-            
-            if (testResponse.ok) {
-              // If auth status is good, proceed with redirect
-              router.push(url);
-              return;
-            }
-          } catch (error) {
-            console.warn(`Redirect attempt ${attempt} failed:`, error);
-          }
-          
-          if (attempt === maxAttempts) {
-            // Final attempt - redirect anyway and let the user try refreshing if needed
-            console.warn('Max redirect attempts reached, proceeding with redirect');
-            router.push(url);
-          }
+      // Force Clerk to refresh the user session to pick up the new user data
+      if (user) {
+        try {
+          await user.reload();
+          console.log('✅ User session refreshed successfully');
+        } catch (error) {
+          console.warn('Failed to refresh user session:', error);
         }
-      };
+      }
       
-      redirectWithRetry(result.urls.pathBased);
+      // Wait a moment for the session refresh to complete, then redirect
+      setTimeout(() => {
+        router.push(result.urls.pathBased);
+      }, 1000);
 
     } catch (error) {
       if (error instanceof z.ZodError) {

@@ -213,7 +213,7 @@ export default clerkMiddleware(async (auth, req) => {
       }
     }
     
-    // For non-tenant routes (like /dashboard), just check if user exists
+    // For non-tenant routes (like /dashboard), check if user exists and validate access
     if (!tenantSlug) {
       if (!user) {
         // In production, be more lenient - allow access and let the frontend handle the redirect
@@ -227,6 +227,13 @@ export default clerkMiddleware(async (auth, req) => {
         }
         return NextResponse.redirect(new URL('/register-school', req.url));
       }
+      
+      // SECURITY: Prevent tenant users from accessing global dashboard
+      if (req.nextUrl.pathname.startsWith('/dashboard') && user.tenant && user.tenant.slug) {
+        console.log('🔒 Security: Redirecting tenant user away from global dashboard');
+        return NextResponse.redirect(new URL(`/${user.tenant.slug}`, req.url));
+      }
+      
       return NextResponse.next();
     }
 

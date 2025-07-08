@@ -120,20 +120,20 @@ export default function QuickActions({ user }: QuickActionsProps) {
   return (
     <div className="rounded-lg bg-white p-6 shadow">
       <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4">
         {actions.map((action) => {
           const Icon = action.icon;
           return (
             <Link
               key={action.name}
               href={action.href}
-              className={`${action.color} group relative rounded-lg p-4 text-white transition-colors`}
+              className={`${action.color} group relative rounded-lg p-4 text-white transition-all duration-200 hover:scale-105 hover:shadow-lg`}
             >
-              <div className="flex items-center space-x-3">
-                <Icon className="h-6 w-6 flex-shrink-0" />
-                <div>
-                  <h4 className="font-medium">{action.name}</h4>
-                  <p className="text-sm opacity-90">{action.description}</p>
+              <div className="flex flex-col items-center text-center space-y-2 md:flex-row md:items-center md:text-left md:space-y-0 md:space-x-3">
+                <Icon className="h-8 w-8 md:h-6 md:w-6 flex-shrink-0" />
+                <div className="min-w-0">
+                  <h4 className="font-medium text-sm md:text-base truncate">{action.name}</h4>
+                  <p className="text-xs md:text-sm opacity-90 line-clamp-2">{action.description}</p>
                 </div>
               </div>
             </Link>
