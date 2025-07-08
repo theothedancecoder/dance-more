@@ -1,10 +1,10 @@
 // Vipps configuration and utilities
 export const VIPPS_CONFIG = {
   baseUrl: 'https://apitest.vipps.no', // Test environment
-  clientId: process.env.VIPPS_CLIENT_ID || '960d9d2f-dd1d-44af-9fb1-51fb98217a46',
-  clientSecret: process.env.VIPPS_CLIENT_SECRET || 'Ort8Q~WW6hCXO31KWdJApuia~4-io6twAhLcCaK8',
-  subscriptionKey: process.env.VIPPS_SUBSCRIPTION_KEY || '0bb87cb8589841368b42df9d3469968c',
-  msn: process.env.VIPPS_MSN || '376194',
+  clientId: process.env.VIPPS_CLIENT_ID!,
+  clientSecret: process.env.VIPPS_CLIENT_SECRET!,
+  subscriptionKey: process.env.VIPPS_SUBSCRIPTION_KEY!,
+  msn: process.env.VIPPS_MSN!,
   currency: 'NOK',
   testPhoneNumber: '4799139625', // Test phone number for Vipps test environment
 };

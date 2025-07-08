@@ -7,13 +7,23 @@ async function testVippsIntegration() {
   // Test 1: Check if Vipps access token can be obtained
   console.log('1. Testing Vipps Access Token...');
   try {
+    const clientId = process.env.VIPPS_CLIENT_ID;
+    const clientSecret = process.env.VIPPS_CLIENT_SECRET;
+    const subscriptionKey = process.env.VIPPS_SUBSCRIPTION_KEY;
+
+    if (!clientId || !clientSecret || !subscriptionKey) {
+      console.log('⚠️  Vipps credentials not found in environment variables');
+      console.log('   Please set VIPPS_CLIENT_ID, VIPPS_CLIENT_SECRET, and VIPPS_SUBSCRIPTION_KEY\n');
+      return;
+    }
+
     const response = await fetch('https://apitest.vipps.no/accesstoken/get', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'client_id': '960d9d2f-dd1d-44af-9fb1-51fb98217a46',
-        'client_secret': 'Ort8Q~WW6hCXO31KWdJApuia~4-io6twAhLcCaK8',
-        'Ocp-Apim-Subscription-Key': '0bb87cb8589841368b42df9d3469968c',
+        'client_id': clientId,
+        'client_secret': clientSecret,
+        'Ocp-Apim-Subscription-Key': subscriptionKey,
       },
     });
 

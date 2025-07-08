@@ -18,13 +18,13 @@ Vipps has been successfully integrated as an additional payment method alongside
 
 ### Test Environment Configuration
 
-The integration uses Vipps test environment with the following credentials:
+The integration uses Vipps test environment with the following configuration:
 
 - **Base URL**: `https://apitest.vipps.no`
-- **Client ID**: `960d9d2f-dd1d-44af-9fb1-51fb98217a46`
-- **Client Secret**: `Ort8Q~WW6hCXO31KWdJApuia~4-io6twAhLcCaK8`
-- **Subscription Key**: `0bb87cb8589841368b42df9d3469968c`
-- **MSN**: `376194`
+- **Client ID**: Set via `VIPPS_CLIENT_ID` environment variable
+- **Client Secret**: Set via `VIPPS_CLIENT_SECRET` environment variable
+- **Subscription Key**: Set via `VIPPS_SUBSCRIPTION_KEY` environment variable
+- **MSN**: Set via `VIPPS_MSN` environment variable
 - **Test Phone Number**: `4799139625`
 - **Currency**: `NOK` (Norwegian Kroner)
 
