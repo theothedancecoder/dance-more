@@ -64,7 +64,14 @@ export async function GET(request: NextRequest) {
 
     const passes = await sanityClient.fetch(query, { tenantId });
 
-    return NextResponse.json({ passes });
+    // Add backward compatibility for existing passes without validityType
+    const passesWithDefaults = passes.map((pass: any) => ({
+      ...pass,
+      validityType: pass.validityType || 'days',
+      validityDays: pass.validityDays || 30,
+    }));
+
+    return NextResponse.json({ passes: passesWithDefaults });
   } catch (error) {
     console.error('Error fetching passes:', error);
     return NextResponse.json(

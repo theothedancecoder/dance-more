@@ -34,23 +34,27 @@ export async function PUT(
       isActive
     } = body;
 
+    // Add backward compatibility - if validityType is not provided, default to 'days'
+    const finalValidityType = validityType || 'days';
+    const finalValidityDays = finalValidityType === 'days' ? (validityDays || 30) : null;
+
     // Validate required fields
-    if (!name || !type || !price || !validityType) {
+    if (!name || !type || !price) {
       return NextResponse.json(
-        { error: 'Missing required fields: name, type, price, and validityType are required' },
+        { error: 'Missing required fields: name, type, and price are required' },
         { status: 400 }
       );
     }
 
     // Validate validity type specific fields
-    if (validityType === 'days' && (!validityDays || validityDays < 1)) {
+    if (finalValidityType === 'days' && (!finalValidityDays || finalValidityDays < 1)) {
       return NextResponse.json(
         { error: 'validityDays must be at least 1 when using days-based validity' },
         { status: 400 }
       );
     }
 
-    if (validityType === 'date') {
+    if (finalValidityType === 'date') {
       if (!expiryDate) {
         return NextResponse.json(
           { error: 'expiryDate is required when using date-based validity' },
@@ -75,9 +79,9 @@ export async function PUT(
         description: description || '',
         type,
         price,
-        validityType,
-        validityDays: validityType === 'days' ? validityDays : null,
-        expiryDate: validityType === 'date' ? expiryDate : null,
+        validityType: finalValidityType,
+        validityDays: finalValidityDays,
+        expiryDate: finalValidityType === 'date' ? expiryDate : null,
         classesLimit: ['multi', 'multi-pass'].includes(type) ? classesLimit : null,
         isActive: isActive ?? true,
         updatedAt: new Date().toISOString()

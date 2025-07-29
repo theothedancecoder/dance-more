@@ -110,7 +110,13 @@ export default function PassesManagementPage() {
   };
 
   const handleEditPass = (pass: PassData) => {
-    setEditingPass(pass);
+    // Add backward compatibility for existing passes without validityType
+    const passWithDefaults = {
+      ...pass,
+      validityType: pass.validityType || 'days' as 'days' | 'date',
+      validityDays: pass.validityDays || 30,
+    };
+    setEditingPass(passWithDefaults);
     setShowEditModal(true);
   };
 
@@ -163,6 +169,26 @@ export default function PassesManagementPage() {
       alert('Failed to update pass: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const toggleValidityFields = (validityType: string, isEditModal: boolean = false) => {
+    const prefix = isEditModal ? 'edit-' : 'create-';
+    const validityDaysDiv = document.getElementById(`${prefix}validityDaysField`) as HTMLDivElement;
+    const expiryDateDiv = document.getElementById(`${prefix}expiryDateField`) as HTMLDivElement;
+    const validityDaysInput = document.querySelector(`[name="validityDays"]`) as HTMLInputElement;
+    const expiryDateInput = document.querySelector(`[name="expiryDate"]`) as HTMLInputElement;
+    
+    if (validityType === 'days') {
+      validityDaysDiv.style.display = 'block';
+      expiryDateDiv.style.display = 'none';
+      if (validityDaysInput) validityDaysInput.required = true;
+      if (expiryDateInput) expiryDateInput.required = false;
+    } else {
+      validityDaysDiv.style.display = 'none';
+      expiryDateDiv.style.display = 'block';
+      if (validityDaysInput) validityDaysInput.required = false;
+      if (expiryDateInput) expiryDateInput.required = true;
     }
   };
 
@@ -541,30 +567,14 @@ export default function PassesManagementPage() {
                       name="validityType"
                       required
                       className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      onChange={(e) => {
-                        const form = e.target.form;
-                        const validityDaysField = form?.querySelector('[name="validityDays"]') as HTMLInputElement;
-                        const expiryDateField = form?.querySelector('[name="expiryDate"]') as HTMLInputElement;
-                        
-                        if (e.target.value === 'days') {
-                          validityDaysField.style.display = 'block';
-                          expiryDateField.style.display = 'none';
-                          validityDaysField.required = true;
-                          expiryDateField.required = false;
-                        } else {
-                          validityDaysField.style.display = 'none';
-                          expiryDateField.style.display = 'block';
-                          validityDaysField.required = false;
-                          expiryDateField.required = true;
-                        }
-                      }}
+                      onChange={(e) => toggleValidityFields(e.target.value, false)}
                     >
                       <option value="days">Valid for X days from purchase</option>
                       <option value="date">Valid until specific date</option>
                     </select>
                   </div>
 
-                  <div>
+                  <div id="create-validityDaysField">
                     <label className="block text-sm font-medium text-gray-700">Valid for (days)</label>
                     <input
                       type="number"
@@ -576,12 +586,11 @@ export default function PassesManagementPage() {
                     />
                   </div>
 
-                  <div>
+                  <div id="create-expiryDateField" style={{ display: 'none' }}>
                     <label className="block text-sm font-medium text-gray-700">Expiry Date</label>
                     <input
                       type="datetime-local"
                       name="expiryDate"
-                      style={{ display: 'none' }}
                       className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
@@ -717,30 +726,14 @@ export default function PassesManagementPage() {
                       required
                       defaultValue={editingPass.validityType}
                       className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      onChange={(e) => {
-                        const form = e.target.form;
-                        const validityDaysField = form?.querySelector('[name="validityDays"]') as HTMLInputElement;
-                        const expiryDateField = form?.querySelector('[name="expiryDate"]') as HTMLInputElement;
-                        
-                        if (e.target.value === 'days') {
-                          validityDaysField.style.display = 'block';
-                          expiryDateField.style.display = 'none';
-                          validityDaysField.required = true;
-                          expiryDateField.required = false;
-                        } else {
-                          validityDaysField.style.display = 'none';
-                          expiryDateField.style.display = 'block';
-                          validityDaysField.required = false;
-                          expiryDateField.required = true;
-                        }
-                      }}
+                      onChange={(e) => toggleValidityFields(e.target.value, true)}
                     >
                       <option value="days">Valid for X days from purchase</option>
                       <option value="date">Valid until specific date</option>
                     </select>
                   </div>
 
-                  <div style={{ display: editingPass.validityType === 'days' ? 'block' : 'none' }}>
+                  <div id="edit-validityDaysField" style={{ display: editingPass.validityType === 'days' ? 'block' : 'none' }}>
                     <label className="block text-sm font-medium text-gray-700">Valid for (days)</label>
                     <input
                       type="number"
@@ -753,7 +746,7 @@ export default function PassesManagementPage() {
                     />
                   </div>
 
-                  <div style={{ display: editingPass.validityType === 'date' ? 'block' : 'none' }}>
+                  <div id="edit-expiryDateField" style={{ display: editingPass.validityType === 'date' ? 'block' : 'none' }}>
                     <label className="block text-sm font-medium text-gray-700">Expiry Date</label>
                     <input
                       type="datetime-local"
