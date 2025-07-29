@@ -9,10 +9,12 @@ import { CreditCardIcon, PlusIcon, TicketIcon } from '@heroicons/react/24/outlin
 interface PassData {
   _id: string;
   name: string;
-  type: 'subscription' | 'clipcard';
+  type: 'single' | 'multi-pass' | 'multi' | 'unlimited';
   price: number;
-  credits: number;
-  validityDays: number;
+  validityType: 'days' | 'date';
+  validityDays?: number;
+  expiryDate?: string;
+  classesLimit?: number;
   isActive: boolean;
   description?: string;
 }
@@ -24,7 +26,10 @@ export default function PassesManagementPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingPass, setEditingPass] = useState<PassData | null>(null);
   const [creating, setCreating] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
   const tenantSlug = params.slug as string;
 
@@ -60,7 +65,9 @@ export default function PassesManagementPage() {
     description: string;
     type: string;
     price: number;
-    validityDays: number;
+    validityType: string;
+    validityDays?: number;
+    expiryDate?: string;
     classesLimit?: number;
     isActive: boolean;
   }) => {
@@ -99,6 +106,63 @@ export default function PassesManagementPage() {
       alert('Failed to create pass: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleEditPass = (pass: PassData) => {
+    setEditingPass(pass);
+    setShowEditModal(true);
+  };
+
+  const handleUpdatePass = async (formData: {
+    name: string;
+    description: string;
+    type: string;
+    price: number;
+    validityType: string;
+    validityDays?: number;
+    expiryDate?: string;
+    classesLimit?: number;
+    isActive: boolean;
+  }) => {
+    if (!editingPass) return;
+    
+    setUpdating(true);
+    try {
+      const response = await fetch(`/api/admin/passes/${editingPass._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-slug': tenantSlug,
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update pass');
+      }
+
+      const result = await response.json();
+      
+      // Refresh the passes list
+      const updatedResponse = await fetch('/api/admin/passes', {
+        headers: {
+          'x-tenant-slug': tenantSlug,
+        },
+      });
+      
+      if (updatedResponse.ok) {
+        const data = await updatedResponse.json();
+        setPasses(data.passes || []);
+      }
+      
+      setShowEditModal(false);
+      setEditingPass(null);
+      alert('Pass updated successfully!');
+    } catch (err) {
+      alert('Failed to update pass: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -251,7 +315,7 @@ export default function PassesManagementPage() {
                 <div className="p-6">
                   <div className="flex items-center">
                     <div className="flex-shrink-0">
-                      {pass.type === 'subscription' ? (
+                      {['unlimited', 'multi'].includes(pass.type) ? (
                         <CreditCardIcon className="h-8 w-8 text-blue-500" />
                       ) : (
                         <TicketIcon className="h-8 w-8 text-green-500" />
@@ -270,11 +334,15 @@ export default function PassesManagementPage() {
                       </div>
                       <div className="mt-1">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          pass.type === 'subscription'
+                          pass.type === 'unlimited'
                             ? 'bg-blue-100 text-blue-800'
+                            : pass.type === 'multi'
+                            ? 'bg-purple-100 text-purple-800'
                             : 'bg-green-100 text-green-800'
                         }`}>
-                          {pass.type === 'subscription' ? 'Subscription' : 'Clipcard'}
+                          {pass.type === 'single' ? 'Single Class' : 
+                           pass.type === 'multi-pass' ? 'Multi-Class Pass' :
+                           pass.type === 'multi' ? 'Clipcard' : 'Unlimited'}
                         </span>
                       </div>
                     </div>
@@ -285,13 +353,22 @@ export default function PassesManagementPage() {
                       <span>Price:</span>
                       <span className="font-medium text-gray-900">{pass.price} kr</span>
                     </div>
+                    {pass.classesLimit && (
+                      <div className="flex justify-between text-sm text-gray-500 mt-1">
+                        <span>Classes:</span>
+                        <span className="font-medium text-gray-900">{pass.classesLimit}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-sm text-gray-500 mt-1">
-                      <span>Credits:</span>
-                      <span className="font-medium text-gray-900">{pass.credits}</span>
-                    </div>
-                    <div className="flex justify-between text-sm text-gray-500 mt-1">
-                      <span>Valid for:</span>
-                      <span className="font-medium text-gray-900">{pass.validityDays} days</span>
+                      <span>Validity:</span>
+                      <span className="font-medium text-gray-900">
+                        {pass.validityType === 'days' && pass.validityDays 
+                          ? `${pass.validityDays} days`
+                          : pass.validityType === 'date' && pass.expiryDate
+                          ? `Until ${new Date(pass.expiryDate).toLocaleDateString()}`
+                          : 'Not set'
+                        }
+                      </span>
                     </div>
                   </div>
 
@@ -302,7 +379,10 @@ export default function PassesManagementPage() {
                   )}
 
                   <div className="mt-6 flex space-x-3">
-                    <button className="flex-1 bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700">
+                    <button 
+                      onClick={() => handleEditPass(pass)}
+                      className="flex-1 bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700"
+                    >
                       Edit
                     </button>
                     <button className="flex-1 bg-gray-600 text-white px-3 py-2 rounded text-sm hover:bg-gray-700">
@@ -391,13 +471,16 @@ export default function PassesManagementPage() {
               <form onSubmit={(e) => {
                 e.preventDefault();
                 const formData = new FormData(e.currentTarget);
+                const validityType = formData.get('validityType') as string;
                 const data = {
                   name: formData.get('name') as string,
                   description: formData.get('description') as string,
                   type: formData.get('type') as string,
                   price: Number(formData.get('price')),
-                  validityDays: Number(formData.get('validityDays')),
-                  classesLimit: formData.get('type') === 'multi' ? Number(formData.get('classesLimit')) : undefined,
+                  validityType,
+                  validityDays: validityType === 'days' ? Number(formData.get('validityDays')) : undefined,
+                  expiryDate: validityType === 'date' ? formData.get('expiryDate') as string : undefined,
+                  classesLimit: ['multi', 'multi-pass'].includes(formData.get('type') as string) ? Number(formData.get('classesLimit')) : undefined,
                   isActive: formData.get('isActive') === 'on',
                 };
                 handleCreatePass(data);
@@ -453,6 +536,35 @@ export default function PassesManagementPage() {
                   </div>
 
                   <div>
+                    <label className="block text-sm font-medium text-gray-700">Validity Type</label>
+                    <select
+                      name="validityType"
+                      required
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      onChange={(e) => {
+                        const form = e.target.form;
+                        const validityDaysField = form?.querySelector('[name="validityDays"]') as HTMLInputElement;
+                        const expiryDateField = form?.querySelector('[name="expiryDate"]') as HTMLInputElement;
+                        
+                        if (e.target.value === 'days') {
+                          validityDaysField.style.display = 'block';
+                          expiryDateField.style.display = 'none';
+                          validityDaysField.required = true;
+                          expiryDateField.required = false;
+                        } else {
+                          validityDaysField.style.display = 'none';
+                          expiryDateField.style.display = 'block';
+                          validityDaysField.required = false;
+                          expiryDateField.required = true;
+                        }
+                      }}
+                    >
+                      <option value="days">Valid for X days from purchase</option>
+                      <option value="date">Valid until specific date</option>
+                    </select>
+                  </div>
+
+                  <div>
                     <label className="block text-sm font-medium text-gray-700">Valid for (days)</label>
                     <input
                       type="number"
@@ -461,6 +573,16 @@ export default function PassesManagementPage() {
                       min="1"
                       className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                       placeholder="30"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Expiry Date</label>
+                    <input
+                      type="datetime-local"
+                      name="expiryDate"
+                      style={{ display: 'none' }}
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
 
@@ -503,6 +625,188 @@ export default function PassesManagementPage() {
                     className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
                   >
                     {creating ? 'Creating...' : 'Create Pass'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Pass Modal */}
+      {showEditModal && editingPass && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Edit Pass</h3>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                const validityType = formData.get('validityType') as string;
+                const data = {
+                  name: formData.get('name') as string,
+                  description: formData.get('description') as string,
+                  type: formData.get('type') as string,
+                  price: Number(formData.get('price')),
+                  validityType,
+                  validityDays: validityType === 'days' ? Number(formData.get('validityDays')) : undefined,
+                  expiryDate: validityType === 'date' ? formData.get('expiryDate') as string : undefined,
+                  classesLimit: ['multi', 'multi-pass'].includes(formData.get('type') as string) ? Number(formData.get('classesLimit')) : undefined,
+                  isActive: formData.get('isActive') === 'on',
+                };
+                handleUpdatePass(data);
+              }}>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Name</label>
+                    <input
+                      type="text"
+                      name="name"
+                      required
+                      defaultValue={editingPass.name}
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="e.g., Monthly Pass"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Description</label>
+                    <textarea
+                      name="description"
+                      rows={3}
+                      defaultValue={editingPass.description || ''}
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Describe what this pass includes..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Type</label>
+                    <select
+                      name="type"
+                      required
+                      defaultValue={editingPass.type}
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select type</option>
+                      <option value="single">Single Class</option>
+                      <option value="multi">Multi-Class Package</option>
+                      <option value="unlimited">Unlimited</option>
+                      <option value="multi-pass">Multi-Pass</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Price (kr)</label>
+                    <input
+                      type="number"
+                      name="price"
+                      required
+                      min="0"
+                      step="0.01"
+                      defaultValue={editingPass.price}
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="299"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Validity Type</label>
+                    <select
+                      name="validityType"
+                      required
+                      defaultValue={editingPass.validityType}
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      onChange={(e) => {
+                        const form = e.target.form;
+                        const validityDaysField = form?.querySelector('[name="validityDays"]') as HTMLInputElement;
+                        const expiryDateField = form?.querySelector('[name="expiryDate"]') as HTMLInputElement;
+                        
+                        if (e.target.value === 'days') {
+                          validityDaysField.style.display = 'block';
+                          expiryDateField.style.display = 'none';
+                          validityDaysField.required = true;
+                          expiryDateField.required = false;
+                        } else {
+                          validityDaysField.style.display = 'none';
+                          expiryDateField.style.display = 'block';
+                          validityDaysField.required = false;
+                          expiryDateField.required = true;
+                        }
+                      }}
+                    >
+                      <option value="days">Valid for X days from purchase</option>
+                      <option value="date">Valid until specific date</option>
+                    </select>
+                  </div>
+
+                  <div style={{ display: editingPass.validityType === 'days' ? 'block' : 'none' }}>
+                    <label className="block text-sm font-medium text-gray-700">Valid for (days)</label>
+                    <input
+                      type="number"
+                      name="validityDays"
+                      required={editingPass.validityType === 'days'}
+                      min="1"
+                      defaultValue={editingPass.validityDays || ''}
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="30"
+                    />
+                  </div>
+
+                  <div style={{ display: editingPass.validityType === 'date' ? 'block' : 'none' }}>
+                    <label className="block text-sm font-medium text-gray-700">Expiry Date</label>
+                    <input
+                      type="datetime-local"
+                      name="expiryDate"
+                      required={editingPass.validityType === 'date'}
+                      defaultValue={editingPass.expiryDate ? new Date(editingPass.expiryDate).toISOString().slice(0, 16) : ''}
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Classes Limit (for multi-class packages)</label>
+                    <input
+                      type="number"
+                      name="classesLimit"
+                      min="1"
+                      defaultValue={editingPass.classesLimit || ''}
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="10"
+                    />
+                  </div>
+
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      name="isActive"
+                      defaultChecked={editingPass.isActive}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label className="ml-2 block text-sm text-gray-900">
+                      Active (available for purchase)
+                    </label>
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowEditModal(false);
+                      setEditingPass(null);
+                    }}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                    disabled={updating}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={updating}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {updating ? 'Updating...' : 'Update Pass'}
                   </button>
                 </div>
               </form>

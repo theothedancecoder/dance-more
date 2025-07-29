@@ -48,7 +48,9 @@ export async function GET(request: NextRequest) {
       description,
       type,
       price,
+      validityType,
       validityDays,
+      expiryDate,
       classesLimit,
       isActive,
       tenant->{
@@ -93,17 +95,44 @@ export async function POST(request: NextRequest) {
       description,
       type,
       price,
+      validityType,
       validityDays,
+      expiryDate,
       classesLimit,
       isActive
     } = body;
 
     // Validate required fields
-    if (!name || !type || !price || !validityDays) {
+    if (!name || !type || !price || !validityType) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required fields: name, type, price, and validityType are required' },
         { status: 400 }
       );
+    }
+
+    // Validate validity type specific fields
+    if (validityType === 'days' && (!validityDays || validityDays < 1)) {
+      return NextResponse.json(
+        { error: 'validityDays must be at least 1 when using days-based validity' },
+        { status: 400 }
+      );
+    }
+
+    if (validityType === 'date') {
+      if (!expiryDate) {
+        return NextResponse.json(
+          { error: 'expiryDate is required when using date-based validity' },
+          { status: 400 }
+        );
+      }
+      
+      const expiry = new Date(expiryDate);
+      if (expiry <= new Date()) {
+        return NextResponse.json(
+          { error: 'expiryDate must be in the future' },
+          { status: 400 }
+        );
+      }
     }
 
     // Get tenant from headers (set by middleware) - REQUIRED for security
@@ -135,8 +164,10 @@ export async function POST(request: NextRequest) {
       description: description || '',
       type,
       price,
-      validityDays,
-      classesLimit: type === 'multi' ? classesLimit : null,
+      validityType,
+      validityDays: validityType === 'days' ? validityDays : null,
+      expiryDate: validityType === 'date' ? expiryDate : null,
+      classesLimit: ['multi', 'multi-pass'].includes(type) ? classesLimit : null,
       isActive: isActive ?? true,
       tenant: {
         _type: 'reference',

@@ -38,10 +38,50 @@ export const passType = defineType({
       validation: (Rule) => Rule.required().min(0),
     }),
     defineField({
+      name: 'validityType',
+      title: 'Validity Type',
+      type: 'string',
+      options: {
+        list: [
+          { title: 'Valid for X days from purchase', value: 'days' },
+          { title: 'Valid until specific date', value: 'date' },
+        ],
+      },
+      initialValue: 'days',
+      validation: (Rule) => Rule.required(),
+    }),
+    defineField({
       name: 'validityDays',
       title: 'Validity Period (Days)',
       type: 'number',
-      validation: (Rule) => Rule.required().min(1),
+      description: 'Number of days the pass is valid from purchase date',
+      hidden: ({ document }) => (document as any)?.validityType !== 'days',
+      validation: (Rule) => 
+        Rule.custom((value, context) => {
+          const validityType = (context.document as any)?.validityType;
+          if (validityType === 'days' && (!value || value < 1)) {
+            return 'Validity days must be at least 1 when using days-based validity';
+          }
+          return true;
+        }),
+    }),
+    defineField({
+      name: 'expiryDate',
+      title: 'Expiry Date',
+      type: 'datetime',
+      description: 'Specific date when this pass expires and can no longer be purchased or used',
+      hidden: ({ document }) => (document as any)?.validityType !== 'date',
+      validation: (Rule) => 
+        Rule.custom((value, context) => {
+          const validityType = (context.document as any)?.validityType;
+          if (validityType === 'date' && !value) {
+            return 'Expiry date is required when using date-based validity';
+          }
+          if (value && new Date(value) <= new Date()) {
+            return 'Expiry date must be in the future';
+          }
+          return true;
+        }),
     }),
     defineField({
       name: 'classesLimit',
@@ -85,17 +125,29 @@ export const passType = defineType({
       type: 'type',
       price: 'price',
       isActive: 'isActive',
+      validityType: 'validityType',
+      validityDays: 'validityDays',
+      expiryDate: 'expiryDate',
     },
-    prepare({ title, type, price, isActive }) {
+    prepare({ title, type, price, isActive, validityType, validityDays, expiryDate }) {
       const typeLabels = {
         single: 'Single Class',
         'multi-pass': 'Multi-Class Pass',
         multi: 'Clipcard',
         unlimited: 'Unlimited',
       };
+      
+      let validityInfo = '';
+      if (validityType === 'days' && validityDays) {
+        validityInfo = ` • ${validityDays} days`;
+      } else if (validityType === 'date' && expiryDate) {
+        const expiry = new Date(expiryDate);
+        validityInfo = ` • Until ${expiry.toLocaleDateString()}`;
+      }
+      
       return {
         title,
-        subtitle: `${typeLabels[type as keyof typeof typeLabels]} • ${price} kr ${!isActive ? '(Inactive)' : ''}`,
+        subtitle: `${typeLabels[type as keyof typeof typeLabels]} • ${price} kr${validityInfo}${!isActive ? ' (Inactive)' : ''}`,
       };
     },
   },

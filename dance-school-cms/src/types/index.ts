@@ -70,19 +70,30 @@ export type Class = z.infer<typeof ClassSchema>;
 export const PassType = {
   SINGLE: 'single',
   MULTI: 'multi',
+  MULTI_PASS: 'multi-pass',
   UNLIMITED: 'unlimited',
 } as const;
 
 export type PassType = typeof PassType[keyof typeof PassType];
 
+export const ValidityType = {
+  DAYS: 'days',
+  DATE: 'date',
+} as const;
+
+export type ValidityType = typeof ValidityType[keyof typeof ValidityType];
+
 export const PassSchema = z.object({
   id: z.string(),
-  type: z.enum([PassType.SINGLE, PassType.MULTI, PassType.UNLIMITED]),
+  type: z.enum([PassType.SINGLE, PassType.MULTI, PassType.MULTI_PASS, PassType.UNLIMITED]),
   name: z.string(),
   description: z.string(),
   price: z.number().min(0),
-  validityDays: z.number().min(1),
+  validityType: z.enum([ValidityType.DAYS, ValidityType.DATE]),
+  validityDays: z.number().min(1).optional(),
+  expiryDate: z.date().optional(),
   classesLimit: z.number().nullable(),
+  isActive: z.boolean(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });

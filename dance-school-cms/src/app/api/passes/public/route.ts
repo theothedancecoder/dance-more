@@ -37,7 +37,9 @@ export async function GET(request: NextRequest) {
       description,
       type,
       price,
+      validityType,
       validityDays,
+      expiryDate,
       classesLimit,
       isActive,
       features

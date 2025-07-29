@@ -10,10 +10,12 @@ import { CreditCardIcon, TicketIcon, CheckIcon, StarIcon } from '@heroicons/reac
 interface PassData {
   _id: string;
   name: string;
-  type: 'subscription' | 'clipcard';
+  type: 'single' | 'multi-pass' | 'multi' | 'unlimited';
   price: number;
-  credits: number;
-  validityDays: number;
+  validityType: 'days' | 'date';
+  validityDays?: number;
+  expiryDate?: string;
+  classesLimit?: number;
   description: string;
   features: string[];
   isPopular?: boolean;
@@ -176,7 +178,7 @@ export default function SubscriptionsPage() {
               <div className={`p-6 ${pass.isPopular ? 'pt-12' : ''}`}>
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center">
-                    {pass.type === 'subscription' ? (
+                    {['unlimited', 'multi'].includes(pass.type) ? (
                       <CreditCardIcon className="h-8 w-8 text-blue-500 mr-3" />
                     ) : (
                       <TicketIcon className="h-8 w-8 text-green-500 mr-3" />
@@ -184,11 +186,15 @@ export default function SubscriptionsPage() {
                     <div>
                       <h3 className="text-xl font-semibold text-gray-900">{pass.name}</h3>
                       <span className={`text-xs px-2 py-1 rounded-full ${
-                        pass.type === 'subscription'
+                        pass.type === 'unlimited'
                           ? 'bg-blue-100 text-blue-800'
+                          : pass.type === 'multi'
+                          ? 'bg-purple-100 text-purple-800'
                           : 'bg-green-100 text-green-800'
                       }`}>
-                        {pass.type === 'subscription' ? 'Subscription' : 'Class Package'}
+                        {pass.type === 'single' ? 'Single Class' : 
+                         pass.type === 'multi-pass' ? 'Multi-Class Pass' :
+                         pass.type === 'multi' ? 'Clipcard' : 'Unlimited'}
                       </span>
                     </div>
                   </div>
@@ -202,8 +208,15 @@ export default function SubscriptionsPage() {
                     <span className="text-gray-500 ml-1">kr</span>
                   </div>
                   <div className="text-sm text-gray-500 mt-1">
-                    {pass.credits === -1 ? 'Unlimited classes' : `${pass.credits} class${pass.credits > 1 ? 'es' : ''}`}
-                    {' • '}Valid for {pass.validityDays} days
+                    {pass.type === 'unlimited' ? 'Unlimited classes' : 
+                     pass.classesLimit ? `${pass.classesLimit} class${pass.classesLimit > 1 ? 'es' : ''}` : '1 class'}
+                    {' • '}
+                    {pass.validityType === 'days' && pass.validityDays 
+                      ? `Valid for ${pass.validityDays} days`
+                      : pass.validityType === 'date' && pass.expiryDate
+                      ? `Valid until ${new Date(pass.expiryDate).toLocaleDateString()}`
+                      : 'Validity not set'
+                    }
                   </div>
                 </div>
 
