@@ -6,6 +6,7 @@ import { useTenant } from '@/contexts/TenantContext';
 import { SignedIn, SignedOut, SignInButton } from '@clerk/nextjs';
 import Link from 'next/link';
 import { AcademicCapIcon, ClockIcon, UserGroupIcon } from '@heroicons/react/24/outline';
+import ReadMoreText from '@/components/ReadMoreText';
 
 interface ClassData {
   _id: string;
@@ -158,7 +159,11 @@ export default function ClassesPage() {
                   </span>
                 </div>
                 
-                <p className="text-gray-600 mb-4">{classItem.description}</p>
+                <ReadMoreText 
+                  text={classItem.description} 
+                  className="text-gray-600 mb-4"
+                  maxLength={120}
+                />
                 
                 <div className="space-y-2 mb-6">
                   <div className="flex items-center text-sm text-gray-500">

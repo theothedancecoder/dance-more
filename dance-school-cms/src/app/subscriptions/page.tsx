@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import Link from 'next/link';
+import ReadMoreText from '@/components/ReadMoreText';
 
 interface Subscription {
   _id: string;
@@ -198,7 +199,11 @@ export default function SubscriptionsPage() {
                 {availablePasses.map((pass) => (
                   <div key={pass._id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                     <h3 className="font-semibold text-lg mb-2">{pass.name}</h3>
-                    <p className="text-gray-600 text-sm mb-3">{pass.description}</p>
+                    <ReadMoreText 
+                      text={pass.description} 
+                      className="text-gray-600 text-sm mb-3"
+                      maxLength={120}
+                    />
                     <div className="space-y-1 text-sm text-gray-500 mb-4">
                       <p><strong>{pass.price} kr</strong></p>
                       {(pass.type === 'multi-pass' || pass.type === 'multi') && (

@@ -6,6 +6,7 @@ import { useTenant } from '@/contexts/TenantContext';
 import { SignedIn, SignedOut } from '@clerk/nextjs';
 import Link from 'next/link';
 import { CreditCardIcon, TicketIcon, CheckIcon, StarIcon } from '@heroicons/react/24/outline';
+import ReadMoreText from '@/components/ReadMoreText';
 
 interface PassData {
   _id: string;
@@ -220,7 +221,11 @@ export default function SubscriptionsPage() {
                   </div>
                 </div>
 
-                <p className="text-gray-600 mb-6">{pass.description}</p>
+                <ReadMoreText 
+                  text={pass.description} 
+                  className="text-gray-600 mb-6"
+                  maxLength={150}
+                />
 
                 <ul className="space-y-3 mb-8">
                   {(pass.features || []).map((feature, index) => (

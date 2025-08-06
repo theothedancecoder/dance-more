@@ -57,8 +57,8 @@ export default function ClassCalendar({ isAdmin = false }: ClassCalendarProps) {
     
     try {
       const now = new Date();
-      const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-      const endDate = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+      const startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1); // Start from previous month
+      const endDate = new Date(now.getFullYear(), now.getMonth() + 3, 0); // Go 3 months ahead
 
       const response = await fetch(
         `/api/classes/instances?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`,

@@ -1,21 +1,41 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import { sanityClient } from '@/lib/sanity';
 import { classesQuery } from '@/lib/sanity-queries';
 import { SanityClass } from '@/types/sanity';
 import { urlFor } from '@/lib/sanity';
 import Image from 'next/image';
 import Link from 'next/link';
+import ReadMoreText from '@/components/ReadMoreText';
 
-async function getClasses(): Promise<SanityClass[]> {
-  try {
-    return await sanityClient.fetch(classesQuery);
-  } catch (error) {
-    console.error('Error fetching classes:', error);
-    return [];
+export default function ClassesPage() {
+  const [classes, setClasses] = useState<SanityClass[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchClasses = async () => {
+      try {
+        const data = await sanityClient.fetch(classesQuery);
+        setClasses(data);
+      } catch (error) {
+        console.error('Error fetching classes:', error);
+        setClasses([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchClasses();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
   }
-}
-
-export default async function ClassesPage() {
-  const classes = await getClasses();
 
   return (
     <div className="min-h-screen bg-gray-50 py-12">
@@ -87,9 +107,11 @@ export default async function ClassesPage() {
                   </h3>
                   
                   {classItem.description && (
-                    <p className="text-gray-600 mb-4 line-clamp-3">
-                      {classItem.description}
-                    </p>
+                    <ReadMoreText 
+                      text={classItem.description} 
+                      className="text-gray-600 mb-4"
+                      maxLength={120}
+                    />
                   )}
                   
                   <div className="space-y-2 text-sm text-gray-500">
