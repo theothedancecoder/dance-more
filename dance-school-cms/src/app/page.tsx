@@ -62,8 +62,8 @@ export default function HomePage() {
 
   if (isLoading || loadingUserData) {
     return (
-      <div className="min-h-screen gradient-cosmic flex items-center justify-center">
-        <div className="loading-shimmer rounded-full h-16 w-16 border-4 border-white/30"></div>
+      <div className="min-h-screen gradient-rainbow particles flex items-center justify-center">
+        <div className="loading-shimmer rounded-full h-20 w-20 border-4 border-white/30"></div>
       </div>
     );
   }

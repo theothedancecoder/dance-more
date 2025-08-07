@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid pass type' }, { status: 400 });
         }
 
-        // Create subscription
+        // Create subscription with correct field names to match the payments API
         const subscriptionData = {
           _type: 'subscription',
           user: {
@@ -130,15 +130,20 @@ export async function POST(request: NextRequest) {
             _type: 'reference',
             _ref: tenantId,
           },
+          pass: {
+            _type: 'reference',
+            _ref: passId,
+          },
           type: subscriptionType,
-          passId: pass._id,
-          passName: pass.name,
           startDate: now.toISOString(),
           endDate: endDate.toISOString(),
           remainingClips,
+          status: 'active',
+          amount: session.amount_total ? session.amount_total / 100 : pass.price, // Convert from cents to currency
+          currency: session.currency?.toUpperCase() || 'NOK',
+          stripePaymentIntentId: session.payment_intent as string,
+          stripeSessionId: session.id,
           isActive: true,
-          stripePaymentId: session.payment_intent as string,
-          purchasePrice: pass.price,
         };
 
         console.log('📝 Creating subscription with data:', subscriptionData);

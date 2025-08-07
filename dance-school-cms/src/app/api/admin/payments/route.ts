@@ -41,8 +41,8 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // Fetch tenant-specific bookings/payments from Sanity
-    const query = `*[_type == "booking" && tenant._ref == $tenantId] | order(_createdAt desc) {
+    // Fetch both bookings and subscriptions from Sanity
+    const bookingsQuery = `*[_type == "booking" && tenant._ref == $tenantId] | order(_createdAt desc) {
       _id,
       "amount": class->price,
       "currency": "NOK",
@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
         paymentId match "vipps_*" => "vipps",
         "card"
       ),
+      "type": "booking",
       class->{
         _id,
         title,
@@ -74,10 +75,46 @@ export async function GET(request: NextRequest) {
       }
     }`;
 
-    const bookings = await sanityClient.fetch(query, { tenantId });
+    const subscriptionsQuery = `*[_type == "subscription" && tenant._ref == $tenantId] | order(_createdAt desc) {
+      _id,
+      amount,
+      currency,
+      status,
+      stripePaymentIntentId,
+      "customerName": user->name,
+      "customerEmail": user->email,
+      "passName": pass->name,
+      "createdAt": _createdAt,
+      "paymentId": stripePaymentIntentId,
+      "paymentMethod": select(
+        stripePaymentIntentId match "pi_*" => "card",
+        stripePaymentIntentId match "vipps_*" => "vipps",
+        "stripe"
+      ),
+      "type": "subscription",
+      pass->{
+        _id,
+        name,
+        price
+      },
+      user->{
+        _id,
+        name,
+        email
+      },
+      tenant->{
+        _id,
+        schoolName
+      }
+    }`;
+
+    const [bookings, subscriptions] = await Promise.all([
+      sanityClient.fetch(bookingsQuery, { tenantId }),
+      sanityClient.fetch(subscriptionsQuery, { tenantId })
+    ]);
 
     // Transform bookings to payment format
-    const payments = bookings.map((booking: any) => ({
+    const bookingPayments = bookings.map((booking: any) => ({
       _id: booking._id,
       amount: booking.amount || 0,
       currency: booking.currency || 'NOK',
@@ -88,8 +125,32 @@ export async function GET(request: NextRequest) {
       passName: booking.passName || 'Unknown Class',
       createdAt: booking.createdAt || new Date().toISOString(),
       paymentMethod: booking.paymentMethod || 'card',
-      paymentId: booking.paymentId || null
+      paymentId: booking.paymentId || null,
+      type: 'Class Booking'
     }));
+
+    // Transform subscriptions to payment format
+    const subscriptionPayments = subscriptions.map((subscription: any) => ({
+      _id: subscription._id,
+      amount: subscription.amount || subscription.pass?.price || 0,
+      currency: subscription.currency || 'NOK',
+      status: subscription.status === 'active' ? 'completed' : 
+              subscription.status === 'pending' ? 'pending' : 
+              subscription.status ? subscription.status : 'pending',
+      customerName: subscription.customerName || subscription.user?.name || 'Unknown',
+      customerEmail: subscription.customerEmail || subscription.user?.email || 'unknown@example.com',
+      passName: subscription.passName || subscription.pass?.name || 'Unknown Pass',
+      createdAt: subscription.createdAt || new Date().toISOString(),
+      paymentMethod: subscription.paymentMethod || 'stripe',
+      paymentId: subscription.paymentId || subscription.stripePaymentIntentId || null,
+      type: 'Pass Purchase'
+    }));
+
+    // Combine and sort all payments by creation date
+    const allPayments = [...bookingPayments, ...subscriptionPayments];
+    const payments = allPayments.sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
 
     return NextResponse.json({ payments });
   } catch (error) {
