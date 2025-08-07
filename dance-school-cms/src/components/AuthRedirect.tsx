@@ -27,27 +27,50 @@ export default function AuthRedirect({ fallbackUrl = '/register-school' }: AuthR
         
         if (response.ok) {
           const userData = await response.json();
-          console.log('🔍 AuthRedirect: User data received:', userData);
+          console.log('🔍 AuthRedirect: User data received:', JSON.stringify(userData, null, 2));
+          console.log('🔍 AuthRedirect: User role:', userData.role);
+          console.log('🔍 AuthRedirect: User tenant:', userData.tenant);
           
           if (userData.tenant && userData.tenant.slug) {
             const tenantSlug = userData.tenant.slug;
-            console.log('🔍 AuthRedirect: Found tenant slug:', tenantSlug);
+            const userRole = userData.role;
+            console.log('🔍 AuthRedirect: Found tenant slug:', tenantSlug, 'User role:', userRole);
             
             // Check if we're already on the correct tenant context
             const currentPath = window.location.pathname;
             const isOnCorrectTenant = currentPath.startsWith(`/${tenantSlug}`);
             
+            // Determine redirect URL based on user role
+            let redirectUrl = `/${tenantSlug}`;
+            if (userRole === 'admin') {
+              redirectUrl = `/${tenantSlug}/admin`;
+              console.log('🔍 AuthRedirect: Admin user detected! Redirecting to admin dashboard:', redirectUrl);
+            } else if (userRole === 'instructor') {
+              redirectUrl = `/${tenantSlug}`;
+              console.log('🔍 AuthRedirect: Instructor user, redirecting to tenant homepage');
+            } else {
+              redirectUrl = `/${tenantSlug}`;
+              console.log('🔍 AuthRedirect: Student user, redirecting to tenant homepage');
+            }
+            
+            console.log('🔍 AuthRedirect: Final redirect URL:', redirectUrl);
+            console.log('🔍 AuthRedirect: Current path:', currentPath);
+            console.log('🔍 AuthRedirect: Is on correct tenant:', isOnCorrectTenant);
+            
             if (isOnCorrectTenant) {
-              // Already on correct tenant context, stay in tenant context
-              router.push(`/${tenantSlug}`);
+              // Already on correct tenant context, redirect to appropriate page based on role
+              console.log('🔍 AuthRedirect: Already on correct tenant, redirecting to:', redirectUrl);
+              router.push(redirectUrl);
               return;
             }
             
-            // Redirect to tenant-specific page using path-based routing
-            router.push(`/${tenantSlug}`);
+            // Redirect to role-appropriate page using path-based routing
+            console.log('🔍 AuthRedirect: Not on correct tenant, redirecting to:', redirectUrl);
+            router.push(redirectUrl);
             return;
           } else {
             console.warn('🔍 AuthRedirect: No tenant data found in user response');
+            console.warn('🔍 AuthRedirect: Full user data:', JSON.stringify(userData, null, 2));
           }
         } else if (response.status === 401 || response.status === 404) {
           // User not found in Sanity or not authenticated

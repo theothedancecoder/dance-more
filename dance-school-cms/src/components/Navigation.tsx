@@ -108,7 +108,7 @@ export default function Navigation() {
             
             {user ? (
               <div className="flex items-center space-x-4">
-                <UserButton afterSignOutUrl="/" />
+                <UserButton afterSignOutUrl={finalTenantSlug ? `/${finalTenantSlug}` : "/"} />
               </div>
             ) : (
               <div className="flex items-center space-x-3">
@@ -126,7 +126,7 @@ export default function Navigation() {
           <div className="md:hidden flex items-center">
             {user && (
               <div className="mr-4">
-                <UserButton afterSignOutUrl="/" />
+                <UserButton afterSignOutUrl={finalTenantSlug ? `/${finalTenantSlug}` : "/"} />
               </div>
             )}
             <button

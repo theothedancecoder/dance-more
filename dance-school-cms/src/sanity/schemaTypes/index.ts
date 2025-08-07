@@ -8,6 +8,7 @@ import { blockContentType } from './blockContentType'
 import { subscriptionType } from './subscriptionType'
 import { passType } from './passType'
 import tenantType from './tenantType'
+import notificationType from './notificationType'
 
 export const schema: { types: SchemaTypeDefinition[] } = {
   types: [
@@ -25,5 +26,6 @@ export const schema: { types: SchemaTypeDefinition[] } = {
     userType,
     subscriptionType,
     passType,
+    notificationType,
   ],
 }

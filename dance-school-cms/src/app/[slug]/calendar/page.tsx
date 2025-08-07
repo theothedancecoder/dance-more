@@ -30,9 +30,15 @@ export default function CalendarPage() {
   const { tenant, isLoading, error } = useTenant();
   const [classInstances, setClassInstances] = useState<ClassInstance[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
   const [bookingLoading, setBookingLoading] = useState<string | null>(null);
-  const [bookingMessage, setBookingMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [bookingMessage, setBookingMessage] = useState<{ type: 'success' | 'error'; text: string; redirectUrl?: string } | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('weekly');
 
   const tenantSlug = params.slug as string;
@@ -66,9 +72,22 @@ export default function CalendarPage() {
         // Clear success message after 3 seconds
         setTimeout(() => setBookingMessage(null), 3000);
       } else {
-        setBookingMessage({ type: 'error', text: data.error || 'Failed to book class' });
-        // Clear error message after 5 seconds
-        setTimeout(() => setBookingMessage(null), 5000);
+        // Handle enhanced error messages with redirect URLs
+        let errorText = data.error || 'Failed to book class';
+        if (data.message) {
+          errorText = data.message;
+        }
+        if (data.redirectUrl) {
+          errorText += ` Click here to visit the Passes & Subscriptions page.`;
+        }
+        
+        setBookingMessage({ 
+          type: 'error', 
+          text: errorText,
+          redirectUrl: data.redirectUrl 
+        });
+        // Clear error message after 8 seconds (longer for redirect messages)
+        setTimeout(() => setBookingMessage(null), 8000);
       }
     } catch (error) {
       console.error('Error booking class:', error);
@@ -228,7 +247,19 @@ export default function CalendarPage() {
               ? 'bg-green-100 text-green-800 border border-green-200' 
               : 'bg-red-100 text-red-800 border border-red-200'
           }`}>
-            {bookingMessage.text}
+            {bookingMessage.redirectUrl ? (
+              <div>
+                {bookingMessage.text.replace(' Click here to visit the Passes & Subscriptions page.', '')}{' '}
+                <a 
+                  href={bookingMessage.redirectUrl}
+                  className="underline font-medium hover:no-underline"
+                >
+                  Click here to visit the Passes & Subscriptions page.
+                </a>
+              </div>
+            ) : (
+              bookingMessage.text
+            )}
           </div>
         </div>
       )}
@@ -271,9 +302,15 @@ export default function CalendarPage() {
                     {[0, 1, 2, 3, 4, 5, 6].map((days) => {
                       const date = new Date();
                       date.setDate(date.getDate() + days);
-                      const dateStr = date.toISOString().split('T')[0];
+                      // Use local date string to avoid timezone issues
+                      const year = date.getFullYear();
+                      const month = String(date.getMonth() + 1).padStart(2, '0');
+                      const day = String(date.getDate()).padStart(2, '0');
+                      const dateStr = `${year}-${month}-${day}`;
+                      
                       const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
                       const dayNum = date.getDate();
+                      const monthName = date.toLocaleDateString('en-US', { month: 'short' });
                       
                       return (
                         <button
@@ -285,7 +322,7 @@ export default function CalendarPage() {
                               : 'hover:bg-gray-100'
                           }`}
                         >
-                          {days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `${dayName} ${dayNum}`}
+                          {days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `${dayName} ${monthName} ${dayNum}`}
                         </button>
                       );
                     })}
@@ -298,12 +335,16 @@ export default function CalendarPage() {
             <div className="lg:col-span-3">
               <div className="mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">
-                  Classes for {new Date(selectedDate).toLocaleDateString('en-US', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  })}
+                  Classes for {(() => {
+                    const [year, month, day] = selectedDate.split('-').map(Number);
+                    const date = new Date(year, month - 1, day); // month is 0-indexed
+                    return date.toLocaleDateString('en-US', { 
+                      weekday: 'long', 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric'
+                    });
+                  })()}
                 </h2>
               </div>
 

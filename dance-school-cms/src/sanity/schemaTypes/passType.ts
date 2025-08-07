@@ -92,6 +92,13 @@ export const passType = defineType({
       validation: (Rule) => Rule.min(1),
     }),
     defineField({
+      name: 'features',
+      title: 'Features',
+      type: 'array',
+      of: [{ type: 'string' }],
+      description: 'List of features/benefits included with this pass',
+    }),
+    defineField({
       name: 'isActive',
       title: 'Is Active',
       type: 'boolean',

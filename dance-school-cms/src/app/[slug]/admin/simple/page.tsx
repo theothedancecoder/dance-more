@@ -37,6 +37,12 @@ export default function SimpleAdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [tenantData, setTenantData] = useState<TenantData | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
+  const [generatingInstances, setGeneratingInstances] = useState(false);
+  const [instanceGenerationResult, setInstanceGenerationResult] = useState<{
+    success: boolean;
+    message: string;
+    details?: any[];
+  } | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -79,6 +85,46 @@ export default function SimpleAdminPage() {
 
     fetchData();
   }, [tenantSlug]);
+
+  const handleGenerateInstances = async () => {
+    if (!tenantData?._id) return;
+    
+    setGeneratingInstances(true);
+    setInstanceGenerationResult(null);
+    
+    try {
+      const response = await fetch('/api/admin/generate-instances', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-id': tenantData._id,
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setInstanceGenerationResult({
+          success: true,
+          message: `Successfully generated ${data.totalInstancesCreated} class instances for ${data.classesProcessed} classes`,
+          details: data.results,
+        });
+      } else {
+        setInstanceGenerationResult({
+          success: false,
+          message: data.error || 'Failed to generate class instances',
+        });
+      }
+    } catch (error) {
+      console.error('Error generating instances:', error);
+      setInstanceGenerationResult({
+        success: false,
+        message: 'Network error occurred while generating instances',
+      });
+    } finally {
+      setGeneratingInstances(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -293,6 +339,63 @@ export default function SimpleAdminPage() {
                 View Reports
               </a>
             </div>
+          </div>
+        </div>
+
+        {/* Class Instance Management */}
+        <div className="mt-8">
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center mb-4">
+              <div className="p-3 rounded-full bg-yellow-100">
+                <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 ml-3">Class Instance Management</h3>
+            </div>
+            <p className="text-gray-600 mb-4">
+              Generate class instances for your recurring classes. This creates bookable class sessions for the next 8 weeks.
+            </p>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={handleGenerateInstances}
+                disabled={generatingInstances}
+                className="bg-yellow-600 text-white px-6 py-2 rounded-lg hover:bg-yellow-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              >
+                {generatingInstances ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Generating...
+                  </>
+                ) : (
+                  'Generate Class Instances'
+                )}
+              </button>
+              {instanceGenerationResult && (
+                <div className={`px-4 py-2 rounded-lg text-sm ${
+                  instanceGenerationResult.success 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {instanceGenerationResult.message}
+                </div>
+              )}
+            </div>
+            {instanceGenerationResult?.details && (
+              <div className="mt-4 bg-gray-50 rounded-lg p-4">
+                <h4 className="font-medium text-gray-900 mb-2">Generation Results:</h4>
+                <ul className="text-sm text-gray-600 space-y-1">
+                  {instanceGenerationResult.details.map((result: any, index: number) => (
+                    <li key={index}>
+                      <strong>{result.className}:</strong> {result.instancesCreated} instances created - {result.message}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </div>
 

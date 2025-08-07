@@ -16,7 +16,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Pass ID is required' }, { status: 400 });
     }
 
-    // Fetch pass details from Sanity
+    // Get tenant slug from header
+    const tenantSlug = request.headers.get('x-tenant-slug');
+    
+    if (!tenantSlug) {
+      return NextResponse.json({ error: 'Tenant slug is required' }, { status: 400 });
+    }
+
+    // Fetch pass details from Sanity with tenant information
     const passData = await sanityClient.fetch(`
       *[_type == "pass" && _id == $passId && isActive == true][0] {
         _id,
@@ -25,7 +32,11 @@ export async function POST(request: NextRequest) {
         type,
         price,
         validityDays,
-        classesLimit
+        classesLimit,
+        tenant->{
+          _id,
+          slug
+        }
       }
     `, { passId });
 
@@ -70,6 +81,8 @@ export async function POST(request: NextRequest) {
         passType: passData.type,
         userId: userId,
         type: 'pass_purchase',
+        tenantId: passData.tenant?._id,
+        tenantSlug: passData.tenant?.slug?.current || tenantSlug,
       },
     });
 

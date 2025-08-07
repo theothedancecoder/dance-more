@@ -231,7 +231,15 @@ export default clerkMiddleware(async (auth, req) => {
       // SECURITY: Prevent tenant users from accessing global dashboard
       if (req.nextUrl.pathname.startsWith('/dashboard') && user.tenant && user.tenant.slug) {
         console.log('🔒 Security: Redirecting tenant user away from global dashboard');
-        return NextResponse.redirect(new URL(`/${user.tenant.slug}`, req.url));
+        
+        // Redirect admin users to their admin dashboard, others to tenant homepage
+        if (user.role === 'admin') {
+          console.log('🔒 Security: Admin user detected, redirecting to admin dashboard');
+          return NextResponse.redirect(new URL(`/${user.tenant.slug}/admin`, req.url));
+        } else {
+          console.log('🔒 Security: Non-admin user, redirecting to tenant homepage');
+          return NextResponse.redirect(new URL(`/${user.tenant.slug}`, req.url));
+        }
       }
       
       return NextResponse.next();

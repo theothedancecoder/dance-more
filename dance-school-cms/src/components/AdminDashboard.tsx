@@ -11,7 +11,8 @@ import {
   DocumentChartBarIcon,
   AcademicCapIcon,
   CogIcon,
-  HomeIcon
+  HomeIcon,
+  BellIcon
 } from '@heroicons/react/24/outline';
 
 interface AdminStats {
@@ -37,6 +38,7 @@ const tabs = [
   { id: 'classes', name: 'Classes', icon: AcademicCapIcon },
   { id: 'passes', name: 'Passes', icon: CreditCardIcon },
   { id: 'schedule', name: 'Schedule', icon: CalendarIcon },
+  { id: 'notifications', name: 'Notifications', icon: BellIcon },
   { id: 'reports', name: 'Reports', icon: DocumentChartBarIcon },
   { id: 'settings', name: 'Settings', icon: CogIcon },
 ];
@@ -177,6 +179,21 @@ export default function AdminDashboard({ stats, user }: AdminDashboardProps) {
             </Link>
           </div>
         );
+      case 'notifications':
+        return (
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <Link href={getTenantUrl("/admin/notifications")} className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
+              <h3 className="text-xl font-semibold text-gray-900">Notification Management</h3>
+              <p className="mt-2 text-gray-600">Send messages and announcements to your members</p>
+              <span className="mt-4 inline-block text-blue-600 font-medium">Manage Notifications →</span>
+            </Link>
+            <div className="rounded-lg bg-white p-6 shadow">
+              <h3 className="text-xl font-semibold text-gray-900">Quick Announcement</h3>
+              <p className="mt-2 text-gray-600">Send urgent notifications to all members instantly</p>
+              <span className="mt-4 inline-block text-gray-500 font-medium">Coming Soon</span>
+            </div>
+          </div>
+        );
       case 'reports':
         return (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -276,6 +293,7 @@ export default function AdminDashboard({ stats, user }: AdminDashboardProps) {
             {activeTab === 'classes' && 'Create and manage dance classes'}
             {activeTab === 'passes' && 'Manage subscription passes and payments'}
             {activeTab === 'schedule' && 'Manage class schedules and calendar'}
+            {activeTab === 'notifications' && 'Send messages and announcements to your members'}
             {activeTab === 'reports' && 'View analytics and business reports'}
             {activeTab === 'settings' && 'System settings and configuration'}
           </p>
