@@ -18,6 +18,7 @@ export async function GET(
         description,
         branding,
         logo,
+        stripeConnect,
         settings->{
           allowPublicRegistration
         }

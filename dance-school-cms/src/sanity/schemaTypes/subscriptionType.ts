@@ -82,6 +82,12 @@ export const subscriptionType = defineType({
       type: 'string',
     }),
     defineField({
+      name: 'stripeSessionId',
+      title: 'Stripe Session ID',
+      type: 'string',
+      description: 'Stripe checkout session ID for deduplication',
+    }),
+    defineField({
       name: 'tenant',
       title: 'Tenant',
       type: 'reference',

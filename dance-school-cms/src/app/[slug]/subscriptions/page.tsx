@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { useTenant } from '@/contexts/TenantContext';
 import { SignedIn, SignedOut } from '@clerk/nextjs';
 import Link from 'next/link';
-import { CreditCardIcon, TicketIcon, CheckIcon, StarIcon } from '@heroicons/react/24/outline';
+import { CreditCardIcon, TicketIcon, CheckIcon, StarIcon, ClockIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import ReadMoreText from '@/components/ReadMoreText';
 
 interface PassData {
@@ -34,14 +34,31 @@ interface UserSubscription {
   purchasePrice: number;
   daysRemaining: number;
   isExpired: boolean;
+  originalPass?: {
+    name: string;
+    type: string;
+  };
 }
+
+// Helper function to get display name for subscription types
+const getPassDisplayName = (type: string): string => {
+  const typeNames: { [key: string]: string } = {
+    'single': 'Drop-in Class',
+    'multi-pass': 'Multi-Class Package',
+    'clipcard': 'Class Package',
+    'monthly': 'Monthly Unlimited'
+  };
+  return typeNames[type] || 'Class Package';
+};
 
 export default function SubscriptionsPage() {
   const params = useParams();
   const { tenant, isLoading, error } = useTenant();
   const [passes, setPasses] = useState<PassData[]>([]);
-  const [userSubscriptions, setUserSubscriptions] = useState<UserSubscription[]>([]);
+  const [activeSubscriptions, setActiveSubscriptions] = useState<UserSubscription[]>([]);
+  const [expiredSubscriptions, setExpiredSubscriptions] = useState<UserSubscription[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'active' | 'expired'>('active');
 
   const tenantSlug = params.slug as string;
 
@@ -53,6 +70,7 @@ export default function SubscriptionsPage() {
         headers: {
           'Content-Type': 'application/json',
           'x-tenant-slug': tenantSlug,
+          'x-tenant-id': tenant?._id || '',
         },
         body: JSON.stringify({
           passId: pass._id,
@@ -75,6 +93,30 @@ export default function SubscriptionsPage() {
     }
   };
 
+  const syncMissingSubscriptions = async () => {
+    try {
+      console.log('🔄 Syncing missing subscriptions...');
+      const response = await fetch('/api/user/sync-subscriptions', {
+        method: 'POST',
+        headers: {
+          'x-tenant-slug': tenantSlug,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Sync result:', data.message);
+        if (data.createdCount > 0) {
+          console.log(`🎉 Created ${data.createdCount} missing subscriptions!`);
+        }
+      } else {
+        console.error('❌ Failed to sync subscriptions:', response.statusText);
+      }
+    } catch (err) {
+      console.error('❌ Error syncing subscriptions:', err);
+    }
+  };
+
   const fetchUserSubscriptions = async () => {
     try {
       console.log('Fetching user subscriptions for tenant:', tenantSlug);
@@ -90,16 +132,19 @@ export default function SubscriptionsPage() {
         const data = await response.json();
         console.log('User subscriptions data:', data);
         console.log('Active subscriptions:', data.activeSubscriptions);
-        console.log('Active subscriptions length:', data.activeSubscriptions?.length);
-        setUserSubscriptions(data.activeSubscriptions || []);
+        console.log('Expired subscriptions:', data.expiredSubscriptions);
+        setActiveSubscriptions(data.activeSubscriptions || []);
+        setExpiredSubscriptions(data.expiredSubscriptions || []);
       } else {
         const errorData = await response.text();
         console.error('Failed to fetch user subscriptions:', response.statusText, errorData);
-        setUserSubscriptions([]);
+        setActiveSubscriptions([]);
+        setExpiredSubscriptions([]);
       }
     } catch (err) {
       console.error('Error fetching user subscriptions:', err);
-      setUserSubscriptions([]);
+      setActiveSubscriptions([]);
+      setExpiredSubscriptions([]);
     }
   };
 
@@ -129,10 +174,10 @@ export default function SubscriptionsPage() {
 
     const fetchData = async () => {
       if (tenantSlug) {
-        await Promise.all([
-          fetchPasses(),
-          fetchUserSubscriptions()
-        ]);
+        await fetchPasses();
+        // First sync any missing subscriptions, then fetch user subscriptions
+        await syncMissingSubscriptions();
+        await fetchUserSubscriptions();
       }
     };
 
@@ -168,33 +213,6 @@ export default function SubscriptionsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <Link href={`/${tenantSlug}`} className="text-2xl font-bold" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
-                {tenant.schoolName}
-              </Link>
-            </div>
-            <nav className="flex space-x-8">
-              <Link href={`/${tenantSlug}`} className="text-gray-500 hover:text-gray-900">Home</Link>
-              <Link href={`/${tenantSlug}/classes`} className="text-gray-500 hover:text-gray-900">Classes</Link>
-              <Link href={`/${tenantSlug}/calendar`} className="text-gray-500 hover:text-gray-900">Calendar</Link>
-              <Link href={`/${tenantSlug}/subscriptions`} className="text-gray-900 font-medium">Passes</Link>
-              <SignedOut>
-                <Link href={`/${tenantSlug}/sign-in`} className="text-gray-500 hover:text-gray-900">
-                  Sign In
-                </Link>
-              </SignedOut>
-              <SignedIn>
-                <Link href={`/${tenantSlug}/my-classes`} className="text-gray-500 hover:text-gray-900">My Classes</Link>
-              </SignedIn>
-            </nav>
-          </div>
-        </div>
-      </div>
-
       {/* Hero Section */}
       <section className="relative py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -209,94 +227,190 @@ export default function SubscriptionsPage() {
         </div>
       </section>
 
-      {/* User's Active Subscriptions */}
+      {/* User's Subscriptions with Tabs */}
       <SignedIn>
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
           <div className="mb-8">
-            <h2 className="text-2xl font-bold mb-4" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
-              Your Active Passes
-            </h2>
-            
-            {userSubscriptions.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {userSubscriptions.map((subscription) => (
-                  <div key={subscription._id} className="bg-white rounded-xl shadow-lg p-6 border-l-4" style={{ borderLeftColor: tenant.branding?.primaryColor || '#3B82F6' }}>
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold text-gray-900">{subscription.passName}</h3>
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        subscription.daysRemaining > 7 
-                          ? 'bg-green-100 text-green-800' 
-                          : subscription.daysRemaining > 0 
-                          ? 'bg-yellow-100 text-yellow-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {subscription.daysRemaining > 0 ? `${subscription.daysRemaining} days left` : 'Expired'}
-                      </span>
-                    </div>
-                    
-                    <div className="space-y-2 text-sm text-gray-600">
-                      <div className="flex justify-between">
-                        <span>Type:</span>
-                        <span className="font-medium capitalize">
-                          {subscription.type === 'monthly' ? 'Unlimited' : 
-                           subscription.type === 'clipcard' ? 'Clipcard' :
-                           subscription.type === 'multi-pass' ? 'Multi-Pass' : 'Single Class'}
-                        </span>
-                      </div>
-                      
-                      {subscription.remainingClips !== undefined && (
-                        <div className="flex justify-between">
-                          <span>Classes remaining:</span>
-                          <span className="font-medium">{subscription.remainingClips}</span>
-                        </div>
-                      )}
-                      
-                      <div className="flex justify-between">
-                        <span>Valid until:</span>
-                        <span className="font-medium">{new Date(subscription.endDate).toLocaleDateString()}</span>
-                      </div>
-                      
-                      <div className="flex justify-between">
-                        <span>Purchased:</span>
-                        <span className="font-medium">{new Date(subscription.startDate).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <Link
-                        href={`/${tenantSlug}/calendar`}
-                        className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white hover:opacity-90 transition-colors"
-                        style={{ backgroundColor: tenant.branding?.primaryColor || '#3B82F6' }}
-                      >
-                        Book Classes
-                      </Link>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="bg-white rounded-xl shadow-lg p-8 text-center">
-                <div className="mb-4">
-                  <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Active Passes</h3>
-                <p className="text-gray-600 mb-6">
-                  You don't have any active passes yet. Purchase a pass below to start booking classes!
-                </p>
-                <Link
-                  href="#passes"
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white hover:opacity-90 transition-colors"
-                  style={{ backgroundColor: tenant.branding?.primaryColor || '#3B82F6' }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    document.querySelector('#passes')?.scrollIntoView({ behavior: 'smooth' });
-                  }}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
+                Your Passes
+              </h2>
+              
+              {/* Tab Navigation */}
+              <div className="flex bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setActiveTab('active')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    activeTab === 'active'
+                      ? 'text-white shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                  style={activeTab === 'active' ? { backgroundColor: tenant.branding?.primaryColor || '#3B82F6' } : {}}
                 >
-                  Browse Passes
-                </Link>
+                  <CheckIcon className="h-4 w-4 inline mr-2" />
+                  Active ({activeSubscriptions.length})
+                </button>
+                <button
+                  onClick={() => setActiveTab('expired')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    activeTab === 'expired'
+                      ? 'text-white shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                  style={activeTab === 'expired' ? { backgroundColor: tenant.branding?.primaryColor || '#3B82F6' } : {}}
+                >
+                  <ClockIcon className="h-4 w-4 inline mr-2" />
+                  History ({expiredSubscriptions.length})
+                </button>
               </div>
+            </div>
+
+            {/* Active Passes Tab */}
+            {activeTab === 'active' && (
+              <>
+                {activeSubscriptions.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {activeSubscriptions.map((subscription: UserSubscription) => (
+                      <div key={subscription._id} className="bg-white rounded-xl shadow-lg p-6 border-l-4" style={{ borderLeftColor: tenant.branding?.primaryColor || '#3B82F6' }}>
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            {subscription.passName || subscription.originalPass?.name || getPassDisplayName(subscription.type)}
+                          </h3>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            subscription.daysRemaining > 7 
+                              ? 'bg-green-100 text-green-800' 
+                              : subscription.daysRemaining > 0 
+                              ? 'bg-yellow-100 text-yellow-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {subscription.daysRemaining > 0 ? `${subscription.daysRemaining} days left` : 'Expired'}
+                          </span>
+                        </div>
+                        
+                        <div className="space-y-2 text-sm text-gray-600">
+                          <div className="flex justify-between">
+                            <span>Type:</span>
+                            <span className="font-medium capitalize">
+                              {subscription.type === 'monthly' ? 'Unlimited' : 
+                               subscription.type === 'clipcard' ? 'Clipcard' :
+                               subscription.type === 'multi-pass' ? 'Multi-Pass' : 'Single Class'}
+                            </span>
+                          </div>
+                          
+                          {subscription.remainingClips !== undefined && (
+                            <div className="flex justify-between">
+                              <span>Classes remaining:</span>
+                              <span className="font-medium">{subscription.remainingClips}</span>
+                            </div>
+                          )}
+                          
+                          <div className="flex justify-between">
+                            <span>Valid until:</span>
+                            <span className="font-medium">{new Date(subscription.endDate).toLocaleDateString()}</span>
+                          </div>
+                          
+                          <div className="flex justify-between">
+                            <span>Purchased:</span>
+                            <span className="font-medium">{new Date(subscription.startDate).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="mt-4 pt-4 border-t border-gray-200">
+                          <Link
+                            href={`/${tenantSlug}/calendar`}
+                            className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white hover:opacity-90 transition-colors"
+                            style={{ backgroundColor: tenant.branding?.primaryColor || '#3B82F6' }}
+                          >
+                            Book Classes
+                          </Link>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+                    <div className="mb-4">
+                      <CheckIcon className="mx-auto h-12 w-12 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Active Passes</h3>
+                    <p className="text-gray-600 mb-6">
+                      You don't have any active passes yet. Purchase a pass below to start booking classes!
+                    </p>
+                    <Link
+                      href="#passes"
+                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white hover:opacity-90 transition-colors"
+                      style={{ backgroundColor: tenant.branding?.primaryColor || '#3B82F6' }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        document.querySelector('#passes')?.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                    >
+                      Browse Passes
+                    </Link>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Expired Passes Tab */}
+            {activeTab === 'expired' && (
+              <>
+                {expiredSubscriptions.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {expiredSubscriptions.map((subscription: UserSubscription) => (
+                      <div key={subscription._id} className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-gray-300 opacity-75">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-lg font-semibold text-gray-700">
+                            {subscription.passName || subscription.originalPass?.name || getPassDisplayName(subscription.type)}
+                          </h3>
+                          <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            <XCircleIcon className="h-3 w-3 inline mr-1" />
+                            Expired
+                          </span>
+                        </div>
+                        
+                        <div className="space-y-2 text-sm text-gray-500">
+                          <div className="flex justify-between">
+                            <span>Type:</span>
+                            <span className="font-medium capitalize">
+                              {subscription.type === 'monthly' ? 'Unlimited' : 
+                               subscription.type === 'clipcard' ? 'Clipcard' :
+                               subscription.type === 'multi-pass' ? 'Multi-Pass' : 'Single Class'}
+                            </span>
+                          </div>
+                          
+                          <div className="flex justify-between">
+                            <span>Expired on:</span>
+                            <span className="font-medium">{new Date(subscription.endDate).toLocaleDateString()}</span>
+                          </div>
+                          
+                          <div className="flex justify-between">
+                            <span>Purchased:</span>
+                            <span className="font-medium">{new Date(subscription.startDate).toLocaleDateString()}</span>
+                          </div>
+
+                          {subscription.purchasePrice && (
+                            <div className="flex justify-between">
+                              <span>Price paid:</span>
+                              <span className="font-medium">{subscription.purchasePrice} kr</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+                    <div className="mb-4">
+                      <ClockIcon className="mx-auto h-12 w-12 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Expired Passes</h3>
+                    <p className="text-gray-600">
+                      Your expired passes from the last 30 days will appear here.
+                    </p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </section>

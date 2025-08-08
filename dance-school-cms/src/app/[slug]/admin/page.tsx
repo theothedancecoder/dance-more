@@ -112,34 +112,6 @@ export default function AdminLandingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header */}
-      <div className="bg-white shadow-sm">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
-            <div className="flex items-center space-x-4">
-              {tenantData?.logo && (
-                <Image
-                  src={tenantData.logo.asset?.url || '/placeholder-logo.png'}
-                  alt={`${tenantData.schoolName} logo`}
-                  width={40}
-                  height={40}
-                  className="rounded-full"
-                />
-              )}
-              <h1 className="text-xl font-semibold text-gray-900">
-                {tenantData?.schoolName} - Admin Portal
-              </h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-700">
-                Admin User
-              </span>
-              <UserButton afterSignOutUrl="/" />
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Main Content */}
       <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="text-center">

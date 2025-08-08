@@ -24,8 +24,27 @@ function PaymentSuccessContent() {
         passId,
         timestamp: new Date().toISOString()
       });
+
+      // Trigger subscription sync after successful payment
+      if (sessionId && tenant) {
+        console.log('🔄 Triggering subscription sync after successful payment...');
+        fetch('/api/user/sync-subscriptions', {
+          method: 'POST',
+          headers: {
+            'x-tenant-slug': tenantSlug,
+          },
+        }).then(response => {
+          if (response.ok) {
+            console.log('✅ Subscription sync completed after payment');
+          } else {
+            console.error('❌ Failed to sync subscriptions after payment');
+          }
+        }).catch(error => {
+          console.error('❌ Error syncing subscriptions after payment:', error);
+        });
+      }
     }
-  }, []);
+  }, [tenantSlug, tenant]);
 
   const primaryColor = tenant?.branding?.primaryColor || '#3B82F6';
 

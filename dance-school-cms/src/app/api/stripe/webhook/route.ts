@@ -40,42 +40,56 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
       }
 
-      // Ensure user exists in Sanity
-      let user = await sanityClient.fetch(
-        `*[_type == "user" && _id == $userId][0]`,
-        { userId }
-      );
-
-      if (!user) {
-        console.log('👤 Creating new user in Sanity:', userId);
-        // Create user in Sanity if they don't exist
-        try {
-          user = await writeClient.create({
-            _type: 'user',
-            _id: userId,
-            name: session.customer_details?.name || 'User',
-            email: userEmail || session.customer_email || '',
-            role: 'student',
-          });
-          console.log('✅ User created successfully:', user._id);
-        } catch (error) {
-          console.error('❌ Error creating user in Sanity:', error);
-          
-          // If it's a permissions error, log detailed info
-          if (error instanceof Error && error.message.includes('permission')) {
-            console.error('🔒 SANITY PERMISSIONS ERROR - This is why subscriptions are not being created automatically!');
-            console.error('🔧 Fix: Update SANITY_API_TOKEN to have Editor permissions');
-            console.error('📖 See SANITY_PERMISSIONS_FIX.md for detailed instructions');
-          }
-          
-          return NextResponse.json({ error: 'Failed to create user' }, { status: 500 });
-        }
-      } else {
-        console.log('✅ User found in Sanity:', user._id);
-      }
-
       if (type === 'pass_purchase' && passId && tenantId) {
-        console.log('🎫 Processing pass purchase:', { passId, tenantId, userId });
+        console.log('🎫 Processing pass purchase:', { passId, tenantId, userId, sessionId: session.id });
+        
+        // First check if subscription already exists for this session to prevent duplicates
+        const existingSubscription = await sanityClient.fetch(
+          `*[_type == "subscription" && stripeSessionId == $sessionId][0]`,
+          { sessionId: session.id }
+        );
+
+        if (existingSubscription) {
+          console.log('✅ Subscription already exists for session:', session.id);
+          return NextResponse.json({ received: true, message: 'Subscription already exists' });
+        }
+
+        // Ensure user exists in Sanity with consistent ID handling
+        let user = await sanityClient.fetch(
+          `*[_type == "user" && _id == $userId][0]`,
+          { userId }
+        );
+
+        if (!user) {
+          console.log('👤 Creating new user in Sanity:', userId);
+          try {
+            user = await writeClient.create({
+              _type: 'user',
+              _id: userId,
+              name: session.customer_details?.name || 'User',
+              email: userEmail || session.customer_email || '',
+              role: 'student',
+              isActive: true,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            });
+            console.log('✅ User created successfully:', user._id);
+          } catch (error) {
+            console.error('❌ Error creating user in Sanity:', error);
+            
+            // If it's a permissions error, log detailed info
+            if (error instanceof Error && error.message.includes('permission')) {
+              console.error('🔒 SANITY PERMISSIONS ERROR - This is why subscriptions are not being created automatically!');
+              console.error('🔧 Fix: Update SANITY_API_TOKEN to have Editor permissions');
+              console.error('📖 See SANITY_PERMISSIONS_FIX.md for detailed instructions');
+            }
+            
+            // Don't fail the webhook - let the sync mechanism handle it
+            console.log('⚠️ Continuing without user creation - sync mechanism will handle this');
+          }
+        } else {
+          console.log('✅ User found in Sanity:', user._id);
+        }
         
         // Handle pass purchase
         const pass = await sanityClient.fetch(
@@ -119,7 +133,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid pass type' }, { status: 400 });
         }
 
-        // Create subscription with correct field names to match the payments API
+        // Create subscription with proper session tracking and user reference
         const subscriptionData = {
           _type: 'subscription',
           user: {
@@ -130,19 +144,15 @@ export async function POST(request: NextRequest) {
             _type: 'reference',
             _ref: tenantId,
           },
-          pass: {
-            _type: 'reference',
-            _ref: passId,
-          },
           type: subscriptionType,
-          startDate: now.toISOString(),
+          startDate: new Date(session.created * 1000).toISOString(), // Use session creation time
           endDate: endDate.toISOString(),
           remainingClips,
-          status: 'active',
-          amount: session.amount_total ? session.amount_total / 100 : pass.price, // Convert from cents to currency
-          currency: session.currency?.toUpperCase() || 'NOK',
-          stripePaymentIntentId: session.payment_intent as string,
-          stripeSessionId: session.id,
+          passId: pass._id, // Store original pass ID
+          passName: pass.name,
+          purchasePrice: session.amount_total ? session.amount_total / 100 : pass.price,
+          stripePaymentId: session.payment_intent as string,
+          stripeSessionId: session.id, // Add session ID for deduplication
           isActive: true,
         };
 
@@ -161,7 +171,8 @@ export async function POST(request: NextRequest) {
             remainingClips,
             validUntil: endDate.toISOString(),
             userId,
-            tenantId
+            tenantId,
+            sessionId: session.id
           });
           
         } catch (error) {
@@ -184,60 +195,68 @@ export async function POST(request: NextRequest) {
             }
           }
           
-          return NextResponse.json({ 
-            error: 'Failed to create subscription',
-            details: error instanceof Error ? error.message : 'Unknown error',
-            solution: 'Check SANITY_PERMISSIONS_FIX.md for instructions'
-          }, { status: 500 });
+          // Don't return error - let the sync mechanism handle failed subscriptions
+          console.log('⚠️ Webhook will continue - sync mechanism will catch this subscription');
         }
       } else if (classId) {
-        // Handle class booking (existing logic)
-        // Check if user exists in Sanity, create if not
+        // Handle class booking (existing logic with improved user handling)
         let sanityUser = await sanityClient.fetch(
-          `*[_type == "user" && clerkId == $userId][0]`,
+          `*[_type == "user" && _id == $userId][0]`,
           { userId }
         );
 
         if (!sanityUser) {
-          // Create user document in Sanity
-          sanityUser = await sanityClient.create({
-            _type: 'user',
-            clerkId: userId,
-            email: userEmail || session.customer_email,
-            name: session.customer_details?.name || 'Unknown User',
-            role: 'student',
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          });
+          try {
+            // Create user document in Sanity with consistent ID
+            sanityUser = await writeClient.create({
+              _type: 'user',
+              _id: userId,
+              email: userEmail || session.customer_email,
+              name: session.customer_details?.name || 'Unknown User',
+              role: 'student',
+              isActive: true,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            });
+          } catch (error) {
+            console.error('❌ Error creating user for booking:', error);
+            // Continue with booking even if user creation fails
+          }
         }
 
-        // Create booking document in Sanity
-        await sanityClient.create({
-          _type: 'booking',
-          class: {
-            _type: 'reference',
-            _ref: classId
-          },
-          user: {
-            _type: 'reference',
-            _ref: sanityUser._id
-          },
-          status: 'confirmed',
-          paymentId: session.payment_intent as string,
-          paymentStatus: 'completed',
-          amount: session.amount_total,
-          currency: session.currency,
-          email: userEmail || session.customer_email,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        });
+        if (sanityUser) {
+          try {
+            // Create booking document in Sanity
+            await writeClient.create({
+              _type: 'booking',
+              class: {
+                _type: 'reference',
+                _ref: classId
+              },
+              user: {
+                _type: 'reference',
+                _ref: sanityUser._id
+              },
+              status: 'confirmed',
+              paymentId: session.payment_intent as string,
+              paymentStatus: 'completed',
+              amount: session.amount_total,
+              currency: session.currency,
+              email: userEmail || session.customer_email,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            });
+            console.log('✅ Booking created successfully');
+          } catch (error) {
+            console.error('❌ Error creating booking:', error);
+          }
+        }
       }
     }
 
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error('Webhook error:', error);
+    console.error('❌ Webhook error:', error);
     return NextResponse.json(
       { error: 'Webhook handler failed' },
       { status: 500 }

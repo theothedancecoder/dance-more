@@ -209,9 +209,90 @@ export default defineType({
       ],
     }),
     defineField({
-      name: 'subscription',
-      title: 'Subscription',
+      name: 'stripeConnect',
+      title: 'Stripe Connect',
       type: 'object',
+      fields: [
+        defineField({
+          name: 'accountId',
+          title: 'Stripe Connect Account ID',
+          type: 'string',
+          description: 'The Stripe Connect account ID for this tenant',
+        }),
+        defineField({
+          name: 'accountStatus',
+          title: 'Account Status',
+          type: 'string',
+          options: {
+            list: [
+              { title: 'Not Connected', value: 'not_connected' },
+              { title: 'Pending', value: 'pending' },
+              { title: 'Active', value: 'active' },
+              { title: 'Restricted', value: 'restricted' },
+              { title: 'Rejected', value: 'rejected' },
+            ],
+          },
+          initialValue: 'not_connected',
+        }),
+        defineField({
+          name: 'onboardingCompleted',
+          title: 'Onboarding Completed',
+          type: 'boolean',
+          initialValue: false,
+        }),
+        defineField({
+          name: 'chargesEnabled',
+          title: 'Charges Enabled',
+          type: 'boolean',
+          initialValue: false,
+        }),
+        defineField({
+          name: 'payoutsEnabled',
+          title: 'Payouts Enabled',
+          type: 'boolean',
+          initialValue: false,
+        }),
+        defineField({
+          name: 'country',
+          title: 'Country',
+          type: 'string',
+          description: 'Country for Stripe Connect account',
+          initialValue: 'NO', // Norway
+        }),
+        defineField({
+          name: 'currency',
+          title: 'Currency',
+          type: 'string',
+          description: 'Default currency for this tenant',
+          initialValue: 'nok',
+        }),
+        defineField({
+          name: 'applicationFeePercent',
+          title: 'Platform Fee Percentage',
+          type: 'number',
+          description: 'Platform fee percentage (e.g., 5 for 5%)',
+          initialValue: 5,
+          validation: Rule => Rule.min(0).max(30),
+        }),
+        defineField({
+          name: 'connectedAt',
+          title: 'Connected At',
+          type: 'datetime',
+          description: 'When the Stripe Connect account was first connected',
+        }),
+        defineField({
+          name: 'lastSyncAt',
+          title: 'Last Sync At',
+          type: 'datetime',
+          description: 'When account status was last synced with Stripe',
+        }),
+      ],
+    }),
+    defineField({
+      name: 'subscription',
+      title: 'Platform Subscription',
+      type: 'object',
+      description: 'Subscription to the platform (separate from Stripe Connect)',
       fields: [
         defineField({
           name: 'plan',
@@ -229,13 +310,15 @@ export default defineType({
         }),
         defineField({
           name: 'stripeCustomerId',
-          title: 'Stripe Customer ID',
+          title: 'Platform Stripe Customer ID',
           type: 'string',
+          description: 'Customer ID for platform subscription payments',
         }),
         defineField({
           name: 'subscriptionId',
-          title: 'Stripe Subscription ID',
+          title: 'Platform Stripe Subscription ID',
           type: 'string',
+          description: 'Subscription ID for platform payments',
         }),
         defineField({
           name: 'expiresAt',

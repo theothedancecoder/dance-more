@@ -28,6 +28,18 @@ export interface Tenant {
     allowPublicRegistration: boolean;
     requireApproval: boolean;
   };
+  stripeConnect?: {
+    accountId?: string;
+    accountStatus?: 'not_connected' | 'pending' | 'active' | 'restricted' | 'rejected';
+    onboardingCompleted?: boolean;
+    chargesEnabled?: boolean;
+    payoutsEnabled?: boolean;
+    country?: string;
+    currency?: string;
+    applicationFeePercent?: number;
+    connectedAt?: string;
+    lastSyncAt?: string;
+  };
 }
 
 interface TenantContextType {

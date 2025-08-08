@@ -85,9 +85,14 @@ export default function Navigation() {
                   Calendar
                 </Link>
                 {user && (
-                  <Link href={getTenantUrl("/subscriptions")} className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
-                    My Subscriptions
-                  </Link>
+                  <>
+                    <Link href={getTenantUrl("/subscriptions")} className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                      My Subscriptions
+                    </Link>
+                    <Link href={getTenantUrl("/admin")} className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                      Admin
+                    </Link>
+                  </>
                 )}
               </>
             ) : (
@@ -193,13 +198,22 @@ export default function Navigation() {
                       Calendar
                     </Link>
                     {user && (
-                      <Link 
-                        href={getTenantUrl("/subscriptions")} 
-                        className="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors font-medium"
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        My Subscriptions
-                      </Link>
+                      <>
+                        <Link 
+                          href={getTenantUrl("/subscriptions")} 
+                          className="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors font-medium"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          My Subscriptions
+                        </Link>
+                        <Link 
+                          href={getTenantUrl("/admin")} 
+                          className="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors font-medium"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          Admin
+                        </Link>
+                      </>
                     )}
                   </>
                 ) : (

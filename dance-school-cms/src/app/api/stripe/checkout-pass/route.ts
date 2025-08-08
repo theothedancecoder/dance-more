@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { stripe, STRIPE_CONFIG } from '@/lib/stripe';
+import { stripeConnect, STRIPE_CONFIG } from '@/lib/stripe';
 import { auth } from '@clerk/nextjs/server';
 import { sanityClient } from '@/lib/sanity';
 
@@ -10,17 +10,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Get tenant from headers
+    const tenantId = request.headers.get('x-tenant-id');
+    const tenantSlug = request.headers.get('x-tenant-slug');
+    
+    if (!tenantId) {
+      return NextResponse.json({ error: 'Tenant context required' }, { status: 403 });
+    }
+
     const { passId, successUrl, cancelUrl } = await request.json();
 
     if (!passId) {
       return NextResponse.json({ error: 'Pass ID is required' }, { status: 400 });
-    }
-
-    // Get tenant slug from header
-    const tenantSlug = request.headers.get('x-tenant-slug');
-    
-    if (!tenantSlug) {
-      return NextResponse.json({ error: 'Tenant slug is required' }, { status: 400 });
     }
 
     // Fetch pass details from Sanity with tenant information
@@ -35,13 +36,34 @@ export async function POST(request: NextRequest) {
         classesLimit,
         tenant->{
           _id,
-          slug
+          schoolName,
+          slug,
+          stripeConnect
         }
       }
     `, { passId });
 
     if (!passData) {
       return NextResponse.json({ error: 'Pass not found or inactive' }, { status: 404 });
+    }
+
+    // Verify pass belongs to the correct tenant
+    if (passData.tenant._id !== tenantId) {
+      return NextResponse.json({ error: 'Pass not found in this tenant' }, { status: 404 });
+    }
+
+    // Check if tenant has Stripe Connect account
+    if (!passData.tenant.stripeConnect?.accountId) {
+      return NextResponse.json({ 
+        error: 'Payment processing not available. Please contact the school administrator.' 
+      }, { status: 400 });
+    }
+
+    // Check if Stripe Connect account is active
+    if (!passData.tenant.stripeConnect.chargesEnabled) {
+      return NextResponse.json({ 
+        error: 'Payment processing is temporarily unavailable. Please try again later.' 
+      }, { status: 400 });
     }
 
     // Create description based on pass type
@@ -52,13 +74,16 @@ export async function POST(request: NextRequest) {
       description += ` - ${passData.classesLimit} classes valid for ${passData.validityDays} days`;
     }
 
-    // Create Stripe checkout session
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: STRIPE_CONFIG.payment_method_types as any,
+    const currency = passData.tenant.stripeConnect.currency || STRIPE_CONFIG.currency;
+    const applicationFeePercent = passData.tenant.stripeConnect.applicationFeePercent || 5;
+    const finalTenantSlug = passData.tenant.slug?.current || tenantSlug;
+
+    // Create Stripe Connect checkout session
+    const session = await stripeConnect.createCheckoutSession({
       line_items: [
         {
           price_data: {
-            currency: STRIPE_CONFIG.currency,
+            currency,
             product_data: {
               name: passData.name,
               description: description,
@@ -66,29 +91,35 @@ export async function POST(request: NextRequest) {
                 passId: passData._id,
                 passType: passData.type,
                 userId: userId,
+                tenantId: passData.tenant._id,
               },
             },
-            unit_amount: Math.round(passData.price * 100), // Convert to øre (smallest currency unit)
+            unit_amount: Math.round(passData.price * 100), // Convert to smallest currency unit
           },
           quantity: 1,
         },
       ],
-      mode: 'payment',
-      success_url: successUrl || `${request.nextUrl.origin}/payment/success?session_id={CHECKOUT_SESSION_ID}&type=pass`,
-      cancel_url: cancelUrl || `${request.nextUrl.origin}/subscriptions`,
+      connectedAccountId: passData.tenant.stripeConnect.accountId,
+      applicationFeePercent,
+      success_url: successUrl || `${request.nextUrl.origin}/${finalTenantSlug}/payment/success?session_id={CHECKOUT_SESSION_ID}&type=pass`,
+      cancel_url: cancelUrl || `${request.nextUrl.origin}/${finalTenantSlug}/subscriptions`,
       metadata: {
         passId: passData._id,
         passType: passData.type,
         userId: userId,
         type: 'pass_purchase',
-        tenantId: passData.tenant?._id,
-        tenantSlug: passData.tenant?.slug?.current || tenantSlug,
+        tenantId: passData.tenant._id,
+        tenantSlug: finalTenantSlug,
       },
     });
 
-    return NextResponse.json({ sessionId: session.id, url: session.url });
+    return NextResponse.json({ 
+      sessionId: session.id, 
+      url: session.url,
+      connectedAccountId: passData.tenant.stripeConnect.accountId
+    });
   } catch (error) {
-    console.error('Stripe pass checkout error:', error);
+    console.error('Stripe Connect pass checkout error:', error);
     return NextResponse.json(
       { error: 'Failed to create checkout session' },
       { status: 500 }

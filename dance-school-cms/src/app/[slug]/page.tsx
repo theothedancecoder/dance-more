@@ -6,9 +6,6 @@ import { useTenant } from '@/contexts/TenantContext';
 import { SignedIn, SignedOut, SignInButton } from '@clerk/nextjs';
 import Link from 'next/link';
 import Image from 'next/image';
-import Navigation from '@/components/Navigation';
-import NotificationBanner from '@/components/NotificationBanner';
-
 export default function TenantHomePage() {
   const params = useParams();
   const { tenant, isLoading, error } = useTenant();
@@ -55,12 +52,6 @@ export default function TenantHomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 animate-gradient">
-      <Navigation />
-      
-      {/* Notifications */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
-        <NotificationBanner />
-      </div>
       
       {/* Hero Section */}
       <section className="relative overflow-hidden">

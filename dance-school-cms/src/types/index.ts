@@ -32,6 +32,18 @@ export const TenantSchema = z.object({
     accentColor: z.string(),
   }).optional(),
   logo: z.any().optional(), // Sanity image type
+  stripeConnect: z.object({
+    accountId: z.string().optional(),
+    accountStatus: z.enum(['not_connected', 'pending', 'active', 'restricted', 'rejected']).optional(),
+    onboardingCompleted: z.boolean().optional(),
+    chargesEnabled: z.boolean().optional(),
+    payoutsEnabled: z.boolean().optional(),
+    country: z.string().optional(),
+    currency: z.string().optional(),
+    applicationFeePercent: z.number().optional(),
+    connectedAt: z.string().optional(),
+    lastSyncAt: z.string().optional(),
+  }).optional(),
 });
 
 export type Tenant = z.infer<typeof TenantSchema>;
