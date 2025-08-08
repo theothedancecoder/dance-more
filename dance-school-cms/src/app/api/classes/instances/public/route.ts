@@ -169,29 +169,24 @@ export async function GET(request: NextRequest) {
               continue;
             }
             
-            // Start from the beginning of the request range and find all instances
-            let currentDate = new Date(requestStartDate);
-            // Go back to the start of the week (Monday) to ensure we don't miss any instances
-            const currentDayOfWeek = currentDate.getDay();
+            // Generate instances week by week within the effective date range
+            let currentWeekStart = new Date(effectiveStartDate);
+            // Adjust to the start of the week (Monday)
+            const currentDayOfWeek = currentWeekStart.getDay();
             const daysToMonday = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
-            currentDate.setDate(currentDate.getDate() + daysToMonday);
+            currentWeekStart.setDate(currentWeekStart.getDate() + daysToMonday);
             
-            // Make sure we don't go before the class start date
-            if (currentDate < classStartDate) {
-              currentDate = new Date(classStartDate);
-              // Adjust to the start of the week containing the class start date
-              const startDayOfWeek = currentDate.getDay();
-              const daysToMondayFromStart = startDayOfWeek === 0 ? -6 : 1 - startDayOfWeek;
-              currentDate.setDate(currentDate.getDate() + daysToMondayFromStart);
-            }
-            
-            while (currentDate <= effectiveEndDate) {
+            while (currentWeekStart <= effectiveEndDate) {
               // Calculate the date for the target day of this week
-              const instanceDate = new Date(currentDate);
+              const instanceDate = new Date(currentWeekStart);
               
-              // Set to the correct day of the week
-              const daysFromMonday = targetDay === 0 ? 6 : targetDay - 1; // Sunday is 6 days from Monday
-              instanceDate.setDate(currentDate.getDate() + daysFromMonday);
+              // Calculate days to add to get to the target day
+              let daysToAdd = targetDay - 1; // Convert to 0-based (Monday = 0)
+              if (targetDay === 0) { // Sunday
+                daysToAdd = 6;
+              }
+              
+              instanceDate.setDate(currentWeekStart.getDate() + daysToAdd);
               
               // Set the time
               if (schedule.startTime) {
@@ -243,7 +238,7 @@ export async function GET(request: NextRequest) {
               }
               
               // Move to next week
-              currentDate.setDate(currentDate.getDate() + 7);
+              currentWeekStart.setDate(currentWeekStart.getDate() + 7);
             }
           }
         } else {

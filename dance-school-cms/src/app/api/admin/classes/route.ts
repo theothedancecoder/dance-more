@@ -7,12 +7,23 @@ import { isAdmin } from '@/lib/admin-utils';
 function getDateForDayOfWeek(baseDate: Date, dayOfWeek: string): Date {
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const targetDay = days.indexOf(dayOfWeek.toLowerCase());
-  const currentDay = baseDate.getDay();
+  
+  if (targetDay === -1) {
+    throw new Error(`Invalid day of week: ${dayOfWeek}`);
+  }
   
   const date = new Date(baseDate);
-  const diff = targetDay - currentDay;
-  date.setDate(date.getDate() + diff);
+  const currentDay = date.getDay();
   
+  // Calculate days to add to get to the target day
+  let daysToAdd = targetDay - currentDay;
+  
+  // If the target day is today or in the past this week, move to next week
+  if (daysToAdd <= 0) {
+    daysToAdd += 7;
+  }
+  
+  date.setDate(date.getDate() + daysToAdd);
   return date;
 }
 

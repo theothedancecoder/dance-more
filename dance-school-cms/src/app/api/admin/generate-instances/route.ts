@@ -2,6 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sanityClient } from '@/lib/sanity';
 import { auth } from '@clerk/nextjs/server';
 
+// Standardized function to get the next occurrence of a specific day of the week
+function getNextDayOfWeek(baseDate: Date, targetDayOfWeek: number): Date {
+  const result = new Date(baseDate);
+  const currentDay = result.getDay();
+  
+  // Calculate days to add to get to the target day
+  let daysToAdd = targetDayOfWeek - currentDay;
+  
+  // If the target day is today or in the past this week, move to next week
+  if (daysToAdd <= 0) {
+    daysToAdd += 7;
+  }
+  
+  result.setDate(result.getDate() + daysToAdd);
+  return result;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { userId } = await auth();
@@ -68,28 +85,36 @@ export async function POST(request: NextRequest) {
       const now = new Date();
       
       for (const schedule of classData.recurringSchedule.weeklySchedule) {
+        // Day mapping: JavaScript getDay() returns 0=Sunday, 1=Monday, etc.
+        const dayMap = {
+          'monday': 1, 'tuesday': 2, 'wednesday': 3, 'thursday': 4,
+          'friday': 5, 'saturday': 6, 'sunday': 0
+        };
+        
+        const targetDay = dayMap[schedule.dayOfWeek.toLowerCase() as keyof typeof dayMap];
+        if (targetDay === undefined) {
+          console.warn(`Invalid day of week: ${schedule.dayOfWeek}`);
+          continue;
+        }
+        
+        // Generate instances for the next 8 weeks
         for (let week = 0; week < 8; week++) {
-          const instanceDate = new Date(now);
-          instanceDate.setDate(now.getDate() + (week * 7));
+          const weekStart = new Date(now);
+          weekStart.setDate(now.getDate() + (week * 7));
           
-          // Find the next occurrence of the day
-          const dayMap = {
-            'monday': 1, 'tuesday': 2, 'wednesday': 3, 'thursday': 4,
-            'friday': 5, 'saturday': 6, 'sunday': 0
-          };
+          // Get the correct day of this week
+          const instanceDate = getNextDayOfWeek(weekStart, targetDay);
           
-          const targetDay = dayMap[schedule.dayOfWeek.toLowerCase() as keyof typeof dayMap];
-          if (targetDay === undefined) continue;
-          
-          const currentDay = instanceDate.getDay();
-          const daysUntilTarget = (targetDay - currentDay + 7) % 7;
-          instanceDate.setDate(instanceDate.getDate() + daysUntilTarget);
+          // If we're looking at the current week, make sure the instance is in the future
+          if (week === 0 && instanceDate <= now) {
+            continue;
+          }
           
           // Set the time
           const [hours, minutes] = schedule.startTime.split(':');
           instanceDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
           
-          // Skip if this instance already exists or is in the past
+          // Skip if this instance is in the past
           if (instanceDate < now) continue;
           
           const instance = {
