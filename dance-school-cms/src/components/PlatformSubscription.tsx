@@ -42,42 +42,23 @@ interface TenantSubscription {
 }
 
 const SUBSCRIPTION_PLANS: Record<string, SubscriptionPlan> = {
-  starter: {
-    name: 'Starter',
-    monthlyPrice: 29,
-    yearlyPrice: 290,
-    features: [
-      'Up to 100 students',
-      'Basic class management',
-      'Payment processing',
-      'Email support'
-    ]
-  },
   professional: {
-    name: 'Professional',
-    monthlyPrice: 79,
-    yearlyPrice: 790,
-    features: [
-      'Up to 500 students',
-      'Advanced class management',
-      'Payment processing',
-      'Analytics & reports',
-      'Priority support',
-      'Custom branding'
-    ]
-  },
-  enterprise: {
-    name: 'Enterprise',
-    monthlyPrice: 199,
-    yearlyPrice: 1990,
+    name: 'Dance School Platform',
+    monthlyPrice: 600,
+    yearlyPrice: 6000, // 10 months price for yearly (2 months free)
     features: [
       'Unlimited students',
-      'Full feature access',
-      'Payment processing',
-      'Advanced analytics',
-      'Dedicated support',
-      'White-label solution',
-      'API access'
+      'Complete class management',
+      'Stripe Connect payment processing',
+      '0% transaction fees - you keep 100%',
+      'Student booking system',
+      'Pass & subscription management',
+      'Analytics & reports',
+      'Custom branding & domain',
+      'Email & priority support',
+      'Multi-tenant architecture',
+      'Calendar integration',
+      'Automated notifications'
     ]
   }
 };
@@ -274,7 +255,7 @@ export default function PlatformSubscription() {
               
               {subscription.subscriptionDetails.nextInvoiceDate && (
                 <p className="text-sm text-gray-600">
-                  Next payment: ${subscription.subscriptionDetails.nextInvoiceAmount} on {new Date(subscription.subscriptionDetails.nextInvoiceDate).toLocaleDateString()}
+                  Next payment: {subscription.subscriptionDetails.nextInvoiceAmount} NOK on {new Date(subscription.subscriptionDetails.nextInvoiceDate).toLocaleDateString()}
                 </p>
               )}
             </div>
@@ -326,7 +307,7 @@ export default function PlatformSubscription() {
       {/* Subscription Plans */}
       {(!isActive || currentPlan === 'free') && (
         <div className="bg-white rounded-lg shadow-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">Choose Your Plan</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-6">Platform Subscription</h3>
           
           {/* Billing Toggle */}
           <div className="flex justify-center mb-8">
@@ -350,45 +331,38 @@ export default function PlatformSubscription() {
                 }`}
               >
                 Yearly
-                <span className="ml-1 text-xs text-green-600">(Save 17%)</span>
+                <span className="ml-1 text-xs text-green-600">(Save 2 months)</span>
               </button>
             </div>
           </div>
 
-          {/* Plans Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Single Plan Display */}
+          <div className="max-w-md mx-auto">
             {Object.entries(SUBSCRIPTION_PLANS).map(([planKey, plan]) => {
               const price = selectedBilling === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice;
               const isCurrentPlan = planKey === currentPlan;
-              const isRecommended = planKey === 'professional';
               
               return (
                 <div
                   key={planKey}
-                  className={`relative rounded-lg border-2 p-6 ${
-                    isRecommended
-                      ? 'border-blue-500 ring-2 ring-blue-500 ring-opacity-50'
-                      : 'border-gray-200'
-                  } ${isCurrentPlan ? 'bg-gray-50' : 'bg-white'}`}
+                  className="relative rounded-lg border-2 border-blue-500 ring-2 ring-blue-500 ring-opacity-50 p-6 bg-white"
                 >
-                  {isRecommended && (
-                    <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                      <span className="bg-blue-500 text-white px-3 py-1 text-xs font-medium rounded-full">
-                        Recommended
-                      </span>
-                    </div>
-                  )}
+                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                    <span className="bg-blue-500 text-white px-3 py-1 text-xs font-medium rounded-full">
+                      Complete Platform
+                    </span>
+                  </div>
                   
                   <div className="text-center">
                     <h4 className="text-lg font-semibold text-gray-900">{plan.name}</h4>
                     <div className="mt-4">
-                      <span className="text-3xl font-bold text-gray-900">${price}</span>
-                      <span className="text-gray-600">/{selectedBilling === 'monthly' ? 'month' : 'year'}</span>
+                      <span className="text-3xl font-bold text-gray-900">{price}</span>
+                      <span className="text-gray-600"> NOK/{selectedBilling === 'monthly' ? 'month' : 'year'}</span>
                     </div>
                     
                     {selectedBilling === 'yearly' && (
                       <p className="text-sm text-green-600 mt-1">
-                        Save ${(plan.monthlyPrice * 12) - plan.yearlyPrice}/year
+                        Save {(plan.monthlyPrice * 12) - plan.yearlyPrice} NOK/year
                       </p>
                     )}
                   </div>
@@ -411,19 +385,34 @@ export default function PlatformSubscription() {
                       <button
                         onClick={() => handleSubscribe(planKey, selectedBilling)}
                         disabled={actionLoading}
-                        className={`w-full py-2 px-4 rounded-md font-medium transition-colors disabled:opacity-50 ${
-                          isRecommended
-                            ? 'bg-blue-600 text-white hover:bg-blue-700'
-                            : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-                        }`}
+                        className="w-full py-2 px-4 rounded-md font-medium transition-colors disabled:opacity-50 bg-blue-600 text-white hover:bg-blue-700"
                       >
-                        {actionLoading ? 'Processing...' : 'Subscribe'}
+                        {actionLoading ? 'Processing...' : 'Subscribe Now'}
                       </button>
                     )}
                   </div>
                 </div>
               );
             })}
+          </div>
+
+          {/* Value Proposition */}
+          <div className="mt-8 p-6 bg-green-50 border border-green-200 rounded-lg">
+            <h4 className="text-lg font-semibold text-green-800 mb-2">Why Choose Our Platform?</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-green-700">
+              <div>
+                <strong>No Transaction Fees:</strong> Keep 100% of your student payments
+              </div>
+              <div>
+                <strong>Complete Solution:</strong> Everything you need to run your dance school
+              </div>
+              <div>
+                <strong>Professional Setup:</strong> Custom domain and branding included
+              </div>
+              <div>
+                <strong>Dedicated Support:</strong> Priority email and technical support
+              </div>
+            </div>
           </div>
         </div>
       )}

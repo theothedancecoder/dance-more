@@ -7,45 +7,24 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 // Platform subscription plans
 const SUBSCRIPTION_PLANS = {
-  starter: {
-    name: 'Starter',
-    priceId: process.env.STRIPE_STARTER_PRICE_ID,
-    monthlyPrice: 29,
-    yearlyPrice: 290,
-    features: [
-      'Up to 100 students',
-      'Basic class management',
-      'Payment processing',
-      'Email support'
-    ]
-  },
   professional: {
-    name: 'Professional', 
-    priceId: process.env.STRIPE_PROFESSIONAL_PRICE_ID,
-    monthlyPrice: 79,
-    yearlyPrice: 790,
-    features: [
-      'Up to 500 students',
-      'Advanced class management',
-      'Payment processing',
-      'Analytics & reports',
-      'Priority support',
-      'Custom branding'
-    ]
-  },
-  enterprise: {
-    name: 'Enterprise',
-    priceId: process.env.STRIPE_ENTERPRISE_PRICE_ID,
-    monthlyPrice: 199,
-    yearlyPrice: 1990,
+    name: 'Dance School Platform',
+    priceId: process.env.STRIPE_PLATFORM_PRICE_ID,
+    monthlyPrice: 600,
+    yearlyPrice: 6000, // 10 months price for yearly (2 months free)
     features: [
       'Unlimited students',
-      'Full feature access',
-      'Payment processing',
-      'Advanced analytics',
-      'Dedicated support',
-      'White-label solution',
-      'API access'
+      'Complete class management',
+      'Stripe Connect payment processing',
+      '0% transaction fees - you keep 100%',
+      'Student booking system',
+      'Pass & subscription management',
+      'Analytics & reports',
+      'Custom branding & domain',
+      'Email & priority support',
+      'Multi-tenant architecture',
+      'Calendar integration',
+      'Automated notifications'
     ]
   }
 };
