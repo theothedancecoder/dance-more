@@ -53,9 +53,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get all recurring classes for this tenant that need instances (limit to reduce timeout)
+    // Get all recurring classes for this tenant that need instances
     const classes = await sanityClient.fetch(
-      `*[_type == "class" && tenant._ref == $tenantId && isRecurring == true && isActive == true][0...5] {
+      `*[_type == "class" && tenant._ref == $tenantId && isRecurring == true && isActive == true] {
         _id,
         title,
         isRecurring,
@@ -199,7 +199,7 @@ export async function POST(request: NextRequest) {
       totalInstancesCreated,
       classesProcessed: classes.length,
       results,
-      message: classes.length >= 5 ? 'Processed first 5 classes. Run again to process more.' : 'All classes processed.'
+      message: totalInstancesCreated > 0 ? `Successfully created ${totalInstancesCreated} new instances.` : 'All classes already have future instances.'
     });
 
   } catch (error) {
