@@ -329,6 +329,7 @@ export default function EditClassPage() {
                   className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900"
                 >
                   <option value="beginner">Beginner</option>
+                  <option value="improvers">Improvers</option>
                   <option value="intermediate">Intermediate</option>
                   <option value="advanced">Advanced</option>
                   <option value="all-levels">All Levels</option>

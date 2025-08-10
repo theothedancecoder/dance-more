@@ -149,13 +149,17 @@ export default function ClassesPage() {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xl font-semibold text-gray-900">{classItem.title}</h3>
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    classItem.level === 'Beginner' 
+                    classItem.level === 'beginner' 
                       ? 'bg-green-100 text-green-800'
-                      : classItem.level === 'Intermediate'
+                      : classItem.level === 'improvers'
+                      ? 'bg-blue-100 text-blue-800'
+                      : classItem.level === 'intermediate'
                       ? 'bg-yellow-100 text-yellow-800'
-                      : 'bg-red-100 text-red-800'
+                      : classItem.level === 'advanced'
+                      ? 'bg-red-100 text-red-800'
+                      : 'bg-gray-100 text-gray-800'
                   }`}>
-                    {classItem.level}
+                    {classItem.level.charAt(0).toUpperCase() + classItem.level.slice(1)}
                   </span>
                 </div>
                 
