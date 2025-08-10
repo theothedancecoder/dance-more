@@ -2,20 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sanityClient } from '@/lib/sanity';
 import { auth } from '@clerk/nextjs/server';
 
-// Standardized function to get the next occurrence of a specific day of the week
-function getNextDayOfWeek(baseDate: Date, targetDayOfWeek: number): Date {
-  const result = new Date(baseDate);
+// Get the date for a specific day of the week in a given week
+function getDateForDayInWeek(weekStartDate: Date, targetDayOfWeek: number): Date {
+  const result = new Date(weekStartDate);
+  
+  // Get Monday of this week (weekStartDate should be Monday)
   const currentDay = result.getDay();
+  const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay; // Handle Sunday (0) and other days
+  result.setDate(result.getDate() + mondayOffset);
   
-  // Calculate days to add to get to the target day
-  let daysToAdd = targetDayOfWeek - currentDay;
+  // Now add days to get to target day (Monday=1, Tuesday=2, etc.)
+  const daysFromMonday = targetDayOfWeek === 0 ? 6 : targetDayOfWeek - 1; // Sunday becomes 6 days from Monday
+  result.setDate(result.getDate() + daysFromMonday);
   
-  // If the target day is today or in the past this week, move to next week
-  if (daysToAdd <= 0) {
-    daysToAdd += 7;
-  }
-  
-  result.setDate(result.getDate() + daysToAdd);
   return result;
 }
 
@@ -116,23 +115,24 @@ export async function POST(request: NextRequest) {
         
         // Generate instances for the next 4 weeks
         for (let week = 0; week < 4; week++) {
-          const weekStart = new Date(now);
-          weekStart.setDate(now.getDate() + (week * 7));
+          // Calculate the Monday of the target week
+          const mondayOfWeek = new Date(now);
+          mondayOfWeek.setDate(now.getDate() + (week * 7));
           
-          // Get the correct day of this week
-          const instanceDate = getNextDayOfWeek(weekStart, targetDay);
+          // Adjust to get Monday of this week
+          const dayOfWeek = mondayOfWeek.getDay();
+          const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+          mondayOfWeek.setDate(mondayOfWeek.getDate() + daysToMonday);
           
-          // If we're looking at the current week, make sure the instance is in the future
-          if (week === 0 && instanceDate <= now) {
-            continue;
-          }
+          // Get the specific day for this class
+          const instanceDate = getDateForDayInWeek(mondayOfWeek, targetDay);
           
           // Set the time
           const [hours, minutes] = schedule.startTime.split(':');
           instanceDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
           
           // Skip if this instance is in the past
-          if (instanceDate < now) continue;
+          if (instanceDate <= now) continue;
           
           const instance = {
             _type: 'classInstance',

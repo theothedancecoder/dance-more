@@ -79,12 +79,12 @@ export async function GET(request: NextRequest) {
         minute: '2-digit',
         hour12: false 
       }),
-      endTime: new Date(new Date(instance.date).getTime() + instance.parentClass.duration * 60000).toLocaleTimeString('en-US', { 
+      endTime: new Date(new Date(instance.date).getTime() + (instance.parentClass.duration || 60) * 60000).toLocaleTimeString('en-US', { 
         hour: '2-digit', 
         minute: '2-digit',
         hour12: false 
       }),
-      date: instance.date.split('T')[0], // Just the date part
+      date: instance.date, // Keep the full ISO date for proper parsing
       capacity: instance.parentClass.capacity,
       booked: instance.bookingCount || 0,
       price: instance.parentClass.price,
