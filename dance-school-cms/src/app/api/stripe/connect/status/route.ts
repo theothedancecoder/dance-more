@@ -11,8 +11,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get tenant from headers
-    const tenantId = request.headers.get('x-tenant-id');
+    // Get tenant from headers - support both x-tenant-id and x-tenant-slug
+    let tenantId = request.headers.get('x-tenant-id');
+    const tenantSlug = request.headers.get('x-tenant-slug');
+    
+    // If no tenant ID but we have slug, look up the tenant ID
+    if (!tenantId && tenantSlug) {
+      const tenant = await sanityClient.fetch(
+        `*[_type == "tenant" && slug.current == $slug][0]._id`,
+        { slug: tenantSlug }
+      );
+      tenantId = tenant;
+    }
     
     if (!tenantId) {
       return NextResponse.json({ error: 'Tenant context required' }, { status: 403 });

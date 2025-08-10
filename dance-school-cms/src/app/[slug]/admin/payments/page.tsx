@@ -52,6 +52,11 @@ export default function PaymentsPage() {
   const params = useParams();
   const { tenant } = useTenant();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+
+  // Debug tab changes
+  useEffect(() => {
+    console.log('🔄 PaymentsPage: Active tab changed to:', activeTab);
+  }, [activeTab]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
@@ -171,7 +176,10 @@ export default function PaymentsPage() {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as TabType)}
+                onClick={() => {
+                  console.log('🔄 PaymentsPage: Tab clicked:', tab.id);
+                  setActiveTab(tab.id as TabType);
+                }}
                 className={`flex items-center py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === tab.id
                     ? 'border-blue-500 text-blue-600'
@@ -248,7 +256,14 @@ export default function PaymentsPage() {
         )}
 
         {activeTab === 'connect' && (
-          <StripeConnectSetup />
+          <>
+            <div style={{ padding: '10px', background: '#f0f0f0', margin: '10px 0' }}>
+              <strong>DEBUG: StripeConnectSetup should load here</strong>
+              <br />Active tab: {activeTab}
+              <br />Tenant: {tenant ? tenant.schoolName : 'No tenant'}
+            </div>
+            <StripeConnectSetup />
+          </>
         )}
 
         {activeTab === 'transactions' && (

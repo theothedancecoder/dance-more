@@ -47,6 +47,7 @@ export default function StripeConnectSetup() {
     
     try {
       setLoading(true);
+      console.log('🔄 StripeConnectSetup: Fetching status for tenant:', tenant._id);
       const response = await fetch('/api/stripe/connect/status', {
         headers: {
           'x-tenant-id': tenant._id,
@@ -56,17 +57,21 @@ export default function StripeConnectSetup() {
         }
       });
 
+      console.log('📊 StripeConnectSetup: Status response:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ StripeConnectSetup: Status data:', data);
         setStatus(data);
         // Emit event to notify parent components of status change
         window.dispatchEvent(new CustomEvent('stripeConnectUpdated'));
       } else {
         const errorData = await response.json();
+        console.error('❌ StripeConnectSetup: Status error:', errorData);
         setError(errorData.error || 'Failed to fetch status');
       }
     } catch (err) {
-      console.error('Error fetching Stripe Connect status:', err);
+      console.error('❌ StripeConnectSetup: Status fetch error:', err);
       setError('Failed to fetch status');
     } finally {
       setLoading(false);
@@ -74,9 +79,13 @@ export default function StripeConnectSetup() {
   };
 
   const createAccount = async () => {
-    if (!tenant) return;
+    if (!tenant) {
+      console.error('❌ StripeConnectSetup: No tenant available');
+      return;
+    }
     
     try {
+      console.log('🚀 StripeConnectSetup: Starting createAccount for tenant:', tenant._id);
       setActionLoading(true);
       setError(null);
 
@@ -92,17 +101,22 @@ export default function StripeConnectSetup() {
         })
       });
 
+      console.log('📊 StripeConnectSetup: Create account response:', response.status);
+
       if (response.ok) {
+        const data = await response.json();
+        console.log('✅ StripeConnectSetup: Account created:', data);
         await fetchStatus(); // Refresh status
         // Emit event to notify parent components
         window.dispatchEvent(new CustomEvent('stripeConnectUpdated'));
         await startOnboarding(); // Immediately start onboarding
       } else {
         const errorData = await response.json();
+        console.error('❌ StripeConnectSetup: Create account error:', errorData);
         setError(errorData.error || 'Failed to create account');
       }
     } catch (err) {
-      console.error('Error creating Stripe Connect account:', err);
+      console.error('❌ StripeConnectSetup: Create account exception:', err);
       setError('Failed to create account');
     } finally {
       setActionLoading(false);
@@ -110,11 +124,18 @@ export default function StripeConnectSetup() {
   };
 
   const startOnboarding = async () => {
-    if (!tenant) return;
+    if (!tenant) {
+      console.error('❌ StripeConnectSetup: No tenant available for onboarding');
+      return;
+    }
     
     try {
+      console.log('🚀 StripeConnectSetup: Starting onboarding for tenant:', tenant._id);
       setActionLoading(true);
       setError(null);
+
+      const returnUrl = `${window.location.origin}/${tenant.slug?.current}/admin/payments/stripe/return`;
+      console.log('🔗 StripeConnectSetup: Return URL:', returnUrl);
 
       const response = await fetch('/api/stripe/connect/onboard', {
         method: 'POST',
@@ -123,20 +144,24 @@ export default function StripeConnectSetup() {
           'x-tenant-id': tenant._id,
         },
         body: JSON.stringify({
-          returnUrl: `${window.location.origin}/${tenant.slug?.current}/admin/payments/stripe/return`
+          returnUrl
         })
       });
 
+      console.log('📊 StripeConnectSetup: Onboard response:', response.status);
+
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ StripeConnectSetup: Onboarding URL:', data.onboardingUrl);
         // Redirect to Stripe onboarding
         window.location.href = data.onboardingUrl;
       } else {
         const errorData = await response.json();
+        console.error('❌ StripeConnectSetup: Onboard error:', errorData);
         setError(errorData.error || 'Failed to start onboarding');
       }
     } catch (err) {
-      console.error('Error starting onboarding:', err);
+      console.error('❌ StripeConnectSetup: Onboard exception:', err);
       setError('Failed to start onboarding');
     } finally {
       setActionLoading(false);
