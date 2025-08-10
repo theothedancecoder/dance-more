@@ -120,11 +120,9 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
       // Parse the date correctly to avoid timezone issues
       const instanceDate = new Date(instance.date);
       
-      // Use UTC methods to get the correct day
-      const dayName = instanceDate.toLocaleDateString('en-US', { 
-        weekday: 'long',
-        timeZone: 'UTC' // Force UTC to match the stored date
-      }).toLowerCase();
+      // Use getUTCDay() to get the correct day without timezone conversion
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const dayName = dayNames[instanceDate.getUTCDay()];
       
       if (grouped[dayName]) {
         grouped[dayName].push(instance);
