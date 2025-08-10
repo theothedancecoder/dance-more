@@ -99,15 +99,12 @@ export default function ScheduleManagementPage() {
 
   const generateAllInstances = async () => {
     try {
-      const response = await fetch('/api/admin/classes/generate-instances', {
+      const response = await fetch('/api/admin/generate-instances', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-tenant-slug': tenantSlug,
         },
-        body: JSON.stringify({
-          classId,
-        }),
       });
 
       if (!response.ok) {
@@ -115,7 +112,7 @@ export default function ScheduleManagementPage() {
       }
 
       const result = await response.json();
-      alert(`Success! Generated ${result.instancesCreated} instances for this class.`);
+      alert(`Success! Generated ${result.totalInstancesCreated} instances for ${result.classesProcessed} classes.`);
       
       // Refresh the page to show updated data
       window.location.reload();
