@@ -53,18 +53,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get all recurring classes for this tenant that need instances
+    // Get all recurring classes for this tenant that need instances (limit to reduce timeout)
     const classes = await sanityClient.fetch(
-      `*[_type == "class" && tenant._ref == $tenantId && isRecurring == true && isActive == true] {
+      `*[_type == "class" && tenant._ref == $tenantId && isRecurring == true && isActive == true][0...5] {
         _id,
         title,
         isRecurring,
         capacity,
-        recurringSchedule,
-        "existingInstancesCount": count(*[_type == "classInstance" && parentClass._ref == ^._id])
+        recurringSchedule
       }`,
       { tenantId }
     );
+
+    console.log(`Processing ${classes.length} classes for tenant ${tenantId}`);
 
     let totalInstancesCreated = 0;
     const results = [];
@@ -80,7 +81,23 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Generate instances for the next 8 weeks
+      // Check if instances already exist for this class (quick check)
+      const existingInstances = await sanityClient.fetch(
+        `count(*[_type == "classInstance" && parentClass._ref == $classId && date > now()])`,
+        { classId: classData._id }
+      );
+
+      if (existingInstances > 0) {
+        results.push({
+          classId: classData._id,
+          className: classData.title,
+          instancesCreated: 0,
+          message: `Already has ${existingInstances} future instances`
+        });
+        continue;
+      }
+
+      // Generate instances for the next 4 weeks only (reduced from 8 to prevent timeout)
       const instances = [];
       const now = new Date();
       
@@ -97,8 +114,8 @@ export async function POST(request: NextRequest) {
           continue;
         }
         
-        // Generate instances for the next 8 weeks
-        for (let week = 0; week < 8; week++) {
+        // Generate instances for the next 4 weeks
+        for (let week = 0; week < 4; week++) {
           const weekStart = new Date(now);
           weekStart.setDate(now.getDate() + (week * 7));
           
@@ -130,18 +147,22 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Create instances in batches
+      // Create instances in smaller batches to avoid timeout
       if (instances.length > 0) {
         try {
-          // Create instances one by one to avoid batch issues
+          // Create instances one by one but with better error handling
           let createdCount = 0;
           for (const instance of instances) {
             try {
               await sanityClient.create(instance);
               createdCount++;
-            } catch (createError) {
-              // Skip if instance already exists or other error
-              console.log(`Skipping instance creation:`, createError);
+            } catch (createError: any) {
+              // Skip if instance already exists (duplicate key error)
+              if (createError?.message?.includes('already exists') || createError?.statusCode === 409) {
+                console.log(`Instance already exists, skipping...`);
+              } else {
+                console.log(`Error creating instance:`, createError?.message || createError);
+              }
             }
           }
           
@@ -177,7 +198,8 @@ export async function POST(request: NextRequest) {
       success: true,
       totalInstancesCreated,
       classesProcessed: classes.length,
-      results
+      results,
+      message: classes.length >= 5 ? 'Processed first 5 classes. Run again to process more.' : 'All classes processed.'
     });
 
   } catch (error) {

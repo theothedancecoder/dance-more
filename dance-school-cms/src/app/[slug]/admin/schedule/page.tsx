@@ -43,6 +43,8 @@ export default function ScheduleManagementPage() {
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [generatingClass, setGeneratingClass] = useState<string | null>(null);
 
   const tenantSlug = params.slug as string;
 
@@ -74,6 +76,7 @@ export default function ScheduleManagementPage() {
   }, [isLoaded, isSignedIn, userId, tenantSlug]);
 
   const generateInstances = async (classId: string) => {
+    setGeneratingClass(classId);
     try {
       const response = await fetch('/api/admin/classes/generate-instances', {
         method: 'POST',
@@ -87,17 +90,24 @@ export default function ScheduleManagementPage() {
       });
 
       if (!response.ok) {
+        if (response.status === 504) {
+          throw new Error('Request timed out. The operation may still be processing in the background.');
+        }
         throw new Error('Failed to generate instances');
       }
 
       const result = await response.json();
       alert(`Success! Generated ${result.instancesCreated} instances for this class.`);
     } catch (err) {
-      alert('Error generating instances: ' + (err instanceof Error ? err.message : 'Unknown error'));
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      alert('Error generating instances: ' + errorMessage);
+    } finally {
+      setGeneratingClass(null);
     }
   };
 
   const generateAllInstances = async () => {
+    setGenerating(true);
     try {
       const response = await fetch('/api/admin/generate-instances', {
         method: 'POST',
@@ -108,16 +118,22 @@ export default function ScheduleManagementPage() {
       });
 
       if (!response.ok) {
+        if (response.status === 504) {
+          throw new Error('Request timed out. The operation may still be processing in the background. Please check your calendar to see if instances were created.');
+        }
         throw new Error('Failed to generate instances');
       }
 
       const result = await response.json();
-      alert(`Success! Generated ${result.totalInstancesCreated} instances for ${result.classesProcessed} classes.`);
+      alert(`Success! Generated ${result.totalInstancesCreated} instances for ${result.classesProcessed} classes.\n\n${result.message || ''}`);
       
       // Refresh the page to show updated data
       window.location.reload();
     } catch (err) {
-      alert('Error generating instances: ' + (err instanceof Error ? err.message : 'Unknown error'));
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      alert('Error generating instances: ' + errorMessage);
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -170,10 +186,24 @@ export default function ScheduleManagementPage() {
             <div className="flex space-x-4">
               <button
                 onClick={generateAllInstances}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center space-x-2"
+                disabled={generating}
+                className={`px-4 py-2 rounded-lg flex items-center space-x-2 ${
+                  generating 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-green-600 hover:bg-green-700'
+                } text-white`}
               >
-                <CalendarIcon className="h-5 w-5" />
-                <span>Generate All Instances</span>
+                {generating ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <span>Generating...</span>
+                  </>
+                ) : (
+                  <>
+                    <CalendarIcon className="h-5 w-5" />
+                    <span>Generate All Instances</span>
+                  </>
+                )}
               </button>
               <Link
                 href={`/${tenantSlug}/admin/classes/new`}
@@ -267,9 +297,21 @@ export default function ScheduleManagementPage() {
                       <div className="flex space-x-2">
                         <button
                           onClick={() => generateInstances(classItem._id)}
-                          className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+                          disabled={generatingClass === classItem._id}
+                          className={`px-3 py-1 rounded text-sm flex items-center space-x-1 ${
+                            generatingClass === classItem._id
+                              ? 'bg-gray-400 cursor-not-allowed'
+                              : 'bg-green-600 hover:bg-green-700'
+                          } text-white`}
                         >
-                          Generate Instances
+                          {generatingClass === classItem._id ? (
+                            <>
+                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                              <span>Generating...</span>
+                            </>
+                          ) : (
+                            <span>Generate Instances</span>
+                          )}
                         </button>
                         <Link
                           href={`/${tenantSlug}/admin/classes/${classItem._id}/edit`}
