@@ -85,12 +85,27 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
       setLoading(true);
       try {
         const weekEnd = getWeekEnd(currentWeekStart);
-        const response = await fetch(
-          `/api/classes/instances/public?startDate=${currentWeekStart.toISOString()}&endDate=${weekEnd.toISOString()}&tenantSlug=${tenantSlug}`
-        );
+        const apiUrl = `/api/classes/instances/public?startDate=${currentWeekStart.toISOString()}&endDate=${weekEnd.toISOString()}&tenantSlug=${tenantSlug}`;
+        
+        console.log('🔍 WeeklySchedule fetching:', apiUrl);
+        console.log('📅 Week range:', currentWeekStart.toISOString(), 'to', weekEnd.toISOString());
+        
+        const response = await fetch(apiUrl);
 
         if (response.ok) {
           const data = await response.json();
+          console.log('📊 API returned instances:', data.instances?.length || 0);
+          
+          if (data.instances && data.instances.length > 0) {
+            console.log('📝 First few instances:');
+            data.instances.slice(0, 5).forEach((instance: any) => {
+              const date = new Date(instance.date);
+              const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+              const dayName = dayNames[date.getUTCDay()];
+              console.log(`   ${instance.title}: ${instance.date} -> ${dayName}`);
+            });
+          }
+          
           setClassInstances(data.instances || []);
         } else {
           console.error('Failed to fetch class instances:', response.statusText);
@@ -109,6 +124,8 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
 
   // Group classes by day
   const classesByDay = () => {
+    console.log('🔄 Grouping classes by day, total instances:', classInstances.length);
+    
     const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
     const grouped: { [key: string]: ClassInstance[] } = {};
     
@@ -124,14 +141,23 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
       const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
       const dayName = dayNames[instanceDate.getUTCDay()];
       
+      console.log(`   ${instance.title}: ${instance.date} -> ${dayName} (UTC day: ${instanceDate.getUTCDay()})`);
+      
       if (grouped[dayName]) {
         grouped[dayName].push(instance);
+      } else {
+        console.log(`   ⚠️ Day "${dayName}" not found in grouped object!`);
       }
     });
 
     // Sort classes by start time within each day
     Object.keys(grouped).forEach(day => {
       grouped[day].sort((a, b) => a.startTime.localeCompare(b.startTime));
+    });
+
+    console.log('📊 Final grouping result:');
+    Object.keys(grouped).forEach(day => {
+      console.log(`   ${day}: ${grouped[day].length} classes`);
     });
 
     return grouped;
