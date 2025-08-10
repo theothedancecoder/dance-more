@@ -68,9 +68,9 @@ export default function PaymentsPage() {
 
   // Function to refresh tenant data
   const refreshTenantData = () => {
+    console.log('🔄 PaymentsPage: Refreshing tenant data (without page reload)');
     setRefreshKey(prev => prev + 1);
-    // Force a page refresh to get updated tenant data
-    window.location.reload();
+    // Don't force page refresh - let React handle the state updates
   };
 
   // Function to fetch transactions

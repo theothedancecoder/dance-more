@@ -62,9 +62,12 @@ export default function StripeConnectSetup() {
       if (response.ok) {
         const data = await response.json();
         console.log('✅ StripeConnectSetup: Status data:', data);
+        console.log('🔄 StripeConnectSetup: Setting status state...');
         setStatus(data);
+        console.log('✅ StripeConnectSetup: Status state set successfully');
         // Emit event to notify parent components of status change
         window.dispatchEvent(new CustomEvent('stripeConnectUpdated'));
+        console.log('✅ StripeConnectSetup: Event dispatched');
       } else {
         const errorData = await response.json();
         console.error('❌ StripeConnectSetup: Status error:', errorData);
@@ -72,9 +75,12 @@ export default function StripeConnectSetup() {
       }
     } catch (err) {
       console.error('❌ StripeConnectSetup: Status fetch error:', err);
+      console.error('❌ StripeConnectSetup: Error details:', err);
       setError('Failed to fetch status');
     } finally {
+      console.log('🔄 StripeConnectSetup: Setting loading to false...');
       setLoading(false);
+      console.log('✅ StripeConnectSetup: Loading set to false');
     }
   };
 
