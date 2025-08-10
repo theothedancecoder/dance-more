@@ -130,7 +130,11 @@ export default function CalendarPage() {
     }
   }, [tenantSlug]);
 
-  const filteredInstances = classInstances.filter(instance => instance.date === selectedDate);
+  const filteredInstances = classInstances.filter(instance => {
+    // Extract date part from ISO string for comparison
+    const instanceDate = instance.date.split('T')[0];
+    return instanceDate === selectedDate;
+  });
 
   if (isLoading || loading) {
     return (
