@@ -75,14 +75,14 @@ export default function ScheduleManagementPage() {
 
   const generateInstances = async (classId: string) => {
     try {
-      const response = await fetch('/api/debug/generate-instances', {
+      const response = await fetch('/api/admin/classes/generate-instances', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-tenant-slug': tenantSlug,
         },
         body: JSON.stringify({
-          tenantSlug,
-          classId, // Optional: generate for specific class only
+          classId,
         }),
       });
 
@@ -91,7 +91,7 @@ export default function ScheduleManagementPage() {
       }
 
       const result = await response.json();
-      alert(`Success! Generated ${result.totalInstancesCreated} instances for ${result.totalClassesProcessed} class(es).`);
+      alert(`Success! Generated ${result.instancesCreated} instances for this class.`);
     } catch (err) {
       alert('Error generating instances: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }
@@ -99,13 +99,14 @@ export default function ScheduleManagementPage() {
 
   const generateAllInstances = async () => {
     try {
-      const response = await fetch('/api/debug/generate-instances', {
+      const response = await fetch('/api/admin/classes/generate-instances', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-tenant-slug': tenantSlug,
         },
         body: JSON.stringify({
-          tenantSlug,
+          classId,
         }),
       });
 
@@ -114,7 +115,7 @@ export default function ScheduleManagementPage() {
       }
 
       const result = await response.json();
-      alert(`Success! Generated ${result.totalInstancesCreated} instances for ${result.totalClassesProcessed} class(es).`);
+      alert(`Success! Generated ${result.instancesCreated} instances for this class.`);
       
       // Refresh the page to show updated data
       window.location.reload();
