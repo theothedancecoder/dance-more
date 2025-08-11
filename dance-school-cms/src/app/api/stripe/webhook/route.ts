@@ -58,17 +58,17 @@ async function createSubscriptionFromSession(session: Stripe.Checkout.Session) {
 
     console.log('✅ Found pass:', pass.name, '(' + pass.type + ')');
 
-    // Ensure user exists
+    // Ensure user exists - userId from metadata is the Clerk ID
     let user = await sanityClient.fetch(
-      `*[_type == "user" && _id == $userId][0]`,
+      `*[_type == "user" && clerkId == $userId][0]`,
       { userId }
     );
 
     if (!user) {
-      console.log('👤 Creating user:', userId);
+      console.log('👤 Creating user with Clerk ID:', userId);
       user = await sanityClient.create({
         _type: 'user',
-        _id: userId,
+        clerkId: userId,
         name: session.customer_details?.name || 'Customer',
         email: session.customer_details?.email || session.customer_email || '',
         role: 'student',
@@ -115,7 +115,7 @@ async function createSubscriptionFromSession(session: Stripe.Checkout.Session) {
       _type: 'subscription',
       user: {
         _type: 'reference',
-        _ref: userId,
+        _ref: user._id,
       },
       tenant: {
         _type: 'reference',

@@ -1,0 +1,76 @@
+import dotenv from 'dotenv';
+import { createClient } from '@sanity/client';
+
+// Load environment variables
+dotenv.config({ path: '.env.local' });
+
+const sanityClient = createClient({
+  projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID,
+  dataset: process.env.NEXT_PUBLIC_SANITY_DATASET,
+  token: process.env.SANITY_API_TOKEN,
+  useCdn: false,
+  apiVersion: '2023-05-03',
+});
+
+console.log('🔍 Checking user: kruczku@pm.me\n');
+
+const userEmail = 'kruczku@pm.me';
+
+async function checkUser() {
+  try {
+    // Find user by email
+    const user = await sanityClient.fetch(
+      `*[_type == "user" && email == $email][0] {
+        _id, name, email, clerkId, role, createdAt
+      }`,
+      { email: userEmail }
+    );
+
+    if (!user) {
+      console.log('❌ User not found in database');
+      console.log('This means they need to sign up first before we can create a subscription');
+      return;
+    }
+
+    console.log('✅ User found:');
+    console.log(`   Name: ${user.name || 'No name'}`);
+    console.log(`   Email: ${user.email}`);
+    console.log(`   Clerk ID: ${user.clerkId}`);
+    console.log(`   Role: ${user.role}`);
+    console.log(`   Created: ${user.createdAt}`);
+
+    // Check for existing subscriptions
+    const subscriptions = await sanityClient.fetch(
+      `*[_type == "subscription" && user._ref == $userId] {
+        _id, passName, type, startDate, endDate, remainingClips, isActive
+      }`,
+      { userId: user._id }
+    );
+
+    console.log(`\n📋 Existing subscriptions: ${subscriptions.length}`);
+    subscriptions.forEach((sub, index) => {
+      console.log(`   ${index + 1}. ${sub.passName} (${sub.type}) - Active: ${sub.isActive}`);
+      console.log(`      Valid: ${sub.startDate} to ${sub.endDate}`);
+      console.log(`      Remaining: ${sub.remainingClips || 'Unlimited'}`);
+    });
+
+    if (subscriptions.length === 0) {
+      console.log(`\n💡 This user has no subscriptions - they need a pass created!`);
+      console.log(`\n🎫 Available passes for Dancecity:`);
+      console.log(`   1. Day Drop In (unlimited) - 400 NOK`);
+      console.log(`   2. 1 Course (8 weeks) (subscription) - 1290 NOK`);
+      console.log(`   3. 4 Course Pass (subscription) - 3200 NOK`);
+      console.log(`   4. 2 Course Pass (subscription) - 2290 NOK`);
+      console.log(`   5. 3 Course Pass (subscription) - 2790 NOK`);
+      console.log(`   6. Open week Trial Pass (multi) - 250 NOK`);
+      console.log(`   7. Drop-in Class (single) - 250 NOK`);
+      console.log(`   8. 10 Single Clip Card (multi) - 2000 NOK`);
+      console.log(`\n❓ Which pass did kruczku@pm.me purchase?`);
+    }
+
+  } catch (error) {
+    console.error('❌ Error:', error);
+  }
+}
+
+checkUser();
