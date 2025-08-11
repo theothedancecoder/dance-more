@@ -29,14 +29,39 @@ export async function GET(request: NextRequest) {
 
     console.log('🏢 Looking for tenant:', tenantSlug);
 
-    // First get the tenant ID
-    const tenant = await sanityClient.fetch(
+    // First get the tenant ID - try multiple ways to find the tenant
+    let tenant = await sanityClient.fetch(
       `*[_type == "tenant" && slug.current == $tenantSlug][0] {
         _id,
-        schoolName
+        schoolName,
+        "subdomain": subdomain.current
       }`,
       { tenantSlug }
     );
+
+    // If not found by slug, try by subdomain
+    if (!tenant) {
+      tenant = await sanityClient.fetch(
+        `*[_type == "tenant" && subdomain.current == $tenantSlug][0] {
+          _id,
+          schoolName,
+          "subdomain": subdomain.current
+        }`,
+        { tenantSlug }
+      );
+    }
+
+    // If still not found, try by school name (case insensitive)
+    if (!tenant) {
+      tenant = await sanityClient.fetch(
+        `*[_type == "tenant" && lower(schoolName) match lower($tenantSlug + "*")][0] {
+          _id,
+          schoolName,
+          "subdomain": subdomain.current
+        }`,
+        { tenantSlug }
+      );
+    }
 
     if (!tenant) {
       console.log('❌ Tenant not found:', tenantSlug);
