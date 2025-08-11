@@ -14,11 +14,39 @@ export async function GET() {
       );
     }
 
-    // Get user's subscriptions
-    const subscriptions = await sanityClient.fetch(
-      `*[_type == "subscription" && user._ref == $userId && isActive == true] | order(_createdAt desc)`,
-      { userId }
+    console.log('✅ User authenticated with clerkId:', userId);
+
+    // CRITICAL FIX: userId from Clerk auth() is actually clerkId, not Sanity _id
+    // We need to find the user by clerkId first, then use their _id for subscriptions
+    const user = await sanityClient.fetch(
+      `*[_type == "user" && clerkId == $clerkId][0] {
+        _id,
+        name,
+        email,
+        clerkId
+      }`,
+      { clerkId: userId }
     );
+
+    if (!user) {
+      console.log('⚠️ User not found in Sanity with clerkId:', userId);
+      console.log('💡 This might be why subscriptions are not showing - user needs to be created in Sanity');
+      return NextResponse.json({ 
+        subscriptions: [],
+        availablePasses: []
+      });
+    }
+
+    console.log('✅ Found user in Sanity:', user.name || user.email || user._id);
+    console.log('🔗 User mapping: clerkId =', userId, '-> Sanity _id =', user._id);
+
+    // Get user's subscriptions using the correct Sanity _id
+    const subscriptions = await sanityClient.fetch(
+      `*[_type == "subscription" && user._ref == $sanityUserId && isActive == true] | order(_createdAt desc)`,
+      { sanityUserId: user._id }
+    );
+
+    console.log('📊 Found subscriptions:', subscriptions.length);
 
     // Get available passes for purchase
     const availablePasses = await sanityClient.fetch(
@@ -30,6 +58,8 @@ export async function GET() {
     const activeSubscriptions = subscriptions.filter((sub: any) => 
       new Date(sub.endDate) > now
     );
+
+    console.log('📋 Active subscriptions after filtering:', activeSubscriptions.length);
 
     return NextResponse.json({ 
       subscriptions: activeSubscriptions,
