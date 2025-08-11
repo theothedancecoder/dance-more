@@ -48,27 +48,41 @@ export async function GET(request: NextRequest) {
 
     console.log('✅ Found tenant:', tenant.schoolName, 'ID:', tenant._id);
 
-    // Check if user exists in Sanity
+    // CRITICAL FIX: userId from Clerk auth() is actually clerkId, not Sanity _id
+    // We need to find the user by clerkId first, then use their _id for subscriptions
     const user = await sanityClient.fetch(
-      `*[_type == "user" && _id == $userId][0] {
+      `*[_type == "user" && clerkId == $clerkId][0] {
         _id,
         name,
-        email
+        email,
+        clerkId
       }`,
-      { userId }
+      { clerkId: userId }
     );
 
     if (!user) {
-      console.log('⚠️ User not found in Sanity:', userId);
+      console.log('⚠️ User not found in Sanity with clerkId:', userId);
       console.log('💡 This might be why subscriptions are not showing - user needs to be created in Sanity');
-    } else {
-      console.log('✅ Found user in Sanity:', user.name || user.email || user._id);
+      return NextResponse.json({ 
+        activeSubscriptions: [],
+        expiredSubscriptions: [],
+        debug: {
+          clerkId: userId,
+          tenantId: tenant._id,
+          userExists: false,
+          error: 'User not found in Sanity database'
+        }
+      });
     }
 
-    // Get user's active subscriptions for this tenant
+    console.log('✅ Found user in Sanity:', user.name || user.email || user._id);
+    console.log('🔗 User mapping: clerkId =', userId, '-> Sanity _id =', user._id);
+
+    // Get user's active subscriptions for this tenant using the correct Sanity _id
     const now = new Date();
     console.log('🔍 Querying subscriptions with params:', { 
-      userId, 
+      sanityUserId: user._id,
+      clerkId: userId,
       tenantId: tenant._id, 
       now: now.toISOString() 
     });
@@ -76,7 +90,7 @@ export async function GET(request: NextRequest) {
     // IMPORTANT: We prioritize the stored passName and only use originalPass as fallback
     // This ensures customers see the correct pass name they actually purchased
     const subscriptions = await sanityClient.fetch(
-      `*[_type == "subscription" && user._ref == $userId && isActive == true && endDate > $now && tenant._ref == $tenantId] | order(_createdAt desc) {
+      `*[_type == "subscription" && user._ref == $sanityUserId && isActive == true && endDate > $now && tenant._ref == $tenantId] | order(_createdAt desc) {
         _id,
         type,
         passName,
@@ -93,7 +107,7 @@ export async function GET(request: NextRequest) {
         "isExpired": dateTime(endDate) < dateTime(now()),
         "originalPass": *[_type == "pass" && _id == ^.passId && tenant._ref == $tenantId][0]{name, type}
       }`,
-      { userId, now: now.toISOString(), tenantId: tenant._id }
+      { sanityUserId: user._id, now: now.toISOString(), tenantId: tenant._id }
     );
 
     console.log('📊 Found active subscriptions:', subscriptions.length);
@@ -111,7 +125,7 @@ export async function GET(request: NextRequest) {
 
     // Debug: Check if there are any subscriptions at all for this user across all tenants
     const userSubscriptionsAllTenants = await sanityClient.fetch(
-      `*[_type == "subscription" && user._ref == $userId] {
+      `*[_type == "subscription" && user._ref == $sanityUserId] {
         _id,
         type,
         passName,
@@ -120,7 +134,7 @@ export async function GET(request: NextRequest) {
         endDate,
         tenant->{_id, schoolName}
       }`,
-      { userId }
+      { sanityUserId: user._id }
     );
     console.log('🔍 All user subscriptions across tenants:', userSubscriptionsAllTenants.length);
 
@@ -143,7 +157,7 @@ export async function GET(request: NextRequest) {
     // Also get expired subscriptions for history (last 30 days)
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const expiredSubscriptions = await sanityClient.fetch(
-      `*[_type == "subscription" && user._ref == $userId && (isActive == false || endDate <= $now) && endDate >= $thirtyDaysAgo && tenant._ref == $tenantId] | order(_createdAt desc) {
+      `*[_type == "subscription" && user._ref == $sanityUserId && (isActive == false || endDate <= $now) && endDate >= $thirtyDaysAgo && tenant._ref == $tenantId] | order(_createdAt desc) {
         _id,
         type,
         passName,
@@ -156,14 +170,15 @@ export async function GET(request: NextRequest) {
         "daysRemaining": round((dateTime(endDate) - dateTime(now())) / 86400),
         "isExpired": dateTime(endDate) < dateTime(now())
       }`,
-      { userId, now: now.toISOString(), thirtyDaysAgo: thirtyDaysAgo.toISOString(), tenantId: tenant._id }
+      { sanityUserId: user._id, now: now.toISOString(), thirtyDaysAgo: thirtyDaysAgo.toISOString(), tenantId: tenant._id }
     );
 
     console.log('📊 Found expired subscriptions:', expiredSubscriptions.length);
 
     // Log summary for debugging
     console.log('📈 SUBSCRIPTION FETCH SUMMARY:', {
-      userId,
+      clerkId: userId,
+      sanityUserId: user._id,
       tenantId: tenant._id,
       tenantName: tenant.schoolName,
       userExistsInSanity: !!user,
@@ -177,7 +192,8 @@ export async function GET(request: NextRequest) {
       activeSubscriptions: subscriptions,
       expiredSubscriptions: expiredSubscriptions,
       debug: {
-        userId,
+        clerkId: userId,
+        sanityUserId: user._id,
         tenantId: tenant._id,
         userExists: !!user,
         totalUserSubscriptions: userSubscriptionsAllTenants.length,
