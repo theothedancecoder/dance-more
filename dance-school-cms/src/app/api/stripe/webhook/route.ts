@@ -149,14 +149,21 @@ async function createSubscriptionFromSession(session: Stripe.Checkout.Session) {
 
 export async function POST(req: Request) {
   const sig = req.headers.get('stripe-signature') as string;
-  const body = await req.text(); // raw body
+  
+  // CRITICAL: Get raw body as buffer to preserve exact bytes for signature verification
+  // This prevents issues with JSON parsing corrupting the signature
+  const body = await req.arrayBuffer();
+  const bodyString = Buffer.from(body).toString('utf8');
 
   let event: Stripe.Event;
 
   try { 
-    event = stripe.webhooks.constructEvent(body, sig, webhookSecret!);
+    event = stripe.webhooks.constructEvent(bodyString, sig, webhookSecret!);
   } catch (err) {
     console.error('❌ Webhook signature verification failed:', err);
+    console.error('❌ Signature header:', sig);
+    console.error('❌ Body length:', bodyString.length);
+    console.error('❌ Webhook secret exists:', !!webhookSecret);
     return new NextResponse(`Webhook Error: ${(err as Error).message}`, { status: 400 });
   }
 
