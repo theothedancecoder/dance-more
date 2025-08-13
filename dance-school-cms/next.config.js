@@ -33,6 +33,15 @@ const nextConfig = {
     optimizePackageImports: ['@clerk/nextjs', '@sanity/client'],
     serverComponentsExternalPackages: ['stripe'],
   },
+  // CRITICAL: Disable body parsing for webhook routes to preserve raw body
+  async rewrites() {
+    return [
+      {
+        source: '/api/stripe/webhook',
+        destination: '/api/stripe/webhook',
+      },
+    ];
+  },
   // Headers for security and caching
   async headers() {
     return [
