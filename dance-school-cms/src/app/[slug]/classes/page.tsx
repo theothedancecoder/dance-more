@@ -89,13 +89,14 @@ export default function ClassesPage() {
       {/* Header */}
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+          <div className="flex justify-between items-center py-4 sm:py-6">
             <div>
-              <Link href={`/${tenantSlug}`} className="text-2xl font-bold" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
+              <Link href={`/${tenantSlug}`} className="text-xl sm:text-2xl font-bold" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
                 {tenant.schoolName}
               </Link>
             </div>
-            <nav className="flex space-x-8">
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex space-x-8">
               <Link href={`/${tenantSlug}`} className="text-gray-500 hover:text-gray-900">Home</Link>
               <Link href={`/${tenantSlug}/classes`} className="text-gray-900 font-medium">Classes</Link>
               <Link href={`/${tenantSlug}/calendar`} className="text-gray-500 hover:text-gray-900">Calendar</Link>
@@ -109,20 +110,45 @@ export default function ClassesPage() {
                 <Link href={`/${tenantSlug}/my-classes`} className="text-gray-500 hover:text-gray-900">My Classes</Link>
               </SignedIn>
             </nav>
+            {/* Mobile Menu Button */}
+            <div className="md:hidden">
+              <button className="text-gray-500 hover:text-gray-900 p-2">
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          {/* Mobile Navigation */}
+          <div className="md:hidden border-t border-gray-200 py-4">
+            <div className="flex flex-wrap gap-4 text-sm">
+              <Link href={`/${tenantSlug}`} className="text-gray-500 hover:text-gray-900">Home</Link>
+              <Link href={`/${tenantSlug}/classes`} className="text-gray-900 font-medium">Classes</Link>
+              <Link href={`/${tenantSlug}/calendar`} className="text-gray-500 hover:text-gray-900">Calendar</Link>
+              <Link href={`/${tenantSlug}/subscriptions`} className="text-gray-500 hover:text-gray-900">Passes</Link>
+              <SignedOut>
+                <SignInButton mode="modal">
+                  <button className="text-gray-500 hover:text-gray-900">Sign In</button>
+                </SignInButton>
+              </SignedOut>
+              <SignedIn>
+                <Link href={`/${tenantSlug}/my-classes`} className="text-gray-500 hover:text-gray-900">My Classes</Link>
+              </SignedIn>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Hero Section */}
-      <section className="relative py-16">
+      <section className="relative py-8 sm:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Back Button */}
-          <div className="mb-8">
+          <div className="mb-6 sm:mb-8">
             <Link
               href={`/${tenantSlug}`}
-              className="inline-flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+              className="inline-flex items-center text-gray-600 hover:text-gray-900 transition-colors text-sm sm:text-base"
             >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
               Back to Main Page
@@ -130,10 +156,10 @@ export default function ClassesPage() {
           </div>
           
           <div className="text-center">
-            <h1 className="text-4xl font-bold mb-4" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
+            <h1 className="text-2xl sm:text-4xl font-bold mb-4 sm:mb-6" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
               Our Dance Classes
             </h1>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto">
               Discover our wide range of dance classes for all skill levels. From beginner-friendly sessions to advanced workshops.
             </p>
           </div>
@@ -184,24 +210,25 @@ export default function ClassesPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
                   <div className="text-2xl font-bold" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
                     {classItem.price} kr
                   </div>
                   <SignedOut>
                     <SignInButton mode="modal">
                       <button 
-                        className="px-6 py-2 rounded-lg text-white font-medium transition-colors"
+                        className="w-full sm:w-auto px-4 sm:px-6 py-2 rounded-lg text-white font-medium transition-colors text-sm sm:text-base"
                         style={{ backgroundColor: tenant.branding?.primaryColor || '#3B82F6' }}
                       >
-                        Sign In to Book
+                        <span className="sm:hidden">Sign In</span>
+                        <span className="hidden sm:inline">Sign In to Book</span>
                       </button>
                     </SignInButton>
                   </SignedOut>
                   <SignedIn>
                     <Link
                       href={`/${tenantSlug}/calendar`}
-                      className="px-6 py-2 rounded-lg text-white font-medium transition-colors inline-block"
+                      className="w-full sm:w-auto px-4 sm:px-6 py-2 rounded-lg text-white font-medium transition-colors inline-block text-center text-sm sm:text-base"
                       style={{ backgroundColor: tenant.branding?.primaryColor || '#3B82F6' }}
                     >
                       Book Class
