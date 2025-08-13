@@ -210,6 +210,8 @@ async function handleChargeSucceeded(charge: Stripe.Charge) {
 }
 
 export async function POST(req: Request) {
+  console.log('🔍 Webhook POST request received');
+  
   // Validate webhook secret exists
   if (!webhookSecret) {
     console.error('❌ STRIPE_WEBHOOK_SECRET not configured');
@@ -231,6 +233,9 @@ export async function POST(req: Request) {
     // Using req.text() instead of arrayBuffer conversion to avoid encoding issues
     body = await req.text();
     
+    console.log('📦 Body received, length:', body.length);
+    console.log('🔑 Signature header:', sig.substring(0, 50) + '...');
+    
     // Verify webhook signature
     event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
     
@@ -239,7 +244,9 @@ export async function POST(req: Request) {
     console.error('❌ Webhook signature verification failed:', error.message);
     console.error('❌ Signature header:', sig);
     console.error('❌ Body length:', body.length);
+    console.error('❌ Body preview:', body.substring(0, 200));
     console.error('❌ Webhook secret configured:', !!webhookSecret);
+    console.error('❌ Webhook secret length:', webhookSecret?.length);
     
     // Return the exact error message from Stripe for debugging
     return new NextResponse(`Webhook Error: ${error.message}`, { status: 400 });
@@ -285,4 +292,16 @@ export async function POST(req: Request) {
     console.error('❌ Error processing webhook event:', error);
     return new NextResponse('Webhook processing failed', { status: 500 });
   }
+}
+
+// Add GET method for debugging deployment
+export async function GET() {
+  return new NextResponse(JSON.stringify({ 
+    status: 'Webhook endpoint is active',
+    timestamp: new Date().toISOString(),
+    webhookSecretConfigured: !!webhookSecret
+  }), { 
+    status: 200,
+    headers: { 'Content-Type': 'application/json' }
+  });
 }
