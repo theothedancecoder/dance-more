@@ -209,6 +209,9 @@ async function handleChargeSucceeded(charge: Stripe.Charge) {
   }
 }
 
+// Disable body parsing for this API route to preserve raw body for signature verification
+export const runtime = 'nodejs';
+
 export async function POST(req: Request) {
   console.log('🔍 Webhook POST request received');
   
@@ -226,23 +229,25 @@ export async function POST(req: Request) {
   }
   
   let event: Stripe.Event;
+  let rawBody: string = '';
 
   try {
-    // CRITICAL: Get raw body as buffer to preserve exact bytes for signature verification
-    // Stripe sends raw JSON data, so we need to handle it as binary data
-    const rawBody = await req.arrayBuffer();
-    const body = Buffer.from(rawBody);
+    // CRITICAL: For Next.js App Router, we need to read the raw text directly
+    // This preserves the exact payload that Stripe signed
+    rawBody = await req.text();
     
-    console.log('📦 Body received, length:', body.length);
+    console.log('📦 Raw body received, length:', rawBody.length);
     console.log('🔑 Signature header:', sig.substring(0, 50) + '...');
+    console.log('📄 Body preview:', rawBody.substring(0, 100) + '...');
     
-    // Verify webhook signature with raw buffer
-    event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
+    // Verify webhook signature with raw string (this is the correct approach for Next.js)
+    event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
     
   } catch (err) {
     const error = err as Error;
     console.error('❌ Webhook signature verification failed:', error.message);
     console.error('❌ Signature header:', sig);
+    console.error('❌ Raw body length:', rawBody?.length || 'undefined');
     console.error('❌ Webhook secret configured:', !!webhookSecret);
     console.error('❌ Webhook secret length:', webhookSecret?.length);
     

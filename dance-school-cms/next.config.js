@@ -50,6 +50,15 @@ const nextConfig = {
       },
     ];
   },
+  // Disable body parsing for webhook endpoints to preserve raw body
+  async rewrites() {
+    return [
+      {
+        source: '/api/stripe/webhook',
+        destination: '/api/stripe/webhook',
+      },
+    ];
+  },
 }
 
 module.exports = nextConfig
