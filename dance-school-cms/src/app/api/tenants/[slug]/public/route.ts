@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { client } from '@/lib/sanity';
+import { client, urlFor } from '@/lib/sanity';
 
 export async function GET(
   request: NextRequest,
@@ -39,6 +39,18 @@ export async function GET(
         { error: 'Tenant not found or inactive' },
         { status: 404 }
       );
+    }
+
+    // Process the tenant data to ensure logo URL is properly resolved
+    if (tenant.logo && tenant.logo.asset) {
+      // If the asset doesn't have a URL, generate it using urlFor
+      if (!tenant.logo.asset.url && tenant.logo.asset._id) {
+        try {
+          tenant.logo.asset.url = urlFor(tenant.logo).url();
+        } catch (urlError) {
+          console.warn('Failed to generate logo URL:', urlError);
+        }
+      }
     }
 
     return NextResponse.json(tenant);

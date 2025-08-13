@@ -98,12 +98,13 @@ function getTenantFromHost(host: string): string | null {
     return subdomain;
   }
 
-  // Handle production domains (tenant.dancemore.com)
-  if (host.endsWith(baseDomain)) {
-    const hostWithoutBase = host.replace(`.${baseDomain}`, '');
+  // Handle production domains (tenant.dancemore.com or tenant.dancemore.app)
+  if (host.endsWith(baseDomain) || host.endsWith('dancemore.app')) {
+    const currentBaseDomain = host.endsWith('dancemore.app') ? 'dancemore.app' : baseDomain;
+    const hostWithoutBase = host.replace(`.${currentBaseDomain}`, '');
     
     // If it's the main domain or www, there is no tenant
-    if (hostWithoutBase === '' || hostWithoutBase === 'www' || hostWithoutBase === baseDomain) {
+    if (hostWithoutBase === '' || hostWithoutBase === 'www' || hostWithoutBase === currentBaseDomain) {
       return null;
     }
     

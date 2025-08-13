@@ -94,12 +94,13 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
           subdomain = parts[0];
         }
       }
-      // Handle production domains (tenant.dancemore.com)
-      else if (hostname.endsWith(baseDomain)) {
-        const hostWithoutBase = hostname.replace(`.${baseDomain}`, '');
+      // Handle production domains (tenant.dancemore.com or tenant.dancemore.app)
+      else if (hostname.endsWith(baseDomain) || hostname.endsWith('dancemore.app')) {
+        const currentBaseDomain = hostname.endsWith('dancemore.app') ? 'dancemore.app' : baseDomain;
+        const hostWithoutBase = hostname.replace(`.${currentBaseDomain}`, '');
         
         // If it's the main domain or www, there is no tenant
-        if (hostWithoutBase === '' || hostWithoutBase === 'www' || hostWithoutBase === baseDomain) {
+        if (hostWithoutBase === '' || hostWithoutBase === 'www' || hostWithoutBase === currentBaseDomain) {
           subdomain = null;
         } else {
           const [subdomainPart] = hostWithoutBase.split('.');
