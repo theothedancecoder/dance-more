@@ -45,10 +45,10 @@ async function createSubscriptionFromSession(session: Stripe.Checkout.Session) {
       return;
     }
 
-    // Get pass details
+    // Get pass details with all validity fields
     const pass = await sanityClient.fetch(
       `*[_type == "pass" && _id == $passId][0] {
-        _id, name, type, price, validityDays, classesLimit
+        _id, name, type, price, validityDays, validityType, expiryDate, classesLimit
       }`,
       { passId }
     );
@@ -83,9 +83,29 @@ async function createSubscriptionFromSession(session: Stripe.Checkout.Session) {
       console.log('✅ User exists:', user.name, '(' + user._id + ')');
     }
 
-    // Calculate subscription details
+    // Calculate subscription details based on pass validity type
     const now = new Date();
-    const endDate = new Date(now.getTime() + pass.validityDays * 24 * 60 * 60 * 1000);
+    let endDate: Date;
+
+    if (pass.validityType === 'date' && pass.expiryDate) {
+      // Use fixed expiry date
+      endDate = new Date(pass.expiryDate);
+      console.log('✅ Using fixed expiry date:', endDate.toLocaleDateString());
+    } else if (pass.validityType === 'days' && pass.validityDays) {
+      // Use validity days from now
+      endDate = new Date(now.getTime() + pass.validityDays * 24 * 60 * 60 * 1000);
+      console.log('✅ Using validity days:', pass.validityDays, 'days from now');
+    } else if (pass.validityDays) {
+      // Fallback to validityDays if validityType is not set but validityDays exists
+      endDate = new Date(now.getTime() + pass.validityDays * 24 * 60 * 60 * 1000);
+      console.log('⚠️ Using fallback validity days:', pass.validityDays, 'days from now');
+    } else {
+      // Default fallback - 30 days
+      console.error('❌ No valid expiry configuration found for pass:', pass.name);
+      console.error('   validityType:', pass.validityType, 'validityDays:', pass.validityDays, 'expiryDate:', pass.expiryDate);
+      endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      console.log('⚠️ Using default 30-day expiry as fallback');
+    }
 
     let subscriptionType;
     let remainingClips;
