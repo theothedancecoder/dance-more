@@ -18,8 +18,17 @@ const webhookSecret =
     ? process.env.STRIPE_WEBHOOK_SECRET_PROD // from Stripe Dashboard
     : process.env.STRIPE_WEBHOOK_SECRET_LOCAL; // from Stripe CLI
 
-// Disable body parsing for this API route to preserve raw body for signature verification
+// CRITICAL: Disable body parsing for this API route to preserve raw body for signature verification
+// This prevents Vercel/Next.js from modifying the request body which breaks Stripe signatures
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+// Explicitly disable body parsing to prevent payload modification
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
 
 export async function POST(req) {
   console.log('🔍 Webhook POST request received');

@@ -39,12 +39,31 @@ const nextConfig = {
       {
         source: '/api/stripe/webhook',
         destination: '/api/stripe/webhook',
+        has: [
+          {
+            type: 'header',
+            key: 'stripe-signature',
+          },
+        ],
       },
     ];
   },
-  // Headers for security and caching
+  // Ensure webhook routes bypass middleware that could modify the body
   async headers() {
     return [
+      {
+        source: '/api/stripe/webhook',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
+          },
+          {
+            key: 'X-Webhook-Raw-Body',
+            value: 'preserve',
+          },
+        ],
+      },
       {
         source: '/(.*)',
         headers: [
