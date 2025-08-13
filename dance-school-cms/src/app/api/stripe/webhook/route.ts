@@ -227,28 +227,27 @@ export async function POST(req: Request) {
   }
   
   let event: Stripe.Event;
-  let rawBody: Buffer | undefined;
+  let body: string = '';
 
   try {
-    // CRITICAL: Use arrayBuffer() and convert to Buffer to preserve exact bytes
-    const arrayBuffer = await req.arrayBuffer();
-    rawBody = Buffer.from(arrayBuffer);
+    // CRITICAL: Use text() method which preserves the raw string exactly as received
+    body = await req.text();
     
-    console.log('📦 Raw body received as buffer, length:', rawBody.length);
+    console.log('📦 Raw body received as text, length:', body.length);
     console.log('🔑 Signature header:', sig.substring(0, 50) + '...');
-    console.log('📄 Body preview:', rawBody.toString('utf8', 0, 100) + '...');
+    console.log('📄 Body preview:', body.substring(0, 100) + '...');
     
-    // Verify webhook signature with buffer converted to string
-    event = stripe.webhooks.constructEvent(rawBody.toString('utf8'), sig, webhookSecret);
+    // Verify webhook signature with raw text
+    event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
     
   } catch (err) {
     const error = err as Error;
     console.error('❌ Webhook signature verification failed:', error.message);
     console.error('❌ Signature header:', sig);
-    console.error('❌ Raw body length:', rawBody?.length || 'undefined');
+    console.error('❌ Raw body length:', body?.length || 'undefined');
     console.error('❌ Webhook secret configured:', !!webhookSecret);
     console.error('❌ Webhook secret length:', webhookSecret?.length);
-    console.error('❌ Body preview for debugging:', rawBody?.toString('utf8', 0, 200) || 'no body');
+    console.error('❌ Body preview for debugging:', body?.substring(0, 200) || 'no body');
     
     // Return the exact error message from Stripe for debugging
     return new NextResponse(`Webhook Error: ${error.message}`, { status: 400 });
