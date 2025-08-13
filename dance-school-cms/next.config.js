@@ -31,6 +31,7 @@ const nextConfig = {
   // Optimize for Vercel deployment
   experimental: {
     optimizePackageImports: ['@clerk/nextjs', '@sanity/client'],
+    serverComponentsExternalPackages: ['stripe'],
   },
   // Headers for security and caching
   async headers() {
@@ -47,15 +48,6 @@ const nextConfig = {
             value: 'max-age=63072000; includeSubDomains; preload'
           },
         ],
-      },
-    ];
-  },
-  // Disable body parsing for webhook endpoints to preserve raw body
-  async rewrites() {
-    return [
-      {
-        source: '/api/stripe/webhook',
-        destination: '/api/stripe/webhook',
       },
     ];
   },
