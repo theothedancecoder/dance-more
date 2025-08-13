@@ -225,26 +225,24 @@ export async function POST(req: Request) {
     return new NextResponse('No signature header', { status: 400 });
   }
   
-  let body: string = '';
   let event: Stripe.Event;
 
   try {
-    // CRITICAL: Get raw body as text to preserve exact bytes for signature verification
-    // Using req.text() instead of arrayBuffer conversion to avoid encoding issues
-    body = await req.text();
+    // CRITICAL: Get raw body as buffer to preserve exact bytes for signature verification
+    // Stripe sends raw JSON data, so we need to handle it as binary data
+    const rawBody = await req.arrayBuffer();
+    const body = Buffer.from(rawBody);
     
     console.log('📦 Body received, length:', body.length);
     console.log('🔑 Signature header:', sig.substring(0, 50) + '...');
     
-    // Verify webhook signature
+    // Verify webhook signature with raw buffer
     event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
     
   } catch (err) {
     const error = err as Error;
     console.error('❌ Webhook signature verification failed:', error.message);
     console.error('❌ Signature header:', sig);
-    console.error('❌ Body length:', body.length);
-    console.error('❌ Body preview:', body.substring(0, 200));
     console.error('❌ Webhook secret configured:', !!webhookSecret);
     console.error('❌ Webhook secret length:', webhookSecret?.length);
     
