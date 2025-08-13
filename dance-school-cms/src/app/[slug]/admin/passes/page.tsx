@@ -172,6 +172,41 @@ export default function PassesManagementPage() {
     }
   };
 
+  const handleDeletePass = async (passId: string) => {
+    if (!confirm('Are you sure you want to delete this pass? This action cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/admin/passes/${passId}`, {
+        method: 'DELETE',
+        headers: {
+          'x-tenant-slug': tenantSlug,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete pass');
+      }
+
+      // Refresh the passes list
+      const updatedResponse = await fetch('/api/admin/passes', {
+        headers: {
+          'x-tenant-slug': tenantSlug,
+        },
+      });
+      
+      if (updatedResponse.ok) {
+        const data = await updatedResponse.json();
+        setPasses(data.passes || []);
+      }
+      
+      alert('Pass deleted successfully!');
+    } catch (err) {
+      alert('Failed to delete pass: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    }
+  };
+
   const toggleValidityFields = (validityType: string, isEditModal: boolean = false) => {
     const prefix = isEditModal ? 'edit-' : 'create-';
     const validityDaysDiv = document.getElementById(`${prefix}validityDaysField`) as HTMLDivElement;
@@ -404,16 +439,25 @@ export default function PassesManagementPage() {
                     </div>
                   )}
 
-                  <div className="mt-6 flex space-x-3">
+                  <div className="mt-6 flex space-x-2">
                     <button 
                       onClick={() => handleEditPass(pass)}
                       className="flex-1 bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700"
                     >
                       Edit
                     </button>
-                    <button className="flex-1 bg-gray-600 text-white px-3 py-2 rounded text-sm hover:bg-gray-700">
-                      View Sales
+                    <button 
+                      onClick={() => handleDeletePass(pass._id)}
+                      className="flex-1 bg-red-600 text-white px-3 py-2 rounded text-sm hover:bg-red-700"
+                    >
+                      Delete
                     </button>
+                    <Link
+                      href={`/${tenantSlug}/admin/payments`}
+                      className="flex-1 bg-gray-600 text-white px-3 py-2 rounded text-sm hover:bg-gray-700 text-center"
+                    >
+                      View Sales
+                    </Link>
                   </div>
                 </div>
               </div>
