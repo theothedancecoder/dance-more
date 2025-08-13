@@ -12,7 +12,11 @@ const sanityClient = createClient({
   useCdn: false,
 });
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+// Detect environment and pick the right secret
+const webhookSecret =
+  process.env.NODE_ENV === 'production'
+    ? process.env.STRIPE_WEBHOOK_SECRET_PROD // from Stripe Dashboard
+    : process.env.STRIPE_WEBHOOK_SECRET_LOCAL; // from Stripe CLI
 
 // Disable body parsing for this API route to preserve raw body for signature verification
 export const runtime = 'nodejs';
@@ -68,11 +72,11 @@ export async function POST(req) {
     const session = event.data.object;
     console.log('💰 Checkout session completed:', session.id);
     
-    // Process all checkout sessions (remove restrictive filter)
-    if (session.metadata?.passId) {
+    // Only process pass purchases
+    if (session.metadata?.type === 'pass_purchase') {
       await createSubscriptionFromSession(session);
     } else {
-      console.log('ℹ️ Skipping session without passId metadata:', session.id);
+      console.log('ℹ️ Skipping non-pass purchase session');
     }
   }
 
