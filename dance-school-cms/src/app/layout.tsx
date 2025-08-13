@@ -18,6 +18,33 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Dance School CMS",
   description: "Comprehensive dance school management system",
+  icons: {
+    icon: [
+      {
+        url: '/favicon.ico',
+        sizes: '32x32',
+        type: 'image/x-icon',
+      },
+      {
+        url: '/api/favicon?format=png&size=16',
+        sizes: '16x16',
+        type: 'image/png',
+      },
+      {
+        url: '/api/favicon?format=png&size=32',
+        sizes: '32x32',
+        type: 'image/png',
+      },
+    ],
+    shortcut: '/favicon.ico',
+    apple: [
+      {
+        url: '/api/favicon?format=png&size=180',
+        sizes: '180x180',
+        type: 'image/png',
+      },
+    ],
+  },
 };
 
 export default function RootLayout({

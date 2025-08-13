@@ -8,6 +8,7 @@ import AuthRedirect from '@/components/AuthRedirect';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import CookiePolicy from '@/components/CookiePolicy';
 
 export default function HomePage() {
   const { tenant, isLoading } = useTenant();
@@ -422,6 +423,9 @@ export default function HomePage() {
           </section>
         </SignedOut>
       </main>
+
+      {/* Cookie Policy */}
+      <CookiePolicy tenantBranding={(tenant as any)?.branding} />
     </div>
   );
 }

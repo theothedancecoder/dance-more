@@ -6,6 +6,7 @@ import { useTenant } from '@/contexts/TenantContext';
 import { SignedIn, SignedOut, SignInButton } from '@clerk/nextjs';
 import Link from 'next/link';
 import Image from 'next/image';
+import CookiePolicy from '@/components/CookiePolicy';
 export default function TenantHomePage() {
   const params = useParams();
   const { tenant, isLoading, error } = useTenant();
@@ -67,11 +68,21 @@ export default function TenantHomePage() {
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
           <div className="text-center">
-            {tenant?.logo && (
+            {tenant?.logo?.asset?.url ? (
               <div className="mb-8 animate-bounce-in">
                 <Image
-                  src={tenant.logo.asset?.url || '/placeholder-logo.png'}
+                  src={tenant.logo.asset.url}
                   alt={`${tenant.schoolName} logo`}
+                  width={120}
+                  height={120}
+                  className="mx-auto rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-500 hover:scale-110 animate-pulse-glow"
+                />
+              </div>
+            ) : (
+              <div className="mb-8 animate-bounce-in">
+                <Image
+                  src="/dancemore.png"
+                  alt={`${tenant?.schoolName || 'Dance School'} logo`}
                   width={120}
                   height={120}
                   className="mx-auto rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-500 hover:scale-110 animate-pulse-glow"
@@ -308,6 +319,9 @@ export default function TenantHomePage() {
           </SignedIn>
         </div>
       </section>
+
+      {/* Cookie Policy */}
+      <CookiePolicy tenantBranding={tenant?.branding} />
     </div>
   );
 }

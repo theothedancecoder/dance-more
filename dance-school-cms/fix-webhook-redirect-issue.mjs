@@ -1,0 +1,45 @@
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config({ path: '.env.local' });
+
+console.log('🚨 WEBHOOK REDIRECT ISSUE DETECTED');
+console.log('==================================');
+console.log('');
+console.log('❌ PROBLEM: Webhooks are getting HTTP 307 redirects');
+console.log('   Current webhook URL: https://www.dancemore.app/api/stripe/webhook');
+console.log('   Status: 307 Redirect (not reaching your handler)');
+console.log('');
+console.log('🔧 SOLUTION: Update webhook URL in Stripe Dashboard');
+console.log('');
+console.log('📋 STEP-BY-STEP FIX:');
+console.log('');
+console.log('1. 🌐 GO TO STRIPE DASHBOARD:');
+console.log('   - You\'re already there! Stay on the webhook page');
+console.log('');
+console.log('2. ✏️ EDIT WEBHOOK ENDPOINT:');
+console.log('   - Click "Edit destination" (top right)');
+console.log('   - Change URL from: https://www.dancemore.app/api/stripe/webhook');
+console.log('   - Change URL to:   https://dancemore.app/api/stripe/webhook');
+console.log('   - (Remove the "www." prefix)');
+console.log('');
+console.log('3. 💾 SAVE CHANGES:');
+console.log('   - Click "Save" or "Update endpoint"');
+console.log('');
+console.log('4. 🔄 RESEND FAILED WEBHOOKS:');
+console.log('   - Go back to the events list');
+console.log('   - Select all failed events (the ones showing "307")');
+console.log('   - Click "Resend" button');
+console.log('');
+console.log('🎯 WHY THIS FIXES IT:');
+console.log('   - www.dancemore.app redirects to dancemore.app');
+console.log('   - Redirects change the HTTP method from POST to GET');
+console.log('   - Your webhook handler only accepts POST requests');
+console.log('   - Using dancemore.app directly avoids the redirect');
+console.log('');
+console.log('✅ EXPECTED RESULT:');
+console.log('   - Webhooks will show "200 OK" instead of "307"');
+console.log('   - Subscriptions will be created automatically');
+console.log('   - Customers will see their passes immediately');
+console.log('');
+console.log('🚨 URGENT: Do this NOW to fix all customer passes!');

@@ -17,7 +17,15 @@ export async function GET(
         status,
         description,
         branding,
-        logo,
+        logo {
+          asset-> {
+            _id,
+            url,
+            originalFilename,
+            size,
+            mimeType
+          }
+        },
         stripeConnect,
         settings->{
           allowPublicRegistration
