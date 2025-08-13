@@ -9,6 +9,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import CookiePolicy from '@/components/CookiePolicy';
+import TenantSearch from '@/components/TenantSearch';
 
 export default function HomePage() {
   const { tenant, isLoading } = useTenant();
@@ -324,6 +325,37 @@ export default function HomePage() {
             {/* Non-signed-in users - Marketing page */}
             <SignedOut>
               <div className="space-y-12">
+                {/* Search Section */}
+                <div className="text-center mb-12">
+                  <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-gray-800 mb-8 animate-slide-up">
+                    Find Your Perfect <span className="text-gradient-alt">Dance School</span>
+                  </h1>
+                  <p className="text-xl sm:text-2xl text-gray-700 max-w-4xl mx-auto mb-8 animate-slide-up-delay">
+                    Discover amazing dance schools in your area or explore our platform for dance school management.
+                  </p>
+                  
+                  {/* Search Bar */}
+                  <div className="max-w-2xl mx-auto mb-8">
+                    <TenantSearch 
+                      placeholder="Search for dance schools by name or style..."
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  {/* Browse All Schools Link */}
+                  <div className="animate-scale-in">
+                    <Link
+                      href="/schools"
+                      className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-2xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg"
+                    >
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                      </svg>
+                      Browse All Dance Schools
+                    </Link>
+                  </div>
+                </div>
+
                 {/* Hero image and Features side by side */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
                   {/* Left side - Hero image */}
@@ -343,6 +375,14 @@ export default function HomePage() {
                   
                   {/* Right side - Features */}
                   <div className="space-y-6">
+                    <div className="text-center lg:text-left mb-8">
+                      <h2 className="text-3xl font-bold text-gray-800 mb-4">
+                        For <span className="text-gradient-alt">Dance School Owners</span>
+                      </h2>
+                      <p className="text-lg text-gray-600">
+                        Create your own branded dance school portal with powerful management tools.
+                      </p>
+                    </div>
                     
                     <div className="space-y-4">
                       <div className="modern-card p-6 rounded-2xl hover-lift transition-smooth animate-slide-in-left animate-stagger-1">

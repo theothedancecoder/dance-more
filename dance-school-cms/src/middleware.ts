@@ -26,12 +26,14 @@ const isPublicRoute = createRouteMatcher([
   '/privacy',
   '/terms',
   '/data-deletion',
+  '/schools(.*)',
   '/api/webhooks(.*)',
   '/api/stripe/webhook',
   '/api/stripe/platform-webhook',
   '/api/vipps/webhook',
   '/api/tenants/register',
   '/api/tenants/validate',
+  '/api/tenants/public(.*)',
   '/studio(.*)',
   '/.clerk(.*)',
 ])
@@ -152,7 +154,7 @@ export default clerkMiddleware(async (auth, req) => {
       // Skip known non-tenant routes
       const skipRoutes = [
         'api', '_next', 'sign-in', 'sign-up', 'studio', '.clerk', 
-        'register-school', 'unauthorized',
+        'register-school', 'unauthorized', 'schools',
         'dashboard', 'admin', 'student', 'my-classes', 'payment',
         'classes', 'calendar', 'my-subscriptions', 'subscriptions',
         'instructor', 'blog', 'auth-status', 'check-admin', 'promote-admin', 'debug'

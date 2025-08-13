@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+ import { NextRequest, NextResponse } from 'next/server';
 import { client, urlFor } from '@/lib/sanity';
 
 export async function GET(request: NextRequest) {
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       _createdAt,
       _updatedAt,
       "classCount": count(*[_type == "class" && tenant._ref == ^._id && status == "active"]),
-      "upcomingClasses": count(*[_type == "classInstance" && tenant._ref == ^._id && dateTime >= now() && status == "active"]),
+      "upcomingClasses": count(*[_type == "classInstance" && tenant._ref == ^._id && date >= now() && status == "active"]),
       "totalStudents": count(*[_type == "user" && tenant._ref == ^._id && role != "admin"])
     }`;
 
