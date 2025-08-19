@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { useTenant } from '@/contexts/TenantContext';
 import { SignedIn, SignedOut, SignInButton } from '@clerk/nextjs';
 import Link from 'next/link';
-import { CalendarIcon, ClockIcon, UserGroupIcon, MapPinIcon, TableCellsIcon, ViewColumnsIcon } from '@heroicons/react/24/outline';
+import { CalendarIcon, ClockIcon, MapPinIcon, TableCellsIcon, ViewColumnsIcon } from '@heroicons/react/24/outline';
 import WeeklySchedule from '@/components/WeeklySchedule';
 import ClassCalendar from '@/components/ClassCalendar';
 
@@ -413,10 +413,6 @@ export default function CalendarPage() {
                             <span>{instance.startTime} - {instance.endTime}</span>
                           </div>
                           <div className="flex items-center">
-                            <UserGroupIcon className="h-4 w-4 mr-2 flex-shrink-0" />
-                            <span>{instance.booked}/{instance.capacity} booked</span>
-                          </div>
-                          <div className="flex items-center">
                             <span className="font-medium">Instructor: {instance.instructor}</span>
                           </div>
                           {instance.location && (
@@ -433,10 +429,6 @@ export default function CalendarPage() {
                           </div>
                           
                           <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
-                            <div className="text-sm text-gray-500">
-                              {instance.capacity - instance.booked} spots left
-                            </div>
-                            
                             {instance.booked >= instance.capacity ? (
                               <button 
                                 disabled

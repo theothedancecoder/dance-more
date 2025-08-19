@@ -243,7 +243,6 @@ export default function ClassCalendar({ isAdmin = false }: ClassCalendarProps) {
               <p><strong>Date:</strong> {new Date(selectedEvent.start).toLocaleDateString()}</p>
               <p><strong>Time:</strong> {new Date(selectedEvent.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
               <p><strong>Price:</strong> {selectedEvent.extendedProps.price} {tenant?.settings?.currency || tenant?.stripeConnect?.currency || 'kr'}</p>
-              <p><strong>Available Spots:</strong> {selectedEvent.extendedProps.remainingCapacity} / {selectedEvent.extendedProps.capacity}</p>
               
               {selectedEvent.extendedProps.isCancelled && (
                 <p className="text-red-600 font-semibold">❌ This class has been cancelled</p>

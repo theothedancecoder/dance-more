@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useTenant } from '@/contexts/TenantContext';
 import { SignedIn, SignedOut, SignInButton } from '@clerk/nextjs';
-import { ClockIcon, UserGroupIcon, MapPinIcon } from '@heroicons/react/24/outline';
+import { ClockIcon, MapPinIcon } from '@heroicons/react/24/outline';
 
 interface ClassInstance {
   _id: string;
@@ -91,6 +91,8 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
 
         if (response.ok) {
           const data = await response.json();
+          console.log('WeeklySchedule: Fetched class instances:', data.instances?.length || 0);
+          console.log('WeeklySchedule: All instances:', data.instances);
           setClassInstances(data.instances || []);
         } else {
           console.error('Failed to fetch class instances:', response.statusText);
@@ -116,6 +118,8 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
       grouped[day] = [];
     });
 
+    console.log('WeeklySchedule: Grouping classes by day. Total instances:', classInstances.length);
+
     classInstances.forEach(instance => {
       // Parse the date correctly to avoid timezone issues
       const instanceDate = new Date(instance.date);
@@ -124,8 +128,12 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
       const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
       const dayName = dayNames[instanceDate.getUTCDay()];
       
+      console.log(`WeeklySchedule: Processing ${instance.title} - Date: ${instance.date}, Parsed: ${instanceDate}, Day: ${dayName}`);
+      
       if (grouped[dayName]) {
         grouped[dayName].push(instance);
+      } else {
+        console.log(`WeeklySchedule: Warning - Day ${dayName} not found in grouped object for ${instance.title}`);
       }
     });
 
@@ -134,6 +142,7 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
       grouped[day].sort((a, b) => a.startTime.localeCompare(b.startTime));
     });
 
+    console.log('WeeklySchedule: Grouped classes:', grouped);
     return grouped;
   };
 
@@ -334,10 +343,6 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
                                 <ClockIcon className="h-3 w-3 mr-1" />
                                 <span>{classInstance.startTime} - {classInstance.endTime}</span>
                               </div>
-                              <div className="flex items-center">
-                                <UserGroupIcon className="h-3 w-3 mr-1" />
-                                <span>{classInstance.booked}/{classInstance.capacity}</span>
-                              </div>
                               {classInstance.location && (
                                 <div className="flex items-center">
                                   <MapPinIcon className="h-3 w-3 mr-1" />
@@ -399,9 +404,6 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
         <div className="flex items-center justify-between text-sm text-gray-600">
           <span>
             Total classes this week: {classInstances.length}
-          </span>
-          <span>
-            Available spots: {classInstances.reduce((sum, cls) => sum + cls.remainingCapacity, 0)}
           </span>
         </div>
       </div>

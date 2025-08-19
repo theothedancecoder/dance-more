@@ -51,6 +51,11 @@ export default async function AdminDashboard() {
               <p className="mt-2 text-gray-600">Add new dance classes to the schedule</p>
               <span className="mt-4 inline-block text-blue-600 font-medium">Create Class →</span>
             </Link>
+            <Link href="/admin/passes" className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
+              <h2 className="text-xl font-semibold text-gray-900">Pass Management</h2>
+              <p className="mt-2 text-gray-600">Enable/disable passes and manage availability</p>
+              <span className="mt-4 inline-block text-blue-600 font-medium">Manage Passes →</span>
+            </Link>
             <Link href="/admin/reports" className="rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow">
               <h2 className="text-xl font-semibold text-gray-900">Reports & Analytics</h2>
               <p className="mt-2 text-gray-600">View business insights and performance metrics</p>

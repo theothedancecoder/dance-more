@@ -102,10 +102,6 @@ export default async function ClassPage({ params }: Props) {
                     <dd className="font-medium">{classData.duration} minutes</dd>
                   </div>
                   <div className="flex justify-between">
-                    <dt className="text-gray-600">Capacity:</dt>
-                    <dd className="font-medium">{classData.capacity} students</dd>
-                  </div>
-                  <div className="flex justify-between">
                     <dt className="text-gray-600">Location:</dt>
                     <dd className="font-medium">{classData.location}</dd>
                   </div>

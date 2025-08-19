@@ -82,7 +82,7 @@ export default function UpcomingClasses({ user, sanityClasses }: UpcomingClasses
                       {format(new Date(classItem.startTime), 'MMM dd, yyyy • h:mm a')} - {format(new Date(classItem.endTime), 'h:mm a')}
                     </p>
                     <p className="text-sm text-gray-500">
-                      {classItem.location} • 0/{classItem.capacity} students
+                      {classItem.location}
                     </p>
                   </div>
                   <span className="rounded-full bg-purple-100 px-2 py-1 text-xs font-medium text-purple-800">
@@ -111,9 +111,6 @@ export default function UpcomingClasses({ user, sanityClasses }: UpcomingClasses
                     </p>
                     <p className="text-sm text-gray-500">
                       Instructor: {classItem.instructor?.name || 'TBA'} • {classItem.location} • {classItem.price} kr
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      0/{classItem.capacity} spots filled
                     </p>
                   </div>
                   <div className="flex flex-col items-end space-y-1">

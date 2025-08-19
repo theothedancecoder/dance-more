@@ -73,13 +73,19 @@ export async function POST(request: NextRequest) {
             validityDays,
             expiryDate,
             classesLimit,
-            price
+            price,
+            isActive
           }
         `, { passId });
 
         if (!pass) {
           console.error('Pass not found:', passId);
           return NextResponse.json({ error: 'Pass not found' }, { status: 404 });
+        }
+
+        if (!pass.isActive) {
+          console.error('Pass is inactive:', passId);
+          return NextResponse.json({ error: 'Pass is no longer available' }, { status: 400 });
         }
 
         console.log('📋 Pass details:', pass);
