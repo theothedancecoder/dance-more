@@ -59,6 +59,10 @@ export default function SubscriptionsPage() {
   const [expiredSubscriptions, setExpiredSubscriptions] = useState<UserSubscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'active' | 'expired'>('active');
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [selectedSubscription, setSelectedSubscription] = useState<UserSubscription | null>(null);
+  const [upgradeOptions, setUpgradeOptions] = useState<PassData[]>([]);
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
 
   const tenantSlug = params.slug as string;
 
@@ -90,6 +94,77 @@ export default function SubscriptionsPage() {
     } catch (error) {
       console.error('Purchase error:', error);
       alert('Failed to process purchase. Please try again.');
+    }
+  };
+
+  const handleUpgradePass = async (subscription: UserSubscription) => {
+    setSelectedSubscription(subscription);
+    setUpgradeLoading(true);
+    setShowUpgradeModal(true);
+
+    try {
+      // Fetch available upgrade options
+      const response = await fetch('/api/user/passes/upgrade-options', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-slug': tenantSlug,
+        },
+        body: JSON.stringify({
+          subscriptionId: subscription._id,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUpgradeOptions(data.upgradeOptions || []);
+      } else {
+        console.error('Failed to fetch upgrade options');
+        setUpgradeOptions([]);
+      }
+    } catch (error) {
+      console.error('Error fetching upgrade options:', error);
+      setUpgradeOptions([]);
+    } finally {
+      setUpgradeLoading(false);
+    }
+  };
+
+  const handleUpgradeConfirm = async (targetPass: PassData) => {
+    if (!selectedSubscription) return;
+
+    try {
+      setUpgradeLoading(true);
+
+      // Create Stripe checkout session for upgrade
+      const response = await fetch('/api/stripe/checkout-pass', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-slug': tenantSlug,
+          'x-tenant-id': tenant?._id || '',
+        },
+        body: JSON.stringify({
+          passId: targetPass._id,
+          upgradeFromSubscriptionId: selectedSubscription._id,
+          successUrl: `${window.location.origin}/${tenantSlug}/payment/success`,
+          cancelUrl: window.location.href,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.url) {
+        // Redirect to Stripe checkout
+        window.location.href = data.url;
+      } else {
+        throw new Error(data.error || 'Failed to create upgrade checkout session');
+      }
+    } catch (error) {
+      console.error('Upgrade error:', error);
+      alert('Failed to process upgrade. Please try again.');
+    } finally {
+      setUpgradeLoading(false);
     }
   };
 
@@ -315,7 +390,7 @@ export default function SubscriptionsPage() {
                           </div>
                         </div>
                         
-                        <div className="mt-4 pt-4 border-t border-gray-200">
+                        <div className="mt-4 pt-4 border-t border-gray-200 space-y-2">
                           <Link
                             href={`/${tenantSlug}/calendar`}
                             className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white hover:opacity-90 transition-colors"
@@ -323,6 +398,16 @@ export default function SubscriptionsPage() {
                           >
                             Book Classes
                           </Link>
+                          <button
+                            onClick={() => handleUpgradePass(subscription)}
+                            className="w-full inline-flex justify-center items-center px-4 py-2 border text-sm font-medium rounded-md hover:bg-gray-50 transition-colors"
+                            style={{ 
+                              borderColor: tenant.branding?.primaryColor || '#3B82F6',
+                              color: tenant.branding?.primaryColor || '#3B82F6'
+                            }}
+                          >
+                            Upgrade Pass
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -609,6 +694,116 @@ export default function SubscriptionsPage() {
           </div>
         </div>
       </section>
+
+      {/* Upgrade Modal */}
+      {showUpgradeModal && selectedSubscription && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
+                  Upgrade Your Pass
+                </h2>
+                <button
+                  onClick={() => setShowUpgradeModal(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <XCircleIcon className="h-6 w-6" />
+                </button>
+              </div>
+              <p className="text-gray-600 mt-2">
+                Upgrade from your current "{selectedSubscription.passName}" to a better plan and pay only the difference.
+              </p>
+            </div>
+
+            <div className="p-6">
+              {upgradeLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                  <span className="ml-3 text-gray-600">Loading upgrade options...</span>
+                </div>
+              ) : upgradeOptions.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {upgradeOptions.map((pass) => {
+                    const currentPrice = selectedSubscription.purchasePrice || 0;
+                    const upgradeCost = Math.max(0, pass.price - currentPrice);
+                    
+                    return (
+                      <div key={pass._id} className="border-2 border-gray-200 rounded-xl p-6 hover:border-blue-300 transition-colors">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-lg font-semibold text-gray-900">{pass.name}</h3>
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            pass.type === 'unlimited'
+                              ? 'bg-blue-100 text-blue-800'
+                              : pass.type === 'multi'
+                              ? 'bg-purple-100 text-purple-800'
+                              : 'bg-green-100 text-green-800'
+                          }`}>
+                            {pass.type === 'single' ? 'Single Class' : 
+                             pass.type === 'multi-pass' ? 'Multi-Class Pass' :
+                             pass.type === 'multi' ? 'Clipcard' : 'Unlimited'}
+                          </span>
+                        </div>
+
+                        <div className="space-y-2 text-sm text-gray-600 mb-4">
+                          <div className="flex justify-between">
+                            <span>Original Price:</span>
+                            <span className="font-medium">{pass.price} kr</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>You Paid:</span>
+                            <span className="font-medium">{currentPrice} kr</span>
+                          </div>
+                          <div className="flex justify-between border-t pt-2">
+                            <span className="font-medium">Upgrade Cost:</span>
+                            <span className="font-bold text-green-600">
+                              {upgradeCost === 0 ? 'FREE' : `${upgradeCost} kr`}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="text-sm text-gray-600 mb-4">
+                          <p>{pass.description}</p>
+                          <div className="mt-2">
+                            {pass.type === 'unlimited' ? 'Unlimited classes' : 
+                             pass.classesLimit ? `${pass.classesLimit} class${pass.classesLimit > 1 ? 'es' : ''}` : '1 class'}
+                            {' • '}
+                            {pass.validityType === 'days' && pass.validityDays 
+                              ? `Valid for ${pass.validityDays} days`
+                              : pass.validityType === 'date' && pass.expiryDate
+                              ? `Valid until ${new Date(pass.expiryDate).toLocaleDateString()}`
+                              : 'Validity not set'
+                            }
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => handleUpgradeConfirm(pass)}
+                          disabled={upgradeLoading}
+                          className="w-full py-3 px-4 rounded-lg font-medium text-white transition-colors disabled:opacity-50"
+                          style={{ backgroundColor: tenant.branding?.primaryColor || '#3B82F6' }}
+                        >
+                          {upgradeLoading ? 'Processing...' : `Upgrade for ${upgradeCost === 0 ? 'FREE' : `${upgradeCost} kr`}`}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="mb-4">
+                    <CheckIcon className="mx-auto h-12 w-12 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Upgrades Available</h3>
+                  <p className="text-gray-600">
+                    You already have the best available pass, or there are no higher-tier options available for upgrade.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

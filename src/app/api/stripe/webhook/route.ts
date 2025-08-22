@@ -22,13 +22,16 @@ export async function POST(request: NextRequest) {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
       const metadata = session.metadata || {};
-      const { classId, passId, userId, userEmail, type } = metadata;
+      const { classId, passId, userId, userEmail, type, subscriptionId, currentPassId, newPassId } = metadata;
 
       console.log('🔍 Webhook received:', {
         sessionId: session.id,
         type: type,
         classId: classId,
         passId: passId,
+        subscriptionId: subscriptionId,
+        currentPassId: currentPassId,
+        newPassId: newPassId,
         userId: userId,
         metadata: metadata
       });
@@ -59,8 +62,106 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      // Handle pass upgrades
+      if (subscriptionId && newPassId && type === 'pass_upgrade') {
+        console.log('🔄 Processing pass upgrade:', { subscriptionId, newPassId });
+        
+        // Fetch the subscription to upgrade
+        const existingSubscription = await sanityClient.fetch(`
+          *[_type == "subscription" && _id == $subscriptionId][0] {
+            _id,
+            passName,
+            passId,
+            startDate,
+            endDate,
+            classesUsed,
+            classesLimit,
+            isActive
+          }
+        `, { subscriptionId });
+
+        if (!existingSubscription) {
+          console.error('Subscription not found for upgrade:', subscriptionId);
+          return NextResponse.json({ error: 'Subscription not found' }, { status: 404 });
+        }
+
+        // Fetch new pass details
+        const newPass = await sanityClient.fetch(`
+          *[_type == "pass" && _id == $newPassId][0] {
+            _id,
+            name,
+            type,
+            validityType,
+            validityDays,
+            expiryDate,
+            classesLimit,
+            price,
+            isActive
+          }
+        `, { newPassId });
+
+        if (!newPass) {
+          console.error('New pass not found:', newPassId);
+          return NextResponse.json({ error: 'New pass not found' }, { status: 404 });
+        }
+
+        console.log('📋 New pass details:', newPass);
+
+        // Calculate new expiry date based on new pass configuration
+        // For upgrades, we preserve the original start date and extend based on new pass validity
+        const originalStartDate = new Date(existingSubscription.startDate);
+        let newEndDate: Date;
+
+        if (newPass.validityType === 'date' && newPass.expiryDate) {
+          // Use fixed expiry date
+          newEndDate = new Date(newPass.expiryDate);
+          console.log('📅 Using fixed expiry date for upgrade:', newEndDate);
+        } else if (newPass.validityType === 'days' && newPass.validityDays) {
+          // Use validity days from original start date
+          newEndDate = new Date(originalStartDate.getTime() + newPass.validityDays * 24 * 60 * 60 * 1000);
+          console.log('📅 Calculated new expiry from validityDays:', newEndDate, `(${newPass.validityDays} days from start)`);
+        } else if (newPass.validityDays) {
+          // Fallback to validityDays if validityType is not set
+          newEndDate = new Date(originalStartDate.getTime() + newPass.validityDays * 24 * 60 * 60 * 1000);
+          console.log('📅 Fallback to validityDays for upgrade:', newEndDate, `(${newPass.validityDays} days from start)`);
+        } else {
+          // Keep the original end date if new pass doesn't have validity configuration
+          newEndDate = new Date(existingSubscription.endDate);
+          console.log('📅 Keeping original end date for upgrade:', newEndDate);
+        }
+
+        // Update the existing subscription with new pass details
+        const updatedSubscription = await sanityClient
+          .patch(subscriptionId)
+          .set({
+            passName: newPass.name,
+            passId: newPass._id,
+            type: newPass.type,
+            endDate: newEndDate.toISOString(),
+            classesLimit: newPass.classesLimit || null,
+            // Preserve existing classesUsed and startDate
+            updatedAt: new Date().toISOString(),
+            // Add upgrade tracking
+            upgradeHistory: [
+              ...(existingSubscription.upgradeHistory || []),
+              {
+                fromPassId: existingSubscription.passId,
+                fromPassName: existingSubscription.passName,
+                toPassId: newPass._id,
+                toPassName: newPass.name,
+                upgradeDate: new Date().toISOString(),
+                stripeSessionId: session.id,
+                upgradeCost: session.amount_total
+              }
+            ]
+          })
+          .commit();
+
+        console.log('✅ Subscription upgraded:', updatedSubscription._id);
+
+      }
       // Handle pass purchases
-      if (passId && type === 'pass_purchase') {
+      else if (passId && type === 'pass_purchase') {
         console.log('🎫 Processing pass purchase:', passId);
         
         // Fetch pass details from Sanity

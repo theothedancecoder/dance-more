@@ -81,11 +81,13 @@ export async function POST(req) {
     const session = event.data.object;
     console.log('💰 Checkout session completed:', session.id);
     
-    // Only process pass purchases
+    // Process pass purchases and upgrades
     if (session.metadata?.type === 'pass_purchase') {
       await createSubscriptionFromSession(session);
+    } else if (session.metadata?.type === 'pass_upgrade') {
+      await handlePassUpgrade(session);
     } else {
-      console.log('ℹ️ Skipping non-pass purchase session');
+      console.log('ℹ️ Skipping non-pass purchase/upgrade session');
     }
   }
 
@@ -162,7 +164,25 @@ async function createSubscriptionFromSession(session) {
 
     // Calculate subscription details
     const now = new Date();
-    const endDate = new Date(now.getTime() + pass.validityDays * 24 * 60 * 60 * 1000);
+    let endDate;
+
+    // Determine end date based on pass configuration
+    if (pass.validityType === 'date' && pass.expiryDate) {
+      // Use fixed expiry date
+      endDate = new Date(pass.expiryDate);
+      console.log('✅ Using fixed expiry date:', endDate.toISOString());
+    } else if (pass.validityType === 'days' && pass.validityDays) {
+      // Calculate from validity days
+      endDate = new Date(now.getTime() + pass.validityDays * 24 * 60 * 60 * 1000);
+      console.log('✅ Calculated expiry from validityDays:', pass.validityDays, 'days ->', endDate.toISOString());
+    } else if (pass.validityDays) {
+      // Fallback to validityDays for passes without validityType
+      endDate = new Date(now.getTime() + pass.validityDays * 24 * 60 * 60 * 1000);
+      console.log('⚠️ Using fallback validityDays:', pass.validityDays, 'days ->', endDate.toISOString());
+    } else {
+      console.error('❌ Pass has no valid expiry configuration:', { validityType: pass.validityType, validityDays: pass.validityDays, expiryDate: pass.expiryDate });
+      return;
+    }
 
     let subscriptionType;
     let remainingClips;
@@ -223,6 +243,156 @@ async function createSubscriptionFromSession(session) {
 
   } catch (error) {
     console.error('❌ Error creating subscription from webhook:', error);
+  }
+}
+
+async function handlePassUpgrade(session) {
+  try {
+    console.log('🔄 Processing pass upgrade from session:', session.id);
+    
+    // Extract metadata
+    const { 
+      passId, 
+      userId, 
+      tenantId, 
+      upgradeFromSubscriptionId,
+      originalPassPrice,
+      newPassPrice,
+      upgradeCost
+    } = session.metadata || {};
+    
+    if (!passId || !userId || !tenantId || !upgradeFromSubscriptionId) {
+      console.error('❌ Missing required upgrade metadata:', { passId, userId, tenantId, upgradeFromSubscriptionId });
+      return;
+    }
+
+    console.log('📋 Upgrade details:');
+    console.log('   From subscription:', upgradeFromSubscriptionId);
+    console.log('   To pass:', passId);
+    console.log('   Original price:', originalPassPrice, 'NOK');
+    console.log('   New price:', newPassPrice, 'NOK');
+    console.log('   Upgrade cost:', upgradeCost, 'NOK');
+
+    // Get the current subscription
+    const currentSubscription = await sanityClient.fetch(
+      `*[_type == "subscription" && _id == $subscriptionId][0]`,
+      { subscriptionId: upgradeFromSubscriptionId }
+    );
+
+    if (!currentSubscription) {
+      console.error('❌ Current subscription not found:', upgradeFromSubscriptionId);
+      return;
+    }
+
+    // Get the new pass details
+    const newPass = await sanityClient.fetch(
+      `*[_type == "pass" && _id == $passId][0] {
+        _id, name, type, price, validityDays, classesLimit, validityType, expiryDate
+      }`,
+      { passId }
+    );
+
+    if (!newPass) {
+      console.error('❌ New pass not found:', passId);
+      return;
+    }
+
+    console.log('✅ Found new pass:', newPass.name, '(' + newPass.type + ')');
+
+    // Calculate new subscription details
+    const now = new Date();
+    let endDate;
+
+    // Determine end date based on new pass configuration
+    if (newPass.validityType === 'date' && newPass.expiryDate) {
+      endDate = new Date(newPass.expiryDate);
+      console.log('✅ Using fixed expiry date:', endDate.toISOString());
+    } else if (newPass.validityType === 'days' && newPass.validityDays) {
+      endDate = new Date(now.getTime() + newPass.validityDays * 24 * 60 * 60 * 1000);
+      console.log('✅ Calculated expiry from validityDays:', newPass.validityDays, 'days ->', endDate.toISOString());
+    } else if (newPass.validityDays) {
+      endDate = new Date(now.getTime() + newPass.validityDays * 24 * 60 * 60 * 1000);
+      console.log('⚠️ Using fallback validityDays:', newPass.validityDays, 'days ->', endDate.toISOString());
+    } else {
+      console.error('❌ New pass has no valid expiry configuration');
+      return;
+    }
+
+    let subscriptionType;
+    let remainingClips;
+
+    switch (newPass.type) {
+      case 'single':
+        subscriptionType = 'single';
+        remainingClips = 1;
+        break;
+      case 'multi-pass':
+        subscriptionType = 'multi-pass';
+        remainingClips = newPass.classesLimit;
+        break;
+      case 'multi':
+        subscriptionType = 'clipcard';
+        remainingClips = newPass.classesLimit;
+        break;
+      case 'unlimited':
+        subscriptionType = 'monthly';
+        remainingClips = undefined;
+        break;
+      default:
+        console.error('❌ Invalid new pass type:', newPass.type);
+        return;
+    }
+
+    // Deactivate the old subscription
+    await sanityClient
+      .patch(upgradeFromSubscriptionId)
+      .set({ 
+        isActive: false,
+        upgradedAt: now.toISOString(),
+        upgradedToPassId: newPass._id,
+        upgradedToPassName: newPass.name
+      })
+      .commit();
+
+    console.log('✅ Deactivated old subscription:', upgradeFromSubscriptionId);
+
+    // Create new subscription with upgraded pass
+    const newSubscriptionData = {
+      _type: 'subscription',
+      user: {
+        _type: 'reference',
+        _ref: currentSubscription.user._ref,
+      },
+      tenant: {
+        _type: 'reference',
+        _ref: tenantId,
+      },
+      type: subscriptionType,
+      startDate: now.toISOString(),
+      endDate: endDate.toISOString(),
+      remainingClips,
+      passId: newPass._id,
+      passName: newPass.name,
+      purchasePrice: parseFloat(newPassPrice) || newPass.price,
+      stripePaymentId: session.payment_intent,
+      stripeSessionId: session.id,
+      isActive: true,
+      isUpgrade: true,
+      upgradedFromSubscriptionId: upgradeFromSubscriptionId,
+      upgradeCost: parseFloat(upgradeCost) || 0,
+    };
+
+    console.log('📝 Creating upgraded subscription:');
+    console.log('   Pass:', newPass.name, '(' + subscriptionType + ')');
+    console.log('   Classes:', remainingClips || 'Unlimited');
+    console.log('   Valid until:', endDate.toLocaleDateString());
+
+    const createdSubscription = await sanityClient.create(newSubscriptionData);
+    console.log('🎉 SUCCESS! Created upgraded subscription:', createdSubscription._id);
+    console.log('✅ Pass upgrade completed successfully');
+
+  } catch (error) {
+    console.error('❌ Error handling pass upgrade:', error);
   }
 }
 
