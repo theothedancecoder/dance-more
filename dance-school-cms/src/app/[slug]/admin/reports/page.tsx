@@ -38,6 +38,37 @@ export default function ReportsPage() {
 
   const tenantSlug = params.slug as string;
 
+  const handleExport = async (filterType: 'all' | 'active') => {
+    try {
+      const url = `/api/admin/export/customers${filterType === 'active' ? '?filter=active' : ''}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'x-tenant-slug': tenantSlug,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Export failed');
+      }
+
+      // Create a blob from the response and trigger download
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `customers-export-${filterType}-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Failed to export customer data. Please try again.');
+    }
+  };
+
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !userId) return;
 
@@ -137,8 +168,23 @@ export default function ReportsPage() {
               <p className="text-sm text-gray-500">View business insights and performance metrics</p>
             </div>
             <div className="flex space-x-4">
-              <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-                Export Report
+              <button
+                onClick={() => handleExport('all')}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 inline-flex items-center"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Export Customer Data
+              </button>
+              <button
+                onClick={() => handleExport('active')}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 inline-flex items-center"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Active Customers Only
               </button>
               <Link
                 href={`/${tenantSlug}/admin`}

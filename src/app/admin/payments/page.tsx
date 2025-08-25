@@ -2,6 +2,12 @@ import { redirect } from 'next/navigation';
 import { getServerUser } from '@/lib/auth';
 import { sanityClient } from '@/lib/sanity';
 import { format } from 'date-fns';
+import { UserRole } from '@/types';
+import dynamic from 'next/dynamic';
+
+const ExportCustomersButton = dynamic(() => import('@/components/ExportCustomersButton'), {
+  ssr: false,
+});
 
 interface Booking {
   _id: string;
@@ -57,7 +63,7 @@ async function getBookings(): Promise<Booking[]> {
 export default async function AdminPaymentsPage() {
   const user = await getServerUser();
   
-  if (!user || user.role !== 'admin') {
+  if (!user || user.role !== UserRole.ADMIN) {
     redirect('/dashboard');
   }
 
@@ -112,6 +118,29 @@ export default async function AdminPaymentsPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Export Section */}
+        <div className="bg-white shadow rounded-lg mb-8 p-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">Customer Data Export</h3>
+              <p className="text-sm text-gray-500 mt-1">Download customer emails and pass purchase data for marketing campaigns</p>
+            </div>
+            <div className="flex space-x-3">
+              <ExportCustomersButton />
+              <a
+                href="/api/admin/export/customers"
+                download
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Quick Export All
+              </a>
+            </div>
+          </div>
+        </div>
+
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
@@ -177,8 +206,9 @@ export default async function AdminPaymentsPage() {
 
         {/* Bookings Table */}
         <div className="bg-white shadow rounded-lg">
-          <div className="px-6 py-4 border-b border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
             <h2 className="text-lg font-medium text-gray-900">Recent Bookings</h2>
+            <ExportCustomersButton />
           </div>
           
           {bookings.length === 0 ? (
