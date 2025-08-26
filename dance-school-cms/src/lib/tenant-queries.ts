@@ -85,6 +85,7 @@ export async function getTenantUsers(tenantId: string, role?: string) {
 
 // Helper function to get tenant-scoped bookings
 export async function getTenantBookings(tenantId: string, userId?: string) {
+  // Note: userId should be the Sanity user ID, not Clerk ID
   const userFilter = userId ? ` && user._ref == "${userId}"` : '';
   return await client.fetch(
     `*[_type == "booking" && tenant._ref == $tenantId${userFilter}] | order(createdAt desc) {

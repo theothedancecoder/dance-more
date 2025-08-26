@@ -159,10 +159,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check user's active subscriptions
+    // Check user's active subscriptions - need to find subscriptions via user's clerkId
     const now = new Date();
     const activeSubscriptions = await sanityClient.fetch(
-      `*[_type == "subscription" && user._ref == $userId && isActive == true && endDate > $now] | order(_createdAt desc)`,
+      `*[_type == "subscription" && user->clerkId == $userId && isActive == true && endDate > $now] | order(_createdAt desc)`,
       { userId, now: now.toISOString() }
     );
 

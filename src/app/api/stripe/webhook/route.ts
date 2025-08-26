@@ -130,15 +130,50 @@ export async function POST(request: NextRequest) {
           console.log('📅 Keeping original end date for upgrade:', newEndDate);
         }
 
+        // Map new pass type to subscription type and calculate remaining clips
+        let newSubscriptionType: string;
+        let newRemainingClips: number | undefined;
+
+        switch (newPass.type) {
+          case 'single':
+            newSubscriptionType = 'single';
+            newRemainingClips = 1;
+            break;
+          case 'multi-pass':
+            newSubscriptionType = 'multi-pass';
+            newRemainingClips = newPass.classesLimit;
+            break;
+          case 'multi':
+            newSubscriptionType = 'clipcard';
+            newRemainingClips = newPass.classesLimit;
+            break;
+          case 'unlimited':
+            newSubscriptionType = 'monthly';
+            newRemainingClips = undefined; // Unlimited
+            break;
+          default:
+            console.error('❌ Unknown new pass type:', newPass.type);
+            newSubscriptionType = 'single';
+            newRemainingClips = 1;
+        }
+
+        console.log('📋 Upgrade subscription mapping:', {
+          newPassType: newPass.type,
+          newSubscriptionType,
+          newClassesLimit: newPass.classesLimit,
+          newRemainingClips
+        });
+
         // Update the existing subscription with new pass details
         const updatedSubscription = await sanityClient
           .patch(subscriptionId)
           .set({
             passName: newPass.name,
             passId: newPass._id,
-            type: newPass.type,
+            type: newSubscriptionType,
             endDate: newEndDate.toISOString(),
             classesLimit: newPass.classesLimit || null,
+            remainingClips: newRemainingClips,
             // Preserve existing classesUsed and startDate
             updatedAt: new Date().toISOString(),
             // Add upgrade tracking
@@ -229,12 +264,46 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        // Map pass type to subscription type and calculate remaining clips
+        let subscriptionType: string;
+        let remainingClips: number | undefined;
+
+        switch (pass.type) {
+          case 'single':
+            subscriptionType = 'single';
+            remainingClips = 1;
+            break;
+          case 'multi-pass':
+            subscriptionType = 'multi-pass';
+            remainingClips = pass.classesLimit;
+            break;
+          case 'multi':
+            subscriptionType = 'clipcard';
+            remainingClips = pass.classesLimit;
+            break;
+          case 'unlimited':
+            subscriptionType = 'monthly';
+            remainingClips = undefined; // Unlimited
+            break;
+          default:
+            console.error('❌ Unknown pass type:', pass.type);
+            subscriptionType = 'single';
+            remainingClips = 1;
+        }
+
+        console.log('📋 Subscription mapping:', {
+          passType: pass.type,
+          subscriptionType,
+          classesLimit: pass.classesLimit,
+          remainingClips
+        });
+
         // Create subscription document in Sanity
         const subscription = await sanityClient.create({
           _type: 'subscription',
           passName: pass.name,
           passId: pass._id,
-          type: pass.type,
+          type: subscriptionType,
           user: {
             _type: 'reference',
             _ref: sanityUser._id
@@ -245,8 +314,10 @@ export async function POST(request: NextRequest) {
           isActive: true,
           classesUsed: 0,
           classesLimit: pass.classesLimit || null,
+          remainingClips: remainingClips,
+          purchasePrice: session.amount_total ? session.amount_total / 100 : pass.price,
           stripeSessionId: session.id,
-          paymentId: session.payment_intent as string,
+          stripePaymentId: session.payment_intent as string,
           paymentStatus: 'completed',
           amount: session.amount_total,
           currency: session.currency,
