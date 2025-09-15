@@ -70,29 +70,37 @@ export async function GET(request: NextRequest) {
     console.log('Found class instances:', instances.length);
 
     // Transform instances to calendar events
-    let calendarEvents = instances.map((instance: any) => ({
-      _id: instance._id,
-      title: instance.parentClass.title,
-      instructor: instance.parentClass.instructor?.name || 'TBA',
-      startTime: new Date(instance.date).toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: false 
-      }),
-      endTime: new Date(new Date(instance.date).getTime() + (instance.parentClass.duration || 60) * 60000).toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: false 
-      }),
-      date: instance.date, // Keep the full ISO date for proper parsing
-      capacity: instance.parentClass.capacity,
-      booked: instance.bookingCount || 0,
-      price: instance.parentClass.price,
-      level: instance.parentClass.level,
-      location: instance.parentClass.location,
-      isCancelled: instance.isCancelled,
-      remainingCapacity: instance.remainingCapacity
-    }));
+    let calendarEvents = instances.map((instance: any) => {
+      const instanceDate = new Date(instance.date);
+      
+      // Convert UTC to local time for display (assuming CET/CEST timezone)
+      // UTC 16:00 should display as 18:00 local time
+      const localStartHour = (instanceDate.getUTCHours() + 2) % 24; // Add 2 hours for CET
+      const startMinute = instanceDate.getUTCMinutes();
+      const startTime = `${localStartHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`;
+      
+      // Calculate end time
+      const endDate = new Date(instanceDate.getTime() + (instance.parentClass.duration || 60) * 60000);
+      const localEndHour = (endDate.getUTCHours() + 2) % 24; // Add 2 hours for CET
+      const endMinute = endDate.getUTCMinutes();
+      const endTime = `${localEndHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+      
+      return {
+        _id: instance._id,
+        title: instance.parentClass.title,
+        instructor: instance.parentClass.instructor?.name || 'TBA',
+        startTime: startTime,
+        endTime: endTime,
+        date: instance.date, // Keep the full ISO date for proper parsing
+        capacity: instance.parentClass.capacity,
+        booked: instance.bookingCount || 0,
+        price: instance.parentClass.price,
+        level: instance.parentClass.level,
+        location: instance.parentClass.location,
+        isCancelled: instance.isCancelled,
+        remainingCapacity: instance.remainingCapacity
+      };
+    });
 
     // If no instances found, create virtual instances from recurring classes
     if (calendarEvents.length === 0) {
@@ -209,20 +217,22 @@ export async function GET(request: NextRequest) {
                   instanceDateOnly >= classStartDateOnly && instanceDateOnly <= classEndDateOnly) {
                 console.log('Adding virtual instance for:', classData.title, 'on', instanceDate.toISOString());
                 
+                // Convert UTC to local time for display (assuming CET/CEST timezone)
+                const localStartHour = (instanceDate.getUTCHours() + 2) % 24; // Add 2 hours for CET
+                const startMinute = instanceDate.getUTCMinutes();
+                const startTime = `${localStartHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`;
+                
+                const endDate = new Date(instanceDate.getTime() + (classData.duration || 60) * 60000);
+                const localEndHour = (endDate.getUTCHours() + 2) % 24; // Add 2 hours for CET
+                const endMinute = endDate.getUTCMinutes();
+                const endTime = `${localEndHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+                
                 virtualInstances.push({
                   _id: `virtual-${classData._id}-${instanceDate.getTime()}`,
                   title: classData.title,
                   instructor: classData.instructor?.name || 'TBA',
-                  startTime: instanceDate.toLocaleTimeString('en-US', { 
-                    hour: '2-digit', 
-                    minute: '2-digit',
-                    hour12: false 
-                  }),
-                  endTime: new Date(instanceDate.getTime() + (classData.duration || 60) * 60000).toLocaleTimeString('en-US', { 
-                    hour: '2-digit', 
-                    minute: '2-digit',
-                    hour12: false 
-                  }),
+                  startTime: startTime,
+                  endTime: endTime,
                   date: instanceDate.toISOString().split('T')[0],
                   capacity: classData.capacity || 10,
                   booked: 0,
@@ -250,12 +260,22 @@ export async function GET(request: NextRequest) {
           sampleDate.setHours(18, 0, 0, 0); // 6 PM
           
           if (sampleDate <= requestEndDate) {
+            // Convert UTC to local time for display (assuming CET/CEST timezone)
+            const localStartHour = (sampleDate.getUTCHours() + 2) % 24; // Add 2 hours for CET
+            const startMinute = sampleDate.getUTCMinutes();
+            const startTime = `${localStartHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`;
+            
+            const endDate = new Date(sampleDate.getTime() + (classData.duration || 60) * 60000);
+            const localEndHour = (endDate.getUTCHours() + 2) % 24; // Add 2 hours for CET
+            const endMinute = endDate.getUTCMinutes();
+            const endTime = `${localEndHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+            
             virtualInstances.push({
               _id: `virtual-${classData._id}-${sampleDate.getTime()}`,
               title: classData.title,
               instructor: classData.instructor?.name || 'TBA',
-              startTime: '18:00',
-              endTime: '19:00',
+              startTime: startTime,
+              endTime: endTime,
               date: sampleDate.toISOString().split('T')[0],
               capacity: classData.capacity || 10,
               booked: 0,
