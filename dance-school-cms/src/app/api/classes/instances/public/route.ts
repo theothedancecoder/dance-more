@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
           capacity,
           price,
           location,
+          recurringSchedule,
           instructor->{
             name,
             image
@@ -73,17 +74,40 @@ export async function GET(request: NextRequest) {
     let calendarEvents = instances.map((instance: any) => {
       const instanceDate = new Date(instance.date);
       
-      // Convert UTC to local time for display (assuming CET/CEST timezone)
-      // UTC 16:00 should display as 18:00 local time
-      const localStartHour = (instanceDate.getUTCHours() + 2) % 24; // Add 2 hours for CET
-      const startMinute = instanceDate.getUTCMinutes();
-      const startTime = `${localStartHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`;
+      // Smart time handling: only use scheduled time for classes that need timezone correction
+      let startTime, endTime;
+      const utcHours = instanceDate.getUTCHours();
+      const utcMinutes = instanceDate.getUTCMinutes();
+      const scheduledTime = instance.parentClass?.recurringSchedule?.weeklySchedule?.[0]?.startTime;
       
-      // Calculate end time
-      const endDate = new Date(instanceDate.getTime() + (instance.parentClass.duration || 60) * 60000);
-      const localEndHour = (endDate.getUTCHours() + 2) % 24; // Add 2 hours for CET
-      const endMinute = endDate.getUTCMinutes();
-      const endTime = `${localEndHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+      // Check if this class needs timezone correction
+      // Classes stored at 16:00 UTC but scheduled for 18:00 need correction
+      // Classes stored at 17:00 UTC but scheduled for 19:00 need correction
+      const needsCorrection = scheduledTime && (
+        (utcHours === 16 && scheduledTime === '18:00') ||
+        (utcHours === 16 && scheduledTime === '19:00') ||
+        (utcHours === 17 && scheduledTime === '19:00')
+      );
+      
+      if (needsCorrection) {
+        // Use the scheduled time for classes that need correction
+        startTime = scheduledTime;
+        
+        // Calculate end time based on duration
+        const [hours, minutes] = startTime.split(':').map(Number);
+        const duration = instance.parentClass.duration || 60; // Default 60 minutes
+        const endDate = new Date();
+        endDate.setHours(hours, minutes + duration, 0, 0);
+        endTime = `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`;
+      } else {
+        // For classes that don't need correction, use the UTC time directly
+        // This preserves the original display behavior for correctly stored classes
+        startTime = `${utcHours.toString().padStart(2, '0')}:${utcMinutes.toString().padStart(2, '0')}`;
+        
+        // Calculate end time
+        const endHours = utcHours + 1; // Assume 1 hour duration
+        endTime = `${endHours.toString().padStart(2, '0')}:${utcMinutes.toString().padStart(2, '0')}`;
+      }
       
       return {
         _id: instance._id,
@@ -91,7 +115,7 @@ export async function GET(request: NextRequest) {
         instructor: instance.parentClass.instructor?.name || 'TBA',
         startTime: startTime,
         endTime: endTime,
-        date: instance.date, // Keep the full ISO date for proper parsing
+        date: instanceDate.toISOString().split('T')[0], // Use date-only format
         capacity: instance.parentClass.capacity,
         booked: instance.bookingCount || 0,
         price: instance.parentClass.price,
@@ -217,15 +241,15 @@ export async function GET(request: NextRequest) {
                   instanceDateOnly >= classStartDateOnly && instanceDateOnly <= classEndDateOnly) {
                 console.log('Adding virtual instance for:', classData.title, 'on', instanceDate.toISOString());
                 
-                // Convert UTC to local time for display (assuming CET/CEST timezone)
-                const localStartHour = (instanceDate.getUTCHours() + 2) % 24; // Add 2 hours for CET
-                const startMinute = instanceDate.getUTCMinutes();
-                const startTime = `${localStartHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`;
+                // Use the scheduled time directly instead of converting UTC
+                const startTime = schedule.startTime;
                 
-                const endDate = new Date(instanceDate.getTime() + (classData.duration || 60) * 60000);
-                const localEndHour = (endDate.getUTCHours() + 2) % 24; // Add 2 hours for CET
-                const endMinute = endDate.getUTCMinutes();
-                const endTime = `${localEndHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+                // Calculate end time based on duration
+                const [hours, minutes] = startTime.split(':').map(Number);
+                const duration = classData.duration || 60; // Default 60 minutes
+                const endDate = new Date();
+                endDate.setHours(hours, minutes + duration, 0, 0);
+                const endTime = `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`;
                 
                 virtualInstances.push({
                   _id: `virtual-${classData._id}-${instanceDate.getTime()}`,
@@ -260,15 +284,9 @@ export async function GET(request: NextRequest) {
           sampleDate.setHours(18, 0, 0, 0); // 6 PM
           
           if (sampleDate <= requestEndDate) {
-            // Convert UTC to local time for display (assuming CET/CEST timezone)
-            const localStartHour = (sampleDate.getUTCHours() + 2) % 24; // Add 2 hours for CET
-            const startMinute = sampleDate.getUTCMinutes();
-            const startTime = `${localStartHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`;
-            
-            const endDate = new Date(sampleDate.getTime() + (classData.duration || 60) * 60000);
-            const localEndHour = (endDate.getUTCHours() + 2) % 24; // Add 2 hours for CET
-            const endMinute = endDate.getUTCMinutes();
-            const endTime = `${localEndHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+            // Use fixed time for non-recurring classes
+            const startTime = '18:00';
+            const endTime = '19:00';
             
             virtualInstances.push({
               _id: `virtual-${classData._id}-${sampleDate.getTime()}`,
