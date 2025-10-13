@@ -46,6 +46,10 @@ export async function GET(request: NextRequest) {
     // For now, let's skip authentication to test the basic functionality
     // TODO: Implement proper authentication once middleware issues are resolved
     
+    // Check if we should filter expired passes (for student view)
+    const { searchParams } = new URL(request.url);
+    const filterExpired = searchParams.get('filterExpired') === 'true';
+    
     // Fetch all passes from Sanity
     const passes = await sanityClient.fetch(`
       *[_type == "pass"] | order(name asc) {
@@ -59,11 +63,42 @@ export async function GET(request: NextRequest) {
         classesLimit,
         isActive,
         _createdAt,
-        _updatedAt
+        _updatedAt,
+        "isExpired": validityType == "date" && dateTime(expiryDate) < dateTime(now())
       }
     `);
 
-    return NextResponse.json({ passes });
+    // Filter out expired passes if requested (for student view)
+    let filteredPasses = passes;
+    if (filterExpired) {
+      filteredPasses = passes.filter((pass: any) => {
+        // Only show active passes
+        if (!pass.isActive) return false;
+        
+        // Filter out expired fixed-date passes
+        // Check both Sanity's isExpired and do a JavaScript fallback check
+        if (pass.validityType === 'date' && pass.expiryDate) {
+          // If Sanity's isExpired is explicitly true, filter it out
+          if (pass.isExpired === true) {
+            return false;
+          }
+          
+          // Fallback: Check expiry date in JavaScript (in case Sanity returned null)
+          const expiryDate = new Date(pass.expiryDate);
+          const now = new Date();
+          if (expiryDate < now) {
+            console.log(`⏰ Filtering expired pass: ${pass.name} (expired ${expiryDate.toLocaleDateString()})`);
+            return false;
+          }
+        }
+        
+        return true;
+      });
+      
+      console.log(`📋 Filtered passes: ${passes.length} total, ${filteredPasses.length} available (${passes.length - filteredPasses.length} expired/inactive)`);
+    }
+
+    return NextResponse.json({ passes: filteredPasses });
   } catch (error) {
     console.error('Error fetching passes:', error);
     return NextResponse.json(

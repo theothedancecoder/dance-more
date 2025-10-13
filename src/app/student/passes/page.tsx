@@ -56,26 +56,45 @@ export default function StudentPassesPage() {
 
   const fetchUserPasses = async () => {
     try {
+      console.log('🔍 Fetching user passes...');
       const response = await fetch('/api/student/passes');
       if (response.ok) {
         const data = await response.json();
-        setSubscriptions(data.subscriptions);
+        console.log('✅ Passes fetched successfully:', data.subscriptions);
+        
+        // Filter out any subscriptions with critical missing data
+        const validSubscriptions = data.subscriptions.filter((sub: Subscription) => {
+          const isValid = sub._id && sub.passName && sub.endDate !== null;
+          if (!isValid) {
+            console.warn('⚠️ Filtering out invalid subscription:', sub);
+          }
+          return isValid;
+        });
+        
+        setSubscriptions(validSubscriptions);
+        
+        if (validSubscriptions.length !== data.subscriptions.length) {
+          console.warn(`⚠️ Filtered ${data.subscriptions.length - validSubscriptions.length} invalid subscriptions`);
+        }
       } else {
+        console.error('❌ Failed to fetch passes:', response.status, response.statusText);
         setMessage({ type: 'error', text: 'Failed to fetch your passes' });
       }
     } catch (error) {
+      console.error('❌ Error loading passes:', error);
       setMessage({ type: 'error', text: 'Error loading your passes' });
     }
   };
 
   const fetchAvailablePasses = async () => {
     try {
-      const response = await fetch('/api/admin/passes');
+      // Fetch passes with expired filter enabled for student view
+      const response = await fetch('/api/admin/passes?filterExpired=true');
       if (response.ok) {
         const data = await response.json();
-        const activePasses = data.passes.filter((pass: Pass) => pass.isActive);
-        setAvailablePasses(activePasses);
-        calculateUpgradeOptions(activePasses);
+        // Passes are already filtered by the API (active and non-expired)
+        setAvailablePasses(data.passes);
+        calculateUpgradeOptions(data.passes);
       }
     } catch (error) {
       console.error('Error loading available passes:', error);
@@ -144,10 +163,12 @@ export default function StudentPassesPage() {
   };
 
   const formatPrice = (price: number) => {
+    if (!price || price === 0) return 'N/A';
     return `${price} kr`;
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString();
   };
 
@@ -269,7 +290,7 @@ export default function StudentPassesPage() {
                         <div>
                           <span className="text-sm font-medium text-gray-500">Classes Used:</span>
                           <p className="text-sm text-gray-900">
-                            {subscription.classesUsed} / {subscription.classesLimit || '∞'}
+                            {subscription.classesUsed || 0} / {subscription.classesLimit || '∞'}
                           </p>
                         </div>
                         <div>
