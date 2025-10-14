@@ -38,9 +38,9 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // Build query with mandatory tenant filter
-    const query = `*[_type == "classInstance" && date >= $startDate && date <= $endDate && parentClass->tenant._ref == $tenantId`;
-    const params = { 
+    // Build query with mandatory tenant filter and active class filter
+    const query = `*[_type == "classInstance" && date >= $startDate && date <= $endDate && parentClass->tenant._ref == $tenantId && parentClass->isActive == true`;
+    const params = {
       startDate: new Date(startDate).toISOString(),
       endDate: new Date(endDate).toISOString(),
       tenantId

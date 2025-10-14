@@ -36,10 +36,10 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // Get class instances within the date range for this tenant
+    // Get class instances within the date range for this tenant (only from active classes)
     console.log('Fetching class instances for tenant:', tenant._id);
     const instances = await sanityClient.fetch(
-      `*[_type == "classInstance" && date >= $startDate && date <= $endDate && parentClass->tenant._ref == $tenantId] {
+      `*[_type == "classInstance" && date >= $startDate && date <= $endDate && parentClass->tenant._ref == $tenantId && parentClass->isActive == true] {
         _id,
         date,
         isCancelled,
@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
       console.log('No instances found, fetching recurring classes for tenant:', tenant._id);
       
       const recurringClasses = await sanityClient.fetch(
-        `*[_type == "class" && tenant._ref == $tenantId] {
+        `*[_type == "class" && tenant._ref == $tenantId && isActive == true] {
           _id,
           title,
           danceStyle,
