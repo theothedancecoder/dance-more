@@ -73,6 +73,12 @@ export const bookingType = defineType({
       description: 'Email address used for payment',
     }),
     defineField({
+      name: 'bookingDateTime',
+      title: 'Booking Date & Time',
+      type: 'datetime',
+      description: 'Specific date and time of the class session',
+    }),
+    defineField({
       name: 'notes',
       title: 'Notes',
       type: 'text',

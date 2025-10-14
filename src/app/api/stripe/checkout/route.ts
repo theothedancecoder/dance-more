@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { classId, successUrl, cancelUrl } = await request.json();
+    const { classId, selectedDateTime, successUrl, cancelUrl } = await request.json();
 
     if (!classId) {
       return NextResponse.json({ error: 'Class ID is required' }, { status: 400 });
@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
       customer_email: user.email,
       metadata: {
         classId: classData._id,
+        selectedDateTime: selectedDateTime || '',
         userId: user.id,
         userEmail: user.email,
       },

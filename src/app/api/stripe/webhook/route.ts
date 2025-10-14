@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
       const metadata = session.metadata || {};
-      const { classId, passId, userId, userEmail, type, subscriptionId, currentPassId, newPassId } = metadata;
+      const { classId, selectedDateTime, passId, userId, userEmail, type, subscriptionId, currentPassId, newPassId } = metadata;
 
       console.log('🔍 Webhook received:', {
         sessionId: session.id,
@@ -330,8 +330,8 @@ export async function POST(request: NextRequest) {
       } 
       // Handle class bookings
       else if (classId) {
-        console.log('📚 Processing class booking:', classId);
-        
+        console.log('📚 Processing class booking:', classId, 'DateTime:', selectedDateTime);
+
         // Create booking document in Sanity
         const booking = await sanityClient.create({
           _type: 'booking',
@@ -349,11 +349,12 @@ export async function POST(request: NextRequest) {
           amount: session.amount_total,
           currency: session.currency,
           email: userEmail || session.customer_email,
+          bookingDateTime: selectedDateTime || new Date().toISOString(),
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         });
 
-        console.log('✅ Booking created:', booking._id);
+        console.log('✅ Booking created:', booking._id, 'for date:', selectedDateTime);
 
       } else {
         console.error('Unknown purchase type - no passId or classId found:', metadata);

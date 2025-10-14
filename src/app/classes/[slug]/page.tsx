@@ -6,7 +6,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import PortableText from '@/components/PortableText';
 import PaymentButton from '@/components/PaymentButton';
+import DateTimeSelector from '@/components/DateTimeSelector';
 import { notFound } from 'next/navigation';
+import { useState } from 'react';
 
 interface Props {
   params: {
@@ -23,7 +25,15 @@ async function getClass(slug: string): Promise<SanityClass | null> {
   }
 }
 
-export default async function ClassPage({ params }: Props) {
+export default function ClassPage({ params }: Props) {
+  const [selectedDateTime, setSelectedDateTime] = useState<string>('');
+
+  return (
+    <ClassPageContent params={params} selectedDateTime={selectedDateTime} onDateTimeSelect={setSelectedDateTime} />
+  );
+}
+
+async function ClassPageContent({ params, selectedDateTime, onDateTimeSelect }: Props & { selectedDateTime: string; onDateTimeSelect: (dateTime: string) => void }) {
   const { slug } = await params;
   const classData = await getClass(slug);
 
@@ -111,20 +121,29 @@ export default async function ClassPage({ params }: Props) {
               <div>
                 <h2 className="text-xl font-bold text-gray-900 mb-4">Schedule</h2>
                 {classData.schedule && classData.schedule.length > 0 ? (
-                  <div className="space-y-2">
-                    {classData.schedule.map((schedule, index) => (
-                      <div
-                        key={index}
-                        className="flex justify-between items-center bg-gray-50 p-3 rounded"
-                      >
-                        <span className="font-medium capitalize">
-                          {schedule.dayOfWeek}
-                        </span>
-                        <span className="text-gray-600">
-                          {schedule.startTime} - {schedule.endTime}
-                        </span>
-                      </div>
-                    ))}
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      {classData.schedule.map((schedule, index) => (
+                        <div
+                          key={index}
+                          className="flex justify-between items-center bg-gray-50 p-3 rounded"
+                        >
+                          <span className="font-medium capitalize">
+                            {schedule.dayOfWeek}
+                          </span>
+                          <span className="text-gray-600">
+                            {schedule.startTime} - {schedule.endTime}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="border-t pt-4">
+                      <DateTimeSelector
+                        schedule={classData.schedule}
+                        onDateTimeSelect={onDateTimeSelect}
+                      />
+                    </div>
                   </div>
                 ) : (
                   <p className="text-gray-500">No scheduled sessions</p>
@@ -192,6 +211,7 @@ export default async function ClassPage({ params }: Props) {
                 classId={classData._id}
                 price={classData.price}
                 title={classData.title}
+                selectedDateTime={selectedDateTime}
               />
             </div>
           </div>

@@ -7,15 +7,21 @@ interface PaymentButtonProps {
   classId: string;
   price: number;
   title: string;
+  selectedDateTime?: string;
 }
 
-export default function PaymentButton({ classId, price, title }: PaymentButtonProps) {
+export default function PaymentButton({ classId, price, title, selectedDateTime }: PaymentButtonProps) {
   const [loading, setLoading] = useState(false);
   const { user, isSignedIn } = useUser();
 
   const handlePayment = async () => {
     if (!isSignedIn) {
       window.location.href = '/sign-in';
+      return;
+    }
+
+    if (!selectedDateTime) {
+      alert('Please select a class session time before booking.');
       return;
     }
 
@@ -28,6 +34,7 @@ export default function PaymentButton({ classId, price, title }: PaymentButtonPr
         },
         body: JSON.stringify({
           classId,
+          selectedDateTime,
           successUrl: `${window.location.origin}/payment/success`,
           cancelUrl: window.location.href,
         }),
