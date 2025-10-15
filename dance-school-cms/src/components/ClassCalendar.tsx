@@ -142,7 +142,7 @@ export default function ClassCalendar({ isAdmin = false }: ClassCalendarProps) {
     if (!selectedEvent || !isAdmin || !tenant) return;
 
     const reason = prompt('Cancellation reason (optional):');
-    
+
     try {
       const response = await fetch('/api/admin/classes/cancel', {
         method: 'POST',
@@ -169,6 +169,35 @@ export default function ClassCalendar({ isAdmin = false }: ClassCalendarProps) {
     } catch (error) {
       console.error('Error cancelling class:', error);
       alert('Failed to cancel class');
+    }
+  };
+
+  const handleDeleteInstance = async () => {
+    if (!selectedEvent || !isAdmin || !tenant) return;
+
+    if (!confirm(`Are you sure you want to permanently delete this class instance? This will also remove all bookings for this class and cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/classes/instances/${selectedEvent.id}/delete`, {
+        method: 'DELETE',
+        headers: {
+          'x-tenant-id': tenant._id,
+        },
+      });
+
+      if (response.ok) {
+        alert('Class instance deleted successfully');
+        setShowModal(false);
+        fetchEvents(); // Refresh events
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to delete instance');
+      }
+    } catch (error) {
+      console.error('Error deleting instance:', error);
+      alert('Failed to delete instance');
     }
   };
 
@@ -284,6 +313,12 @@ export default function ClassCalendar({ isAdmin = false }: ClassCalendarProps) {
                     className="flex-1 bg-red-800 text-white px-4 py-2 rounded hover:bg-red-900 transition-colors"
                   >
                     Cancel Series
+                  </button>
+                  <button
+                    onClick={handleDeleteInstance}
+                    className="flex-1 bg-red-900 text-white px-4 py-2 rounded hover:bg-red-950 transition-colors"
+                  >
+                    Delete Instance
                   </button>
                 </>
               )}
