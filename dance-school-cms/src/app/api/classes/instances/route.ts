@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
     }
     
     // Build query with mandatory tenant filter and active class filter
+    // Also filter out instances from classes that are now inactive
     const query = `*[_type == "classInstance" && date >= $startDate && date <= $endDate && parentClass->tenant._ref == $tenantId && parentClass->isActive == true`;
     const params = {
       startDate: new Date(startDate).toISOString(),

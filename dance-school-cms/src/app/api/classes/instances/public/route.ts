@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
     }
     
     // Get class instances within the date range for this tenant (only from active classes)
+    // Also filter out instances from classes that are now inactive
     console.log('Fetching class instances for tenant:', tenant._id);
     const instances = await sanityClient.fetch(
       `*[_type == "classInstance" && date >= $startDate && date <= $endDate && parentClass->tenant._ref == $tenantId && parentClass->isActive == true] {
