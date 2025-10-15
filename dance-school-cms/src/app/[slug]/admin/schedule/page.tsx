@@ -45,6 +45,7 @@ export default function ScheduleManagementPage() {
   const [error, setError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [generatingClass, setGeneratingClass] = useState<string | null>(null);
+  const [inactiveClasses, setInactiveClasses] = useState<ClassData[]>([]);
 
   const tenantSlug = params.slug as string;
 
@@ -64,7 +65,9 @@ export default function ScheduleManagementPage() {
         }
 
         const data = await response.json();
-        setClasses(data.classes || []);
+        const allClasses = data.classes || [];
+        setClasses(allClasses.filter((cls: ClassData) => cls.isActive !== false));
+        setInactiveClasses(allClasses.filter((cls: ClassData) => cls.isActive === false));
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
@@ -126,7 +129,7 @@ export default function ScheduleManagementPage() {
 
       const result = await response.json();
       alert(`Success! Generated ${result.totalInstancesCreated} instances for ${result.classesProcessed} classes.\n\n${result.message || ''}`);
-      
+
       // Refresh the page to show updated data
       window.location.reload();
     } catch (err) {
@@ -134,6 +137,33 @@ export default function ScheduleManagementPage() {
       alert('Error generating instances: ' + errorMessage);
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const hardDeleteClass = async (classId: string, className: string) => {
+    if (!confirm(`Are you sure you want to permanently delete "${className}" and all its instances? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/classes/${classId}/hard-delete`, {
+        method: 'DELETE',
+        headers: {
+          'x-tenant-slug': tenantSlug,
+        },
+      });
+
+      if (response.ok) {
+        alert(`Successfully deleted "${className}" and all its instances.`);
+        // Refresh the page to show updated data
+        window.location.reload();
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to delete class');
+      }
+    } catch (error) {
+      console.error('Error deleting class:', error);
+      alert('Failed to delete class');
     }
   };
 
@@ -259,8 +289,8 @@ export default function ScheduleManagementPage() {
                               {classItem.title}
                             </p>
                             <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              (classItem.isActive !== false) 
-                                ? 'bg-green-100 text-green-800' 
+                              (classItem.isActive !== false)
+                                ? 'bg-green-100 text-green-800'
                                 : 'bg-red-100 text-red-800'
                             }`}>
                               {(classItem.isActive !== false) ? 'Active' : 'Inactive'}
@@ -282,13 +312,13 @@ export default function ScheduleManagementPage() {
                                   'Recurring class - no schedule set'
                                 )
                               ) : (
-                                classItem.singleClassDate ? 
+                                classItem.singleClassDate ?
                                   `Single class on ${new Date(classItem.singleClassDate).toLocaleDateString()} at ${new Date(classItem.singleClassDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` :
                                   'No schedule set'
-                              )} • {classItem.duration} min • 
-                              Capacity: {classItem.capacity} • 
-                              Level: {classItem.level} • 
-                              Style: {classItem.danceStyle} • 
+                              )} • {classItem.duration} min •
+                              Capacity: {classItem.capacity} •
+                              Level: {classItem.level} •
+                              Style: {classItem.danceStyle} •
                               Instructor: {classItem.instructor?.name || 'No instructor assigned'}
                             </p>
                           </div>
@@ -325,6 +355,79 @@ export default function ScheduleManagementPage() {
                 </li>
               ))}
             </ul>
+          </div>
+        )}
+
+        {/* Inactive Classes Section */}
+        {inactiveClasses.length > 0 && (
+          <div className="mt-8">
+            <h2 className="text-xl font-semibold mb-4 text-red-600">Inactive Classes (Deleted)</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              These classes have been deactivated but their instances may still appear in the calendar.
+              Use "Hard Delete" to permanently remove them and all their instances.
+            </p>
+
+            <div className="bg-white shadow overflow-hidden sm:rounded-md">
+              <ul className="divide-y divide-gray-200">
+                {inactiveClasses.map((classItem) => (
+                  <li key={classItem._id}>
+                    <div className="px-4 py-4 sm:px-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0">
+                            <CalendarIcon className="h-8 w-8 text-red-500" />
+                          </div>
+                          <div className="ml-4">
+                            <div className="flex items-center">
+                              <p className="text-lg font-medium text-red-600 truncate">
+                                {classItem.title}
+                              </p>
+                              <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                Inactive - Deleted
+                              </span>
+                            </div>
+                            <div className="mt-2 flex items-center text-sm text-gray-500">
+                              <ClockIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
+                              <p>
+                                {classItem.isRecurring ? (
+                                  classItem.recurringSchedule?.weeklySchedule?.length ? (
+                                    classItem.recurringSchedule.weeklySchedule.map((schedule, index) => (
+                                      <span key={index} className="capitalize">
+                                        {schedule.dayOfWeek}s at {schedule.startTime}
+                                        {schedule.endTime && ` - ${schedule.endTime}`}
+                                        {index < (classItem.recurringSchedule?.weeklySchedule?.length || 0) - 1 ? ', ' : ''}
+                                      </span>
+                                    ))
+                                  ) : (
+                                    'Recurring class - no schedule set'
+                                  )
+                                ) : (
+                                  classItem.singleClassDate ?
+                                    `Single class on ${new Date(classItem.singleClassDate).toLocaleDateString()} at ${new Date(classItem.singleClassDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` :
+                                    'No schedule set'
+                                )} • {classItem.duration} min •
+                                Capacity: {classItem.capacity} •
+                                Level: {classItem.level} •
+                                Style: {classItem.danceStyle} •
+                                Instructor: {classItem.instructor?.name || 'No instructor assigned'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => hardDeleteClass(classItem._id, classItem.title)}
+                            className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
+                          >
+                            Hard Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         )}
 

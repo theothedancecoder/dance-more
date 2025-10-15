@@ -77,6 +77,29 @@ export default function AdminSchedulePage() {
     }
   };
 
+  const hardDeleteClass = async (classId: string, className: string) => {
+    if (!confirm(`Are you sure you want to permanently delete "${className}" and all its instances? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/classes/${classId}/hard-delete`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        alert(`Successfully deleted "${className}" and all its instances.`);
+        fetchClasses(); // Refresh the list
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to delete class');
+      }
+    } catch (error) {
+      console.error('Error deleting class:', error);
+      alert('Failed to delete class');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -86,6 +109,7 @@ export default function AdminSchedulePage() {
   }
 
   const recurringClasses = classes.filter(cls => cls.isRecurring && cls.isActive);
+  const inactiveClasses = classes.filter(cls => !cls.isActive);
 
   return (
     <div className="min-h-screen bg-gray-50 py-12">
@@ -113,7 +137,7 @@ export default function AdminSchedulePage() {
         {/* Recurring Classes Management */}
         <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
           <h2 className="text-xl font-semibold mb-4">Recurring Classes</h2>
-          
+
           {recurringClasses.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-gray-500 mb-4">No recurring classes found.</p>
@@ -131,7 +155,7 @@ export default function AdminSchedulePage() {
                       <p className="text-gray-600">
                         {classItem.danceStyle} • {classItem.level} • {classItem.instructor.name}
                       </p>
-                      
+
                       {classItem.recurringSchedule && (
                         <div className="mt-2">
                           <p className="text-sm text-gray-500">
@@ -150,7 +174,7 @@ export default function AdminSchedulePage() {
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="ml-4">
                       <button
                         onClick={() => generateInstances(classItem._id)}
@@ -166,6 +190,42 @@ export default function AdminSchedulePage() {
             </div>
           )}
         </div>
+
+        {/* Inactive Classes Management */}
+        {inactiveClasses.length > 0 && (
+          <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <h2 className="text-xl font-semibold mb-4 text-red-600">Inactive Classes (Deleted)</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              These classes have been deactivated but their instances may still appear in the calendar.
+              Use "Hard Delete" to permanently remove them and all their instances.
+            </p>
+
+            <div className="space-y-4">
+              {inactiveClasses.map((classItem) => (
+                <div key={classItem._id} className="border border-red-200 rounded-lg p-4 bg-red-50">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-lg text-red-800">{classItem.title}</h3>
+                      <p className="text-red-600">
+                        {classItem.danceStyle} • {classItem.level} • {classItem.instructor.name}
+                      </p>
+                      <p className="text-xs text-red-500 mt-1">Inactive - Deleted</p>
+                    </div>
+
+                    <div className="ml-4 flex gap-2">
+                      <button
+                        onClick={() => hardDeleteClass(classItem._id, classItem.title)}
+                        className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors text-sm"
+                      >
+                        Hard Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Calendar View */}
         <div className="bg-white rounded-lg shadow-lg p-6">
