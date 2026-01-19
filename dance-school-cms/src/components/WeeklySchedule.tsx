@@ -91,8 +91,6 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
 
         if (response.ok) {
           const data = await response.json();
-          console.log('WeeklySchedule: Fetched class instances:', data.instances?.length || 0);
-          console.log('WeeklySchedule: All instances:', data.instances);
           setClassInstances(data.instances || []);
         } else {
           console.error('Failed to fetch class instances:', response.statusText);
@@ -118,22 +116,19 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
       grouped[day] = [];
     });
 
-    console.log('WeeklySchedule: Grouping classes by day. Total instances:', classInstances.length);
-
     classInstances.forEach(instance => {
-      // Parse the date correctly to avoid timezone issues
-      const instanceDate = new Date(instance.date);
-      
-      // Use getUTCDay() to get the correct day without timezone conversion
+      // Parse the date as local date to avoid timezone shifts
+      // Extract YYYY-MM-DD part and create date at local midnight
+      const dateString = instance.date.split('T')[0]; // Get date part only
+      const [year, month, day] = dateString.split('-').map(Number);
+      const instanceDate = new Date(year, month - 1, day); // Month is 0-indexed
+
+      // Use getDay() to get the correct day, consistent with getWeekStart calculation
       const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-      const dayName = dayNames[instanceDate.getUTCDay()];
-      
-      console.log(`WeeklySchedule: Processing ${instance.title} - Date: ${instance.date}, Parsed: ${instanceDate}, Day: ${dayName}`);
-      
+      const dayName = dayNames[instanceDate.getDay()];
+
       if (grouped[dayName]) {
         grouped[dayName].push(instance);
-      } else {
-        console.log(`WeeklySchedule: Warning - Day ${dayName} not found in grouped object for ${instance.title}`);
       }
     });
 
@@ -141,8 +136,6 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
     Object.keys(grouped).forEach(day => {
       grouped[day].sort((a, b) => a.startTime.localeCompare(b.startTime));
     });
-
-    console.log('WeeklySchedule: Grouped classes:', grouped);
     return grouped;
   };
 

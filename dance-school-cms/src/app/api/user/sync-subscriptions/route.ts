@@ -56,10 +56,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Check for recent Stripe sessions for this user that might not have been processed
+    // Increased to 30 days to catch any missed subscriptions
     const recentSessions = await stripe.checkout.sessions.list({
-      limit: 20, // Increased limit to catch more sessions
+      limit: 50, // Increased limit to catch more sessions
       created: {
-        gte: Math.floor((Date.now() - 7 * 24 * 60 * 60 * 1000) / 1000), // Last 7 days instead of 24 hours
+        gte: Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000), // Last 30 days
       },
     });
 
@@ -74,6 +75,8 @@ export async function POST(request: NextRequest) {
 
     let createdCount = 0;
     let skippedCount = 0;
+    let errorCount = 0;
+    const errors: string[] = [];
 
     for (const session of userSessions) {
       const { passId } = session.metadata || {};
@@ -170,14 +173,16 @@ export async function POST(request: NextRequest) {
         });
         createdCount++;
       } catch (error) {
-        console.error('❌ Failed to create subscription:', error);
+        console.error('❌ Failed to create subscription for session:', session.id);
         if (error instanceof Error) {
           console.error('Error details:', error.message);
+          errors.push(`Session ${session.id}: ${error.message}`);
         }
+        errorCount++;
       }
     }
 
-    const message = `Synced ${createdCount} missing subscriptions, skipped ${skippedCount} existing ones`;
+    const message = `Synced ${createdCount} missing subscriptions, skipped ${skippedCount} existing ones${errorCount > 0 ? `, ${errorCount} errors` : ''}`;
     console.log('✅ Sync complete:', message);
 
     return NextResponse.json({ 
@@ -185,6 +190,8 @@ export async function POST(request: NextRequest) {
       message,
       createdCount,
       skippedCount,
+      errorCount,
+      errors: errorCount > 0 ? errors : undefined,
       totalSessionsFound: userSessions.length
     });
 

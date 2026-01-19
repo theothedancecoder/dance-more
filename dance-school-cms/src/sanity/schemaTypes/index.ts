@@ -9,6 +9,7 @@ import { subscriptionType } from './subscriptionType'
 import { passType } from './passType'
 import tenantType from './tenantType'
 import notificationType from './notificationType'
+import { webhookLogType } from './webhookLogType'
 
 export const schema: { types: SchemaTypeDefinition[] } = {
   types: [
@@ -27,5 +28,8 @@ export const schema: { types: SchemaTypeDefinition[] } = {
     subscriptionType,
     passType,
     notificationType,
+    
+    // System types
+    webhookLogType,
   ],
 }

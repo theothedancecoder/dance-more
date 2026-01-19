@@ -68,7 +68,13 @@ export default function SubscriptionsPage() {
     // Handle success/cancel messages from Stripe redirect
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('success') === 'true') {
-      alert('Payment successful! Your pass has been activated.');
+      const sessionId = urlParams.get('session_id');
+      const type = urlParams.get('type');
+      if (type === 'upgrade') {
+        alert('Payment successful! Your pass has been upgraded.');
+      } else {
+        alert('Payment successful! Your pass has been activated and is now available in your active subscriptions.');
+      }
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
     } else if (urlParams.get('canceled') === 'true') {

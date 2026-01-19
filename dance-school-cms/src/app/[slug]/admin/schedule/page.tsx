@@ -349,6 +349,12 @@ export default function ScheduleManagementPage() {
                         >
                           Edit
                         </Link>
+                        <button
+                          onClick={() => hardDeleteClass(classItem._id, classItem.title)}
+                          className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
+                        >
+                          Hard Delete
+                        </button>
                       </div>
                     </div>
                   </div>

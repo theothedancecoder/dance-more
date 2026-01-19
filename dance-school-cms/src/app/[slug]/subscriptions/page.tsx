@@ -63,8 +63,104 @@ export default function SubscriptionsPage() {
   const [selectedSubscription, setSelectedSubscription] = useState<UserSubscription | null>(null);
   const [upgradeOptions, setUpgradeOptions] = useState<PassData[]>([]);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string>('');
+  const [manualSyncLoading, setManualSyncLoading] = useState(false);
 
   const tenantSlug = params.slug as string;
+
+  // Check for success parameter in URL (after payment)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const success = urlParams.get('success');
+    const sessionId = urlParams.get('session_id');
+    
+    if (success === 'true' && sessionId) {
+      // Start polling for subscription status
+      checkSubscriptionStatus(sessionId);
+    }
+  }, []);
+
+  const checkSubscriptionStatus = async (sessionId: string, attempt = 1, maxAttempts = 15) => {
+    if (attempt > maxAttempts) {
+      setStatusMessage('⚠️ Taking longer than expected. Your pass should appear shortly. Try refreshing the page.');
+      setCheckingStatus(false);
+      return;
+    }
+
+    setCheckingStatus(true);
+    setStatusMessage(`⏳ Confirming your purchase... (${attempt}/${maxAttempts})`);
+
+    try {
+      const response = await fetch('/api/user/subscription-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ sessionId }),
+      });
+
+      const data = await response.json();
+
+      if (data.found) {
+        setStatusMessage('✅ Success! Your pass is now active.');
+        setCheckingStatus(false);
+        // Refresh subscriptions
+        await fetchUserSubscriptions();
+        // Clear URL parameters
+        window.history.replaceState({}, '', `/${tenantSlug}/subscriptions`);
+      } else if (data.webhookError) {
+        setStatusMessage('⚠️ ' + data.message);
+        setCheckingStatus(false);
+        // Try manual sync as fallback
+        await handleManualSync();
+      } else {
+        // Keep polling
+        setTimeout(() => {
+          checkSubscriptionStatus(sessionId, attempt + 1, maxAttempts);
+        }, 2000); // Check every 2 seconds
+      }
+    } catch (error) {
+      console.error('Error checking subscription status:', error);
+      setStatusMessage('⚠️ Unable to confirm purchase. Please refresh the page.');
+      setCheckingStatus(false);
+    }
+  };
+
+  const handleManualSync = async () => {
+    setManualSyncLoading(true);
+    setStatusMessage('🔄 Syncing your passes...');
+    
+    try {
+      const response = await fetch('/api/user/sync-subscriptions', {
+        method: 'POST',
+        headers: {
+          'x-tenant-slug': tenantSlug,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.createdCount > 0) {
+          setStatusMessage(`✅ Found and activated ${data.createdCount} missing pass${data.createdCount > 1 ? 'es' : ''}!`);
+          await fetchUserSubscriptions();
+        } else if (data.skippedCount > 0) {
+          setStatusMessage('✅ All your passes are already synced.');
+        } else {
+          setStatusMessage('ℹ️ No missing passes found. If you just made a purchase, please wait a moment and try again.');
+        }
+      } else {
+        setStatusMessage('❌ Sync failed. Please try again or contact support.');
+      }
+    } catch (error) {
+      console.error('Error syncing subscriptions:', error);
+      setStatusMessage('❌ Sync failed. Please try again or contact support.');
+    } finally {
+      setManualSyncLoading(false);
+      // Clear message after 5 seconds
+      setTimeout(() => setStatusMessage(''), 5000);
+    }
+  };
 
   const handlePurchase = async (pass: PassData) => {
     try {
@@ -183,6 +279,9 @@ export default function SubscriptionsPage() {
         console.log('✅ Sync result:', data.message);
         if (data.createdCount > 0) {
           console.log(`🎉 Created ${data.createdCount} missing subscriptions!`);
+          // Show notification to user
+          setStatusMessage(`✅ Found ${data.createdCount} missing pass${data.createdCount > 1 ? 'es' : ''}!`);
+          setTimeout(() => setStatusMessage(''), 5000);
         }
       } else {
         console.error('❌ Failed to sync subscriptions:', response.statusText);
@@ -305,38 +404,87 @@ export default function SubscriptionsPage() {
       {/* User's Subscriptions with Tabs */}
       <SignedIn>
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+          {/* Status Message Banner */}
+          {(statusMessage || checkingStatus) && (
+            <div className={`mb-6 p-4 rounded-lg ${
+              statusMessage.includes('✅') ? 'bg-green-50 border border-green-200' :
+              statusMessage.includes('❌') ? 'bg-red-50 border border-red-200' :
+              statusMessage.includes('⚠️') ? 'bg-yellow-50 border border-yellow-200' :
+              'bg-blue-50 border border-blue-200'
+            }`}>
+              <div className="flex items-center justify-between">
+                <p className={`text-sm font-medium ${
+                  statusMessage.includes('✅') ? 'text-green-800' :
+                  statusMessage.includes('❌') ? 'text-red-800' :
+                  statusMessage.includes('⚠️') ? 'text-yellow-800' :
+                  'text-blue-800'
+                }`}>
+                  {statusMessage || 'Processing...'}
+                </p>
+                {checkingStatus && (
+                  <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-blue-500"></div>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="mb-8">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
                 Your Passes
               </h2>
               
-              {/* Tab Navigation */}
-              <div className="flex bg-gray-100 rounded-lg p-1">
+              {/* Tab Navigation and Manual Sync Button */}
+              <div className="flex items-center gap-4">
+                {/* Manual Sync Button */}
                 <button
-                  onClick={() => setActiveTab('active')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    activeTab === 'active'
-                      ? 'text-white shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                  style={activeTab === 'active' ? { backgroundColor: tenant.branding?.primaryColor || '#3B82F6' } : {}}
+                  onClick={handleManualSync}
+                  disabled={manualSyncLoading || checkingStatus}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  title="Sync missing passes from recent purchases"
                 >
-                  <CheckIcon className="h-4 w-4 inline mr-2" />
-                  Active ({activeSubscriptions.length})
+                  {manualSyncLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-gray-600"></div>
+                      Syncing...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Missing Pass?
+                    </>
+                  )}
                 </button>
-                <button
-                  onClick={() => setActiveTab('expired')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    activeTab === 'expired'
-                      ? 'text-white shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                  style={activeTab === 'expired' ? { backgroundColor: tenant.branding?.primaryColor || '#3B82F6' } : {}}
-                >
-                  <ClockIcon className="h-4 w-4 inline mr-2" />
-                  History ({expiredSubscriptions.length})
-                </button>
+
+                {/* Tab Navigation */}
+                <div className="flex bg-gray-100 rounded-lg p-1">
+                  <button
+                    onClick={() => setActiveTab('active')}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                      activeTab === 'active'
+                        ? 'text-white shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                    style={activeTab === 'active' ? { backgroundColor: tenant.branding?.primaryColor || '#3B82F6' } : {}}
+                  >
+                    <CheckIcon className="h-4 w-4 inline mr-2" />
+                    Active ({activeSubscriptions.length})
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('expired')}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                      activeTab === 'expired'
+                        ? 'text-white shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                    style={activeTab === 'expired' ? { backgroundColor: tenant.branding?.primaryColor || '#3B82F6' } : {}}
+                  >
+                    <ClockIcon className="h-4 w-4 inline mr-2" />
+                    History ({expiredSubscriptions.length})
+                  </button>
+                </div>
               </div>
             </div>
 

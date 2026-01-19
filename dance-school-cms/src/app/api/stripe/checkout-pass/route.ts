@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
       ],
       connectedAccountId: passData.tenant.stripeConnect.accountId,
       applicationFeePercent,
-      success_url: successUrl || `${request.nextUrl.origin}/${finalTenantSlug}/payment/success?session_id={CHECKOUT_SESSION_ID}&type=${upgradeInfo ? 'upgrade' : 'pass'}`,
+      success_url: successUrl || `${request.nextUrl.origin}/${finalTenantSlug}/subscriptions?success=true&session_id={CHECKOUT_SESSION_ID}&type=${upgradeInfo ? 'upgrade' : 'pass'}`,
       cancel_url: cancelUrl || `${request.nextUrl.origin}/${finalTenantSlug}/subscriptions`,
       metadata: sessionMetadata,
     });

@@ -73,9 +73,8 @@ async function createSubscriptionForUser() {
       }
     });
 
-    // For now, let's assume they bought the most common pass (single class)
-    // In a real scenario, you'd want to specify which pass they bought
-    const selectedPass = passes.find(p => p.type === 'single') || passes[0];
+    // User bought 3 Course Pass on October 13th
+    const selectedPass = passes.find(p => p.name === '3 COURSE PASS') || passes[0];
     
     console.log(`\n🎯 Creating subscription for: ${selectedPass.name}`);
 
@@ -91,9 +90,13 @@ async function createSubscriptionForUser() {
       return;
     }
 
-    // 5. Create the subscription
-    const now = new Date();
-    const endDate = new Date(now.getTime() + selectedPass.validityDays * 24 * 60 * 60 * 1000);
+    // 5. Create the subscription - user bought on October 13th
+    // Since validityDays is null for this pass, we need to determine the correct expiry
+    // Looking at other passes, 3 Course Pass seems to be a multi-pass with no fixed validity period
+    // Let's assume it expires at the end of the course period (approximately 8 weeks from purchase)
+    // But since today is October 27th, 8 weeks from Oct 13th would be Dec 8th
+    const purchaseDate = new Date('2025-10-13T00:00:00.000Z');
+    const endDate = new Date(purchaseDate.getTime() + (56 * 24 * 60 * 60 * 1000)); // 56 days = 8 weeks
 
     let subscriptionType;
     let remainingClips;
@@ -131,14 +134,14 @@ async function createSubscriptionForUser() {
         _ref: tenant._id,
       },
       type: subscriptionType,
-      startDate: now.toISOString(),
+      startDate: purchaseDate.toISOString(),
       endDate: endDate.toISOString(),
       remainingClips,
       passId: selectedPass._id,
       passName: selectedPass.name,
       purchasePrice: selectedPass.price,
-      stripePaymentId: 'manual_creation_' + Date.now(), // Placeholder
-      stripeSessionId: 'manual_session_' + Date.now(), // Placeholder
+      stripePaymentId: 'manual_creation_oct13_' + Date.now(), // Placeholder
+      stripeSessionId: 'manual_session_oct13_' + Date.now(), // Placeholder
       isActive: true,
     };
 

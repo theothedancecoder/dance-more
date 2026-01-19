@@ -30,12 +30,49 @@ export const config = {
   },
 };
 
+// Helper function to log webhook events to Sanity for monitoring
+async function logWebhookEvent(eventType, eventId, status, details = {}) {
+  try {
+    await sanityClient.create({
+      _type: 'webhookLog',
+      eventType,
+      eventId,
+      status, // 'success', 'error', 'processing'
+      details,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    // Don't fail webhook processing if logging fails
+    console.error('⚠️ Failed to log webhook event:', error.message);
+  }
+}
+
+// Helper function to retry failed operations
+async function retryOperation(operation, maxRetries = 3, delayMs = 1000) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      console.error(`❌ Attempt ${attempt}/${maxRetries} failed:`, error.message);
+      if (attempt === maxRetries) {
+        throw error;
+      }
+      // Wait before retrying (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, delayMs * attempt));
+    }
+  }
+}
+
 export async function POST(req) {
-  console.log('🔍 Webhook POST request received');
+  const startTime = Date.now();
+  console.log('🔍 Webhook POST request received at', new Date().toISOString());
   
   // Validate webhook secret exists
   if (!webhookSecret) {
     console.error('❌ STRIPE_WEBHOOK_SECRET not configured');
+    await logWebhookEvent('configuration_error', 'unknown', 'error', {
+      error: 'Webhook secret not configured'
+    });
     return new NextResponse('Webhook secret not configured', { status: 500 });
   }
 
@@ -43,6 +80,9 @@ export async function POST(req) {
   
   if (!sig) {
     console.error('❌ No Stripe signature header found');
+    await logWebhookEvent('signature_missing', 'unknown', 'error', {
+      error: 'No signature header'
+    });
     return new NextResponse('No signature header', { status: 400 });
   }
   
@@ -70,92 +110,135 @@ export async function POST(req) {
     console.error('❌ Webhook secret length:', webhookSecret?.length);
     console.error('❌ Body preview for debugging:', rawBody?.toString('utf8', 0, 200) || 'no body');
     
+    await logWebhookEvent('signature_verification_failed', 'unknown', 'error', {
+      error: err.message,
+      signatureLength: sig?.length,
+      bodyLength: rawBody?.length
+    });
+    
     // Return the exact error message from Stripe for debugging
     return new NextResponse(`Webhook Error: ${err.message}`, { status: 400 });
   }
 
   console.log(`✅ Received verified event: ${event.type} (${event.id})`);
+  
+  // Log the event
+  await logWebhookEvent(event.type, event.id, 'processing', {
+    sessionId: event.data.object.id,
+    metadata: event.data.object.metadata
+  });
 
-  // Handle the events you care about
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
-    console.log('💰 Checkout session completed:', session.id);
-    
-    // Process pass purchases and upgrades
-    if (session.metadata?.type === 'pass_purchase') {
-      await createSubscriptionFromSession(session);
-    } else if (session.metadata?.type === 'pass_upgrade') {
-      await handlePassUpgrade(session);
-    } else {
-      console.log('ℹ️ Skipping non-pass purchase/upgrade session');
+  try {
+    // Handle the events you care about
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      console.log('💰 Checkout session completed:', session.id);
+      
+      // Process pass purchases and upgrades
+      if (session.metadata?.type === 'pass_purchase') {
+        await createSubscriptionFromSession(session, event.id);
+      } else if (session.metadata?.type === 'pass_upgrade') {
+        await handlePassUpgrade(session, event.id);
+      } else {
+        console.log('ℹ️ Skipping non-pass purchase/upgrade session');
+      }
     }
-  }
 
-  // Handle charge.succeeded events
-  if (event.type === 'charge.succeeded') {
-    const charge = event.data.object;
-    console.log('💳 Charge succeeded:', charge.id);
-    await handleChargeSucceeded(charge);
-  }
+    // Handle charge.succeeded events
+    if (event.type === 'charge.succeeded') {
+      const charge = event.data.object;
+      console.log('💳 Charge succeeded:', charge.id);
+      await handleChargeSucceeded(charge, event.id);
+    }
 
-  return new NextResponse(null, { status: 200 });
+    const processingTime = Date.now() - startTime;
+    console.log(`✅ Webhook processed successfully in ${processingTime}ms`);
+    
+    await logWebhookEvent(event.type, event.id, 'success', {
+      processingTimeMs: processingTime,
+      sessionId: event.data.object.id
+    });
+
+    return new NextResponse(null, { status: 200 });
+  } catch (error) {
+    console.error('❌ Error processing webhook:', error);
+    
+    await logWebhookEvent(event.type, event.id, 'error', {
+      error: error.message,
+      stack: error.stack,
+      sessionId: event.data.object.id
+    });
+    
+    // Return 200 to prevent Stripe from retrying (we'll handle recovery via sync)
+    return new NextResponse(null, { status: 200 });
+  }
 }
 
-async function createSubscriptionFromSession(session) {
+async function createSubscriptionFromSession(session, eventId) {
   try {
     console.log('🎫 Creating subscription from session:', session.id);
     
-    // Check if subscription already exists
-    const existingSubscription = await sanityClient.fetch(
-      `*[_type == "subscription" && stripeSessionId == $sessionId][0]`,
-      { sessionId: session.id }
-    );
+    // IDEMPOTENCY CHECK: Check if subscription already exists (by session ID or payment ID)
+    const existingSubscription = await retryOperation(async () => {
+      return await sanityClient.fetch(
+        `*[_type == "subscription" && (stripeSessionId == $sessionId || stripePaymentId == $paymentId)][0]`,
+        { sessionId: session.id, paymentId: session.payment_intent }
+      );
+    });
 
     if (existingSubscription) {
-      console.log('✅ Subscription already exists for session:', session.id);
-      return;
+      console.log('✅ Subscription already exists for session:', session.id, '(ID:', existingSubscription._id + ')');
+      return { success: true, subscriptionId: existingSubscription._id, duplicate: true };
     }
 
     // Extract metadata
     const { passId, userId, tenantId } = session.metadata || {};
     
     if (!passId || !userId || !tenantId) {
-      console.error('❌ Missing required metadata in session:', { passId, userId, tenantId });
-      return;
+      const error = 'Missing required metadata in session';
+      console.error('❌', error, ':', { passId, userId, tenantId });
+      throw new Error(`${error}: passId=${passId}, userId=${userId}, tenantId=${tenantId}`);
     }
 
-    // Get pass details
-    const pass = await sanityClient.fetch(
-      `*[_type == "pass" && _id == $passId][0] {
-        _id, name, type, price, validityDays, classesLimit
-      }`,
-      { passId }
-    );
+    // Get pass details with retry
+    const pass = await retryOperation(async () => {
+      return await sanityClient.fetch(
+        `*[_type == "pass" && _id == $passId][0] {
+          _id, name, type, price, validityDays, classesLimit, validityType, expiryDate
+        }`,
+        { passId }
+      );
+    });
 
     if (!pass) {
-      console.error('❌ Pass not found:', passId);
-      return;
+      const error = 'Pass not found';
+      console.error('❌', error, ':', passId);
+      throw new Error(`${error}: ${passId}`);
     }
 
     console.log('✅ Found pass:', pass.name, '(' + pass.type + ')');
 
     // Ensure user exists - userId from metadata is the Clerk ID
-    let user = await sanityClient.fetch(
-      `*[_type == "user" && clerkId == $userId][0]`,
-      { userId }
-    );
+    let user = await retryOperation(async () => {
+      return await sanityClient.fetch(
+        `*[_type == "user" && clerkId == $userId][0]`,
+        { userId }
+      );
+    });
 
     if (!user) {
       console.log('👤 Creating user with Clerk ID:', userId);
-      user = await sanityClient.create({
-        _type: 'user',
-        clerkId: userId,
-        name: session.customer_details?.name || 'Customer',
-        email: session.customer_details?.email || session.customer_email || '',
-        role: 'student',
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+      user = await retryOperation(async () => {
+        return await sanityClient.create({
+          _type: 'user',
+          clerkId: userId,
+          name: session.customer_details?.name || 'Customer',
+          email: session.customer_details?.email || session.customer_email || '',
+          role: 'student',
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
       });
       console.log('✅ User created:', user._id);
     } else {
@@ -180,8 +263,9 @@ async function createSubscriptionFromSession(session) {
       endDate = new Date(now.getTime() + pass.validityDays * 24 * 60 * 60 * 1000);
       console.log('⚠️ Using fallback validityDays:', pass.validityDays, 'days ->', endDate.toISOString());
     } else {
-      console.error('❌ Pass has no valid expiry configuration:', { validityType: pass.validityType, validityDays: pass.validityDays, expiryDate: pass.expiryDate });
-      return;
+      const error = 'Pass has no valid expiry configuration';
+      console.error('❌', error, ':', { validityType: pass.validityType, validityDays: pass.validityDays, expiryDate: pass.expiryDate });
+      throw new Error(`${error}: ${JSON.stringify({ validityType: pass.validityType, validityDays: pass.validityDays })}`);
     }
 
     let subscriptionType;
@@ -205,11 +289,12 @@ async function createSubscriptionFromSession(session) {
         remainingClips = undefined;
         break;
       default:
-        console.error('❌ Invalid pass type:', pass.type);
-        return;
+        const error = 'Invalid pass type';
+        console.error('❌', error, ':', pass.type);
+        throw new Error(`${error}: ${pass.type}`);
     }
 
-    // Create subscription
+    // Create subscription with retry
     const subscriptionData = {
       _type: 'subscription',
       user: {
@@ -229,7 +314,9 @@ async function createSubscriptionFromSession(session) {
       purchasePrice: session.amount_total ? session.amount_total / 100 : pass.price,
       stripePaymentId: session.payment_intent,
       stripeSessionId: session.id,
+      webhookEventId: eventId, // Track which webhook created this
       isActive: true,
+      createdViaWebhook: true,
     };
 
     console.log('📝 Creating subscription for', user.name + ':');
@@ -237,18 +324,42 @@ async function createSubscriptionFromSession(session) {
     console.log('   Classes:', remainingClips || 'Unlimited');
     console.log('   Valid until:', endDate.toLocaleDateString());
 
-    const createdSubscription = await sanityClient.create(subscriptionData);
+    const createdSubscription = await retryOperation(async () => {
+      return await sanityClient.create(subscriptionData);
+    });
+    
     console.log('🎉 SUCCESS! Created subscription:', createdSubscription._id);
     console.log('✅', user.name, 'can now see their', pass.name, 'pass in "Your Active Passes"');
 
+    return { success: true, subscriptionId: createdSubscription._id, duplicate: false };
+
   } catch (error) {
     console.error('❌ Error creating subscription from webhook:', error);
+    console.error('❌ Session ID:', session.id);
+    console.error('❌ Error details:', error.message);
+    console.error('❌ Stack trace:', error.stack);
+    
+    // Re-throw to be caught by the main webhook handler
+    throw error;
   }
 }
 
-async function handlePassUpgrade(session) {
+async function handlePassUpgrade(session, eventId) {
   try {
     console.log('🔄 Processing pass upgrade from session:', session.id);
+    
+    // IDEMPOTENCY CHECK: Check if upgrade already processed
+    const existingUpgrade = await retryOperation(async () => {
+      return await sanityClient.fetch(
+        `*[_type == "subscription" && (stripeSessionId == $sessionId || stripePaymentId == $paymentId) && isUpgrade == true][0]`,
+        { sessionId: session.id, paymentId: session.payment_intent }
+      );
+    });
+
+    if (existingUpgrade) {
+      console.log('✅ Upgrade already processed for session:', session.id, '(ID:', existingUpgrade._id + ')');
+      return { success: true, subscriptionId: existingUpgrade._id, duplicate: true };
+    }
     
     // Extract metadata
     const { 
@@ -262,8 +373,9 @@ async function handlePassUpgrade(session) {
     } = session.metadata || {};
     
     if (!passId || !userId || !tenantId || !upgradeFromSubscriptionId) {
-      console.error('❌ Missing required upgrade metadata:', { passId, userId, tenantId, upgradeFromSubscriptionId });
-      return;
+      const error = 'Missing required upgrade metadata';
+      console.error('❌', error, ':', { passId, userId, tenantId, upgradeFromSubscriptionId });
+      throw new Error(`${error}: passId=${passId}, userId=${userId}, tenantId=${tenantId}, upgradeFromSubscriptionId=${upgradeFromSubscriptionId}`);
     }
 
     console.log('📋 Upgrade details:');
@@ -273,28 +385,34 @@ async function handlePassUpgrade(session) {
     console.log('   New price:', newPassPrice, 'NOK');
     console.log('   Upgrade cost:', upgradeCost, 'NOK');
 
-    // Get the current subscription
-    const currentSubscription = await sanityClient.fetch(
-      `*[_type == "subscription" && _id == $subscriptionId][0]`,
-      { subscriptionId: upgradeFromSubscriptionId }
-    );
+    // Get the current subscription with retry
+    const currentSubscription = await retryOperation(async () => {
+      return await sanityClient.fetch(
+        `*[_type == "subscription" && _id == $subscriptionId][0]`,
+        { subscriptionId: upgradeFromSubscriptionId }
+      );
+    });
 
     if (!currentSubscription) {
-      console.error('❌ Current subscription not found:', upgradeFromSubscriptionId);
-      return;
+      const error = 'Current subscription not found';
+      console.error('❌', error, ':', upgradeFromSubscriptionId);
+      throw new Error(`${error}: ${upgradeFromSubscriptionId}`);
     }
 
-    // Get the new pass details
-    const newPass = await sanityClient.fetch(
-      `*[_type == "pass" && _id == $passId][0] {
-        _id, name, type, price, validityDays, classesLimit, validityType, expiryDate
-      }`,
-      { passId }
-    );
+    // Get the new pass details with retry
+    const newPass = await retryOperation(async () => {
+      return await sanityClient.fetch(
+        `*[_type == "pass" && _id == $passId][0] {
+          _id, name, type, price, validityDays, classesLimit, validityType, expiryDate
+        }`,
+        { passId }
+      );
+    });
 
     if (!newPass) {
-      console.error('❌ New pass not found:', passId);
-      return;
+      const error = 'New pass not found';
+      console.error('❌', error, ':', passId);
+      throw new Error(`${error}: ${passId}`);
     }
 
     console.log('✅ Found new pass:', newPass.name, '(' + newPass.type + ')');
@@ -314,8 +432,9 @@ async function handlePassUpgrade(session) {
       endDate = new Date(now.getTime() + newPass.validityDays * 24 * 60 * 60 * 1000);
       console.log('⚠️ Using fallback validityDays:', newPass.validityDays, 'days ->', endDate.toISOString());
     } else {
-      console.error('❌ New pass has no valid expiry configuration');
-      return;
+      const error = 'New pass has no valid expiry configuration';
+      console.error('❌', error);
+      throw new Error(`${error}: ${JSON.stringify({ validityType: newPass.validityType, validityDays: newPass.validityDays })}`);
     }
 
     let subscriptionType;
@@ -339,24 +458,27 @@ async function handlePassUpgrade(session) {
         remainingClips = undefined;
         break;
       default:
-        console.error('❌ Invalid new pass type:', newPass.type);
-        return;
+        const error = 'Invalid new pass type';
+        console.error('❌', error, ':', newPass.type);
+        throw new Error(`${error}: ${newPass.type}`);
     }
 
-    // Deactivate the old subscription
-    await sanityClient
-      .patch(upgradeFromSubscriptionId)
-      .set({ 
-        isActive: false,
-        upgradedAt: now.toISOString(),
-        upgradedToPassId: newPass._id,
-        upgradedToPassName: newPass.name
-      })
-      .commit();
+    // Deactivate the old subscription with retry
+    await retryOperation(async () => {
+      return await sanityClient
+        .patch(upgradeFromSubscriptionId)
+        .set({ 
+          isActive: false,
+          upgradedAt: now.toISOString(),
+          upgradedToPassId: newPass._id,
+          upgradedToPassName: newPass.name
+        })
+        .commit();
+    });
 
     console.log('✅ Deactivated old subscription:', upgradeFromSubscriptionId);
 
-    // Create new subscription with upgraded pass
+    // Create new subscription with upgraded pass (with retry)
     const newSubscriptionData = {
       _type: 'subscription',
       user: {
@@ -376,10 +498,12 @@ async function handlePassUpgrade(session) {
       purchasePrice: parseFloat(newPassPrice) || newPass.price,
       stripePaymentId: session.payment_intent,
       stripeSessionId: session.id,
+      webhookEventId: eventId, // Track which webhook created this
       isActive: true,
       isUpgrade: true,
       upgradedFromSubscriptionId: upgradeFromSubscriptionId,
       upgradeCost: parseFloat(upgradeCost) || 0,
+      createdViaWebhook: true,
     };
 
     console.log('📝 Creating upgraded subscription:');
@@ -387,26 +511,44 @@ async function handlePassUpgrade(session) {
     console.log('   Classes:', remainingClips || 'Unlimited');
     console.log('   Valid until:', endDate.toLocaleDateString());
 
-    const createdSubscription = await sanityClient.create(newSubscriptionData);
+    const createdSubscription = await retryOperation(async () => {
+      return await sanityClient.create(newSubscriptionData);
+    });
+    
     console.log('🎉 SUCCESS! Created upgraded subscription:', createdSubscription._id);
     console.log('✅ Pass upgrade completed successfully');
 
+    return { success: true, subscriptionId: createdSubscription._id, duplicate: false };
+
   } catch (error) {
     console.error('❌ Error handling pass upgrade:', error);
+    console.error('❌ Session ID:', session.id);
+    console.error('❌ Error details:', error.message);
+    console.error('❌ Stack trace:', error.stack);
+    
+    // Re-throw to be caught by the main webhook handler
+    throw error;
   }
 }
 
-async function handleChargeSucceeded(charge) {
+async function handleChargeSucceeded(charge, eventId) {
   try {
     console.log('💳 Processing charge.succeeded event:', charge.id);
     console.log('   Amount:', charge.amount / 100, charge.currency.toUpperCase());
     console.log('   Customer:', charge.customer);
     console.log('   Payment Intent:', charge.payment_intent);
     
-    // Log the charge for debugging
+    // Log the charge for debugging and monitoring
     console.log('✅ Charge processed successfully');
+    
+    return { success: true, chargeId: charge.id };
     
   } catch (error) {
     console.error('❌ Error handling charge.succeeded:', error);
+    console.error('❌ Charge ID:', charge.id);
+    console.error('❌ Error details:', error.message);
+    
+    // Re-throw to be caught by the main webhook handler
+    throw error;
   }
 }
