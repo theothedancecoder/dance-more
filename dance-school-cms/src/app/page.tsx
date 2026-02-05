@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import CookiePolicy from '@/components/CookiePolicy';
 import TenantSearch from '@/components/TenantSearch';
+import FloatingHearts from '@/components/FloatingHearts'; // VALENTINE'S DAY - Remove after season
 
 export default function HomePage() {
   const { tenant, isLoading } = useTenant();
@@ -73,7 +74,10 @@ export default function HomePage() {
   // If we have a tenant context (subdomain or path), show the tenant-specific landing page
   if (tenant) {
     return (
-      <div className="min-h-screen gradient-cosmic pattern-dots">
+      <div className="min-h-screen gradient-cosmic pattern-dots relative">
+        {/* VALENTINE'S DAY - Remove after season */}
+        <FloatingHearts />
+        
         <Navigation />
         
         {/* Hero Section */}
@@ -93,7 +97,7 @@ export default function HomePage() {
                 </div>
               )}
               <h1 className="text-4xl sm:text-5xl lg:text-7xl font-black mb-8 text-white animate-slide-up">
-                Welcome to <span className="text-gradient-alt">{tenant.schoolName}</span>
+                Welcome to <span className="text-gradient-valentine">{tenant.schoolName}</span> {/* VALENTINE'S: Added valentine gradient */}
               </h1>
               <p className="text-xl sm:text-2xl text-white/90 max-w-4xl mx-auto leading-relaxed animate-slide-up-delay mb-12">
                 {tenant.description || 'Join our vibrant dance community and discover your passion through movement'}
@@ -145,14 +149,15 @@ export default function HomePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             <Link
               href="/classes"
-              className="modern-card p-8 rounded-3xl hover-lift transition-smooth animate-slide-in-left animate-stagger-1"
+              className="valentine-card p-8 rounded-3xl hover-lift transition-smooth animate-slide-in-left animate-stagger-1"
             >
-              <div className="flex items-center justify-center w-16 h-16 rounded-2xl mb-6 mx-auto gradient-purple-blue">
+              {/* VALENTINE'S: Changed to valentine-card and gradient-valentine */}
+              <div className="flex items-center justify-center w-16 h-16 rounded-2xl mb-6 mx-auto gradient-valentine">
                 <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                 </svg>
               </div>
-              <h3 className="text-2xl font-bold mb-4 text-center text-gradient">
+              <h3 className="text-2xl font-bold mb-4 text-center text-gradient-valentine">
                 Our Classes
               </h3>
               <p className="text-gray-600 text-center text-lg leading-relaxed">
@@ -162,14 +167,15 @@ export default function HomePage() {
             
             <Link
               href="/calendar"
-              className="modern-card p-8 rounded-3xl hover-lift transition-smooth animate-slide-in-left animate-stagger-2"
+              className="valentine-card p-8 rounded-3xl hover-lift transition-smooth animate-slide-in-left animate-stagger-2"
             >
-              <div className="flex items-center justify-center w-16 h-16 rounded-2xl mb-6 mx-auto gradient-pink-orange">
+              {/* VALENTINE'S: Changed to valentine-card and gradient-valentine-soft */}
+              <div className="flex items-center justify-center w-16 h-16 rounded-2xl mb-6 mx-auto gradient-valentine-soft">
                 <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
-              <h3 className="text-2xl font-bold mb-4 text-center text-gradient">
+              <h3 className="text-2xl font-bold mb-4 text-center text-gradient-valentine">
                 Class Schedule
               </h3>
               <p className="text-gray-600 text-center text-lg leading-relaxed">
@@ -179,14 +185,15 @@ export default function HomePage() {
             
             <Link
               href="/subscriptions"
-              className="modern-card p-8 rounded-3xl hover-lift transition-smooth animate-slide-in-left animate-stagger-3 sm:col-span-2 lg:col-span-1"
+              className="valentine-card p-8 rounded-3xl hover-lift transition-smooth animate-slide-in-left animate-stagger-3 sm:col-span-2 lg:col-span-1"
             >
-              <div className="flex items-center justify-center w-16 h-16 rounded-2xl mb-6 mx-auto gradient-blue-purple">
+              {/* VALENTINE'S: Changed to valentine-card and gradient-valentine-romantic */}
+              <div className="flex items-center justify-center w-16 h-16 rounded-2xl mb-6 mx-auto gradient-valentine-romantic">
                 <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                 </svg>
               </div>
-              <h3 className="text-2xl font-bold mb-4 text-center text-gradient">
+              <h3 className="text-2xl font-bold mb-4 text-center text-gradient-valentine">
                 Flexible Passes
               </h3>
               <p className="text-gray-600 text-center text-lg leading-relaxed">
@@ -199,9 +206,10 @@ export default function HomePage() {
         {/* CTA Section */}
         <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
           <SignedOut>
-            <div className="glass-card rounded-3xl p-12 text-center animate-scale-in">
+            <div className="valentine-glass rounded-3xl p-12 text-center animate-scale-in valentine-shimmer">
+              {/* VALENTINE'S: Changed to valentine-glass and added shimmer */}
               <h2 className="text-3xl sm:text-4xl font-bold mb-6 text-gray-800">
-                Ready to Start Your <span className="text-gradient-alt">Dance Journey?</span>
+                Ready to Start Your <span className="text-gradient-valentine">Dance Journey?</span>
               </h2>
               <p className="text-xl text-gray-700 mb-10 max-w-2xl mx-auto leading-relaxed">
                 Join thousands of dancers who have discovered their passion with us. Your transformation begins today!
@@ -228,7 +236,10 @@ export default function HomePage() {
 
   // Platform homepage - show different content based on user state
   return (
-    <div className="min-h-screen gradient-cosmic pattern-grid">
+    <div className="min-h-screen gradient-cosmic pattern-grid relative">
+      {/* VALENTINE'S DAY - Remove after season */}
+      <FloatingHearts />
+      
       <Navigation />
       
       <main className="relative overflow-hidden">
@@ -242,7 +253,7 @@ export default function HomePage() {
               {userTenants.length > 0 ? (
                 <div className="text-center">
                   <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-gray-800 mb-8 animate-slide-up">
-                    Welcome Back to <span className="text-gradient-alt">Dance-More</span>
+                    Welcome Back to <span className="text-gradient-valentine">Dance-More</span> {/* VALENTINE'S: Added valentine gradient */}
                   </h1>
                   <p className="text-xl sm:text-2xl text-gray-700 max-w-3xl mx-auto mb-8 animate-slide-up-delay">
                     Access your dance school management portal and continue building your community.
@@ -305,7 +316,7 @@ export default function HomePage() {
                 /* Signed-in users without tenants */
                 <div className="text-center">
                   <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-gray-800 mb-8 animate-slide-up">
-                    Welcome to <span className="text-gradient-alt">Dance-More CMS</span>
+                    Welcome to <span className="text-gradient-valentine">Dance-More CMS</span> {/* VALENTINE'S: Added valentine gradient */}
                   </h1>
                   <p className="text-xl sm:text-2xl text-gray-700 max-w-4xl mx-auto mb-8 animate-slide-up-delay">
                     You're signed in! Ready to create your dance school portal and start building your community?
@@ -328,7 +339,7 @@ export default function HomePage() {
                 {/* Search Section */}
                 <div className="text-center mb-12">
                   <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-gray-800 mb-8 animate-slide-up">
-                    Find Your Perfect <span className="text-gradient-alt">Dance School</span>
+                    Find Your Perfect <span className="text-gradient-valentine">Dance School</span> {/* VALENTINE'S: Added valentine gradient */}
                   </h1>
                   <p className="text-xl sm:text-2xl text-gray-700 max-w-4xl mx-auto mb-8 animate-slide-up-delay">
                     Discover amazing dance schools in your area or explore our platform for dance school management.
@@ -377,7 +388,7 @@ export default function HomePage() {
                   <div className="space-y-6">
                     <div className="text-center lg:text-left mb-8">
                       <h2 className="text-3xl font-bold text-gray-800 mb-4">
-                        For <span className="text-gradient-alt">Dance School Owners</span>
+                        For <span className="text-gradient-valentine">Dance School Owners</span> {/* VALENTINE'S: Added valentine gradient */}
                       </h2>
                       <p className="text-lg text-gray-600">
                         Create your own branded dance school portal with powerful management tools.
@@ -385,43 +396,46 @@ export default function HomePage() {
                     </div>
                     
                     <div className="space-y-4">
-                      <div className="modern-card p-6 rounded-2xl hover-lift transition-smooth animate-slide-in-left animate-stagger-1">
+                      <div className="valentine-card p-6 rounded-2xl hover-lift transition-smooth animate-slide-in-left animate-stagger-1">
+                        {/* VALENTINE'S: Changed to valentine-card and gradient-valentine */}
                         <div className="flex items-center gap-4">
-                          <div className="flex items-center justify-center w-12 h-12 rounded-xl gradient-purple-blue flex-shrink-0">
+                          <div className="flex items-center justify-center w-12 h-12 rounded-xl gradient-valentine flex-shrink-0">
                             <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
                             </svg>
                           </div>
                           <div>
-                            <h3 className="text-lg font-bold text-gradient mb-1">Custom Branding</h3>
+                            <h3 className="text-lg font-bold text-gradient-valentine mb-1">Custom Branding</h3>
                             <p className="text-gray-600 text-sm leading-relaxed">Your own branded portal with custom logo, colors, and subdomain.</p>
                           </div>
                         </div>
                       </div>
 
-                      <div className="modern-card p-6 rounded-2xl hover-lift transition-smooth animate-slide-in-left animate-stagger-2">
+                      <div className="valentine-card p-6 rounded-2xl hover-lift transition-smooth animate-slide-in-left animate-stagger-2">
+                        {/* VALENTINE'S: Changed to valentine-card and gradient-valentine-soft */}
                         <div className="flex items-center gap-4">
-                          <div className="flex items-center justify-center w-12 h-12 rounded-xl gradient-pink-orange flex-shrink-0">
+                          <div className="flex items-center justify-center w-12 h-12 rounded-xl gradient-valentine-soft flex-shrink-0">
                             <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                           </div>
                           <div>
-                            <h3 className="text-lg font-bold text-gradient mb-1">Online Booking</h3>
+                            <h3 className="text-lg font-bold text-gradient-valentine mb-1">Online Booking</h3>
                             <p className="text-gray-600 text-sm leading-relaxed">Streamlined class scheduling with integrated booking and capacity management.</p>
                           </div>
                         </div>
                       </div>
 
-                      <div className="modern-card p-6 rounded-2xl hover-lift transition-smooth animate-slide-in-left animate-stagger-3">
+                      <div className="valentine-card p-6 rounded-2xl hover-lift transition-smooth animate-slide-in-left animate-stagger-3">
+                        {/* VALENTINE'S: Changed to valentine-card and gradient-valentine-romantic */}
                         <div className="flex items-center gap-4">
-                          <div className="flex items-center justify-center w-12 h-12 rounded-xl gradient-blue-purple flex-shrink-0">
+                          <div className="flex items-center justify-center w-12 h-12 rounded-xl gradient-valentine-romantic flex-shrink-0">
                             <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 515.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                             </svg>
                           </div>
                           <div>
-                            <h3 className="text-lg font-bold text-gradient mb-1">Student Management</h3>
+                            <h3 className="text-lg font-bold text-gradient-valentine mb-1">Student Management</h3>
                             <p className="text-gray-600 text-sm leading-relaxed">Complete student portal with booking and progress tracking.</p>
                           </div>
                         </div>
@@ -438,9 +452,10 @@ export default function HomePage() {
         {/* Additional CTA for non-signed-in users */}
         <SignedOut>
           <section className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="glass-card p-8 rounded-3xl text-center animate-scale-in">
+            <div className="valentine-glass p-8 rounded-3xl text-center animate-scale-in valentine-shimmer">
+              {/* VALENTINE'S: Changed to valentine-glass and added shimmer */}
               <h2 className="text-2xl sm:text-3xl font-bold mb-4 text-gray-800">
-                Ready to <span className="text-gradient-alt">Transform</span> Your Dance School?
+                Ready to <span className="text-gradient-valentine">Transform</span> Your Dance School?
               </h2>
               <p className="text-lg text-gray-700 mb-6 max-w-xl mx-auto leading-relaxed">
                 Join hundreds of dance schools already using Dance-More.
