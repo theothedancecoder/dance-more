@@ -182,39 +182,39 @@ Happy dancing!
 
 ---
 
-## ✅ SOLUTION IMPLEMENTED:
+## ✅ CORRECT SOLUTION:
 
-### vercel.json Configuration Updated
+### The Root Cause
+The `vercel.json` file **CANNOT** set the root directory for framework detection. This must be configured in the **Vercel Dashboard Settings**.
 
-The `vercel.json` file has been updated to include the `rootDirectory` setting:
+### Why vercel.json Didn't Work
+1. First attempt: `rootDirectory` property caused schema validation error
+2. Second attempt: `cd` commands in build/install worked, but Vercel still looked for Next.js in the root directory
+3. **Conclusion**: Framework detection happens BEFORE custom build commands run
 
-```json
-{
-  "buildCommand": "npm run build",
-  "devCommand": "npm run dev", 
-  "installCommand": "npm install",
-  "outputDirectory": ".next",
-  "framework": "nextjs",
-  "rootDirectory": "dance-school-cms"
-}
-```
+### The Proper Fix: Vercel Dashboard Configuration
 
-### Next Steps:
+**You must configure this in the Vercel Dashboard:**
 
-1. **Commit and push the changes:**
-   ```bash
-   git add vercel.json
-   git commit -m "Fix: Add rootDirectory to vercel.json for deployment"
-   git push origin main
-   ```
+1. Go to: https://vercel.com/dashboard
+2. Select your project
+3. Go to: **Settings** → **General**
+4. Find: **Root Directory**
+5. Click: **Edit**
+6. Set to: `dance-school-cms`
+7. Click: **Save**
+8. Go to **Deployments** and click **Redeploy**
 
-2. **Vercel will automatically deploy** when you push to the main branch
+### Detailed Instructions
+See: [VERCEL_DASHBOARD_SETUP.md](./VERCEL_DASHBOARD_SETUP.md) for step-by-step guide with screenshots.
 
-3. **Monitor the deployment:**
-   - Go to: https://vercel.com/dashboard
-   - Check the deployment logs
-   - Verify Next.js 15.3.4 is detected
+### What This Does
+- Tells Vercel to treat `dance-school-cms` as the project root
+- Vercel will detect Next.js from `dance-school-cms/package.json`
+- All build commands automatically run from that directory
+- No `vercel.json` file needed
 
-**Status:** ✅ FIXED - vercel.json updated with rootDirectory
-**Priority:** HIGH - Ready for deployment
-**Action Required:** Commit and push changes to trigger deployment
+**Status:** ⚠️ REQUIRES MANUAL DASHBOARD CONFIGURATION
+**Priority:** HIGH - Blocking deployment
+**Action Required:** Update Root Directory setting in Vercel Dashboard
+**Estimated Time:** 2 minutes
