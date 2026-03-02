@@ -29,9 +29,9 @@ const nextConfig = {
   // Ensure proper handling of dynamic routes
   trailingSlash: false,
   // Optimize for Vercel deployment
+  serverExternalPackages: ['stripe'],
   experimental: {
     optimizePackageImports: ['@clerk/nextjs', '@sanity/client'],
-    serverComponentsExternalPackages: ['stripe'],
   },
   // CRITICAL: Disable body parsing for webhook routes to preserve raw body
   async rewrites() {

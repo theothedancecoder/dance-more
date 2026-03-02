@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from '@clerk/nextjs';
 import { TenantProvider } from '@/contexts/TenantContext';
-import ValentinesBanner from '@/components/ValentinesBanner'; // VALENTINE'S DAY - Remove after season
 import "./globals.css";
 import "./animations.css";
 
@@ -65,9 +64,6 @@ export default function RootLayout({
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
           suppressHydrationWarning={true}
         >
-          {/* VALENTINE'S DAY - Remove after season */}
-          <ValentinesBanner />
-          
           <TenantProvider>
             {children}
           </TenantProvider>

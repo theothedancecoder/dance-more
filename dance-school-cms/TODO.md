@@ -182,3 +182,14 @@ Check webhook logs in Sanity Studio for detailed error information
 **Priority**: HIGH - Customer-facing issue  
 **Confidence**: HIGH - Multi-layer defense system  
 **Next Step**: Manual testing and deployment
+
+---
+
+# Valentine's Theme Removal
+
+## Tasks
+- [ ] Delete `src/components/ValentinesBanner.tsx`
+- [ ] Delete `src/components/FloatingHearts.tsx`
+- [ ] Update `src/app/layout.tsx` - remove import + `<ValentinesBanner />`
+- [ ] Update `src/app/page.tsx` - remove FloatingHearts, revert all Valentine's CSS classes
+- [ ] Update `src/app/globals.css` - remove entire Valentine's CSS section
