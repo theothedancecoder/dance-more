@@ -76,7 +76,8 @@ export default function SubscriptionsPage() {
     const sessionId = urlParams.get('session_id');
     
     if (success === 'true' && sessionId) {
-      // Start polling for subscription status
+      setStatusMessage('Processing your purchase...');
+      setCheckingStatus(true);
       checkSubscriptionStatus(sessionId);
     }
   }, []);
@@ -87,9 +88,6 @@ export default function SubscriptionsPage() {
       setCheckingStatus(false);
       return;
     }
-
-    setCheckingStatus(true);
-    setStatusMessage(`⏳ Confirming your purchase... (${attempt}/${maxAttempts})`);
 
     try {
       const response = await fetch('/api/user/subscription-status', {
@@ -120,8 +118,7 @@ export default function SubscriptionsPage() {
           checkSubscriptionStatus(sessionId, attempt + 1, maxAttempts);
         }, 2000); // Check every 2 seconds
       }
-    } catch (error) {
-      console.error('Error checking subscription status:', error);
+    } catch {
       setStatusMessage('⚠️ Unable to confirm purchase. Please refresh the page.');
       setCheckingStatus(false);
     }
@@ -152,8 +149,7 @@ export default function SubscriptionsPage() {
       } else {
         setStatusMessage('❌ Sync failed. Please try again or contact support.');
       }
-    } catch (error) {
-      console.error('Error syncing subscriptions:', error);
+    } catch {
       setStatusMessage('❌ Sync failed. Please try again or contact support.');
     } finally {
       setManualSyncLoading(false);
@@ -187,8 +183,7 @@ export default function SubscriptionsPage() {
       } else {
         throw new Error(data.error || 'Failed to create checkout session');
       }
-    } catch (error) {
-      console.error('Purchase error:', error);
+    } catch {
       alert('Failed to process purchase. Please try again.');
     }
   };
@@ -215,11 +210,9 @@ export default function SubscriptionsPage() {
         const data = await response.json();
         setUpgradeOptions(data.upgradeOptions || []);
       } else {
-        console.error('Failed to fetch upgrade options');
         setUpgradeOptions([]);
       }
-    } catch (error) {
-      console.error('Error fetching upgrade options:', error);
+    } catch {
       setUpgradeOptions([]);
     } finally {
       setUpgradeLoading(false);
@@ -256,8 +249,7 @@ export default function SubscriptionsPage() {
       } else {
         throw new Error(data.error || 'Failed to create upgrade checkout session');
       }
-    } catch (error) {
-      console.error('Upgrade error:', error);
+    } catch {
       alert('Failed to process upgrade. Please try again.');
     } finally {
       setUpgradeLoading(false);
@@ -266,7 +258,6 @@ export default function SubscriptionsPage() {
 
   const syncMissingSubscriptions = async () => {
     try {
-      console.log('🔄 Syncing missing subscriptions...');
       const response = await fetch('/api/user/sync-subscriptions', {
         method: 'POST',
         headers: {
@@ -276,47 +267,33 @@ export default function SubscriptionsPage() {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Sync result:', data.message);
         if (data.createdCount > 0) {
-          console.log(`🎉 Created ${data.createdCount} missing subscriptions!`);
-          // Show notification to user
           setStatusMessage(`✅ Found ${data.createdCount} missing pass${data.createdCount > 1 ? 'es' : ''}!`);
           setTimeout(() => setStatusMessage(''), 5000);
         }
-      } else {
-        console.error('❌ Failed to sync subscriptions:', response.statusText);
       }
-    } catch (err) {
-      console.error('❌ Error syncing subscriptions:', err);
+    } catch {
+      // Silent fail — sync is a background operation
     }
   };
 
   const fetchUserSubscriptions = async () => {
     try {
-      console.log('Fetching user subscriptions for tenant:', tenantSlug);
       const response = await fetch('/api/user/subscriptions', {
         headers: {
           'x-tenant-slug': tenantSlug,
         },
       });
 
-      console.log('User subscriptions response status:', response.status);
-      
       if (response.ok) {
         const data = await response.json();
-        console.log('User subscriptions data:', data);
-        console.log('Active subscriptions:', data.activeSubscriptions);
-        console.log('Expired subscriptions:', data.expiredSubscriptions);
         setActiveSubscriptions(data.activeSubscriptions || []);
         setExpiredSubscriptions(data.expiredSubscriptions || []);
       } else {
-        const errorData = await response.text();
-        console.error('Failed to fetch user subscriptions:', response.statusText, errorData);
         setActiveSubscriptions([]);
         setExpiredSubscriptions([]);
       }
-    } catch (err) {
-      console.error('Error fetching user subscriptions:', err);
+    } catch {
       setActiveSubscriptions([]);
       setExpiredSubscriptions([]);
     }
@@ -335,11 +312,9 @@ export default function SubscriptionsPage() {
           const data = await response.json();
           setPasses(data.passes || []);
         } else {
-          console.error('Failed to fetch passes:', response.statusText);
           setPasses([]);
         }
-      } catch (err) {
-        console.error('Error fetching passes:', err);
+      } catch {
         setPasses([]);
       } finally {
         setLoading(false);
@@ -386,7 +361,7 @@ export default function SubscriptionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
       {/* Hero Section */}
       <section className="relative py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -428,37 +403,43 @@ export default function SubscriptionsPage() {
             </div>
           )}
 
+          {/* Pass Expiry Warnings */}
+          {activeSubscriptions.some(s => s.daysRemaining <= 3 || (s.remainingClips !== undefined && s.remainingClips <= 2)) && (
+            <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+              <div className="flex items-start gap-3">
+                <svg className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div>
+                  <p className="text-sm font-semibold text-amber-800">Your pass is running low</p>
+                  {activeSubscriptions.filter(s => s.daysRemaining <= 3 || (s.remainingClips !== undefined && s.remainingClips <= 2)).map(s => (
+                    <p key={s._id} className="text-sm text-amber-700 mt-1">
+                      <span className="font-medium">{s.passName}</span>
+                      {s.remainingClips !== undefined && s.remainingClips <= 2
+                        ? ` — only ${s.remainingClips} class${s.remainingClips !== 1 ? 'es' : ''} remaining`
+                        : ` — expires in ${s.daysRemaining} day${s.daysRemaining !== 1 ? 's' : ''}`}
+                    </p>
+                  ))}
+                  <a
+                    href="#passes"
+                    onClick={e => { e.preventDefault(); document.querySelector('#passes')?.scrollIntoView({ behavior: 'smooth' }); }}
+                    className="inline-block mt-2 text-sm font-medium text-amber-800 underline hover:no-underline"
+                  >
+                    Renew or upgrade your pass →
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="mb-8">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
                 Your Passes
               </h2>
               
-              {/* Tab Navigation and Manual Sync Button */}
+              {/* Tab Navigation */}
               <div className="flex items-center gap-4">
-                {/* Manual Sync Button */}
-                <button
-                  onClick={handleManualSync}
-                  disabled={manualSyncLoading || checkingStatus}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  title="Sync missing passes from recent purchases"
-                >
-                  {manualSyncLoading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-gray-600"></div>
-                      Syncing...
-                    </>
-                  ) : (
-                    <>
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                      Missing Pass?
-                    </>
-                  )}
-                </button>
-
-                {/* Tab Navigation */}
                 <div className="flex bg-gray-100 rounded-lg p-1">
                   <button
                     onClick={() => setActiveTab('active')}

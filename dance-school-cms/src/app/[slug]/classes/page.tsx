@@ -29,6 +29,7 @@ export default function ClassesPage() {
   const { tenant, isLoading, error } = useTenant();
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState<string>('all');
 
   const tenantSlug = params.slug as string;
 
@@ -36,16 +37,13 @@ export default function ClassesPage() {
     const fetchClasses = async () => {
       try {
         const response = await fetch(`/api/classes/public?tenantSlug=${tenantSlug}`);
-
         if (response.ok) {
           const data = await response.json();
           setClasses(data.classes || []);
         } else {
-          console.error('Failed to fetch classes:', response.statusText);
           setClasses([]);
         }
-      } catch (err) {
-        console.error('Error fetching classes:', err);
+      } catch {
         setClasses([]);
       } finally {
         setLoading(false);
@@ -85,60 +83,7 @@ export default function ClassesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4 sm:py-6">
-            <div>
-              <Link href={`/${tenantSlug}`} className="text-xl sm:text-2xl font-bold" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
-                {tenant.schoolName}
-              </Link>
-            </div>
-            {/* Desktop Navigation */}
-            <nav className="hidden md:flex space-x-8">
-              <Link href={`/${tenantSlug}`} className="text-gray-500 hover:text-gray-900">Home</Link>
-              <Link href={`/${tenantSlug}/classes`} className="text-gray-900 font-medium">Classes</Link>
-              <Link href={`/${tenantSlug}/calendar`} className="text-gray-500 hover:text-gray-900">Calendar</Link>
-              <Link href={`/${tenantSlug}/subscriptions`} className="text-gray-500 hover:text-gray-900">Passes</Link>
-              <SignedOut>
-                <SignInButton mode="modal">
-                  <button className="text-gray-500 hover:text-gray-900">Sign In</button>
-                </SignInButton>
-              </SignedOut>
-              <SignedIn>
-                <Link href={`/${tenantSlug}/my-classes`} className="text-gray-500 hover:text-gray-900">My Classes</Link>
-              </SignedIn>
-            </nav>
-            {/* Mobile Menu Button */}
-            <div className="md:hidden">
-              <button className="text-gray-500 hover:text-gray-900 p-2">
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
-            </div>
-          </div>
-          {/* Mobile Navigation */}
-          <div className="md:hidden border-t border-gray-200 py-4">
-            <div className="flex flex-wrap gap-4 text-sm">
-              <Link href={`/${tenantSlug}`} className="text-gray-500 hover:text-gray-900">Home</Link>
-              <Link href={`/${tenantSlug}/classes`} className="text-gray-900 font-medium">Classes</Link>
-              <Link href={`/${tenantSlug}/calendar`} className="text-gray-500 hover:text-gray-900">Calendar</Link>
-              <Link href={`/${tenantSlug}/subscriptions`} className="text-gray-500 hover:text-gray-900">Passes</Link>
-              <SignedOut>
-                <SignInButton mode="modal">
-                  <button className="text-gray-500 hover:text-gray-900">Sign In</button>
-                </SignInButton>
-              </SignedOut>
-              <SignedIn>
-                <Link href={`/${tenantSlug}/my-classes`} className="text-gray-500 hover:text-gray-900">My Classes</Link>
-              </SignedIn>
-            </div>
-          </div>
-        </div>
-      </div>
-
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
       {/* Hero Section */}
       <section className="relative py-8 sm:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -159,17 +104,55 @@ export default function ClassesPage() {
             <h1 className="text-2xl sm:text-4xl font-bold mb-4 sm:mb-6" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
               Our Dance Classes
             </h1>
-            <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto mb-8">
               Discover our wide range of dance classes for all skill levels. From beginner-friendly sessions to advanced workshops.
             </p>
+
+            {/* Level Filter Pills */}
+            {classes.length > 0 && (
+              <div className="flex flex-wrap justify-center gap-2">
+                {['all', 'beginner', 'improvers', 'intermediate', 'advanced'].map((level) => {
+                  const count = level === 'all' ? classes.length : classes.filter(c => c.level === level).length;
+                  if (level !== 'all' && count === 0) return null;
+                  return (
+                    <button
+                      key={level}
+                      onClick={() => setActiveFilter(level)}
+                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                        activeFilter === level
+                          ? 'text-white shadow-md scale-105'
+                          : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                      }`}
+                      style={activeFilter === level ? { backgroundColor: tenant.branding?.primaryColor || '#3B82F6' } : {}}
+                    >
+                      {level === 'all' ? 'All Classes' : level.charAt(0).toUpperCase() + level.slice(1)}
+                      <span className={`ml-1.5 text-xs ${activeFilter === level ? 'text-white/80' : 'text-gray-400'}`}>
+                        ({count})
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </section>
 
       {/* Classes Grid */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+        {(() => {
+          const filtered = activeFilter === 'all' ? classes : classes.filter(c => c.level === activeFilter);
+          return filtered.length === 0 && activeFilter !== 'all' ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500">No {activeFilter} classes available at the moment.</p>
+              <button onClick={() => setActiveFilter('all')} className="mt-3 text-sm font-medium underline" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
+                View all classes
+              </button>
+            </div>
+          ) : null;
+        })()}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {classes.map((classItem) => (
+          {(activeFilter === 'all' ? classes : classes.filter(c => c.level === activeFilter)).map((classItem) => (
             <div key={classItem._id} className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">

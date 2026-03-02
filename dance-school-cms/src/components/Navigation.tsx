@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useUser, UserButton } from '@clerk/nextjs';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTenant } from '@/contexts/TenantContext';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
@@ -11,36 +11,35 @@ export default function Navigation() {
   const { user, isLoaded } = useUser();
   const { tenant } = useTenant();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const pathname = usePathname();
+
+  // Extract tenant slug from pathname
+  const pathParts = pathname.split('/').filter(Boolean);
+  const globalRoutes = ['classes', 'calendar', 'subscriptions', 'dashboard', 'register-school', 'sign-in', 'sign-up', 'admin', 'studio', 'api'];
+  let tenantSlug: string | null = null;
+  if (pathParts.length >= 1 && !globalRoutes.includes(pathParts[0])) {
+    tenantSlug = pathParts[0];
+  }
+  const contextTenantSlug = tenant?.slug;
+  const finalTenantSlug = tenantSlug || contextTenantSlug || null;
+
+  // Fetch user role for role-based nav items — must be before any early return
+  useEffect(() => {
+    if (user && finalTenantSlug) {
+      fetch('/api/auth/user')
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data?.role) setUserRole(data.role);
+        })
+        .catch(() => {});
+    }
+  }, [user, finalTenantSlug]);
 
   if (!isLoaded) return null;
 
-  const brandName = tenant?.schoolName || 'DANCE-MORE SCHOOL MANAGEMENT SYSTEM';
+  const brandName = tenant?.schoolName || 'Dance-More';
   const brandColor = tenant?.branding?.primaryColor || '#3B82F6';
-
-  // Extract tenant slug from pathname if we're on a tenant route
-  // Check if we're on a tenant-specific route (e.g., /tenant-slug/classes, /tenant-slug/calendar, etc.)
-  const pathParts = pathname.split('/').filter(Boolean);
-  
-  // Global routes that should never be considered tenant slugs
-  const globalRoutes = ['classes', 'calendar', 'subscriptions', 'dashboard', 'register-school', 'sign-in', 'sign-up', 'admin', 'studio', 'api'];
-  
-  let tenantSlug = null;
-  
-  if (pathParts.length >= 1) {
-    const firstPart = pathParts[0];
-    
-    // If the first part is not a global route, it's likely a tenant slug
-    if (!globalRoutes.includes(firstPart)) {
-      tenantSlug = firstPart;
-    }
-  }
-  
-  // Also check if we have tenant context from the TenantContext
-  const contextTenantSlug = tenant?.slug;
-  
-  // Use context tenant slug if we don't have one from the URL but we have tenant context
-  const finalTenantSlug = tenantSlug || contextTenantSlug || null;
 
   // Helper function to get tenant-aware URLs
   const getTenantUrl = (path: string) => {
@@ -78,23 +77,25 @@ export default function Navigation() {
             {tenant || finalTenantSlug ? (
               // Tenant-specific navigation
               <>
-                <Link href="/schools" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
-                  Browse Schools
-                </Link>
                 <Link href={getTenantUrl("/classes")} className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
                   Classes
                 </Link>
                 <Link href={getTenantUrl("/calendar")} className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
-                  Calendar
+                  Schedule
                 </Link>
                 {user && (
                   <>
                     <Link href={getTenantUrl("/subscriptions")} className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
-                      My Subscriptions
+                      My Passes
                     </Link>
-                    <Link href={getTenantUrl("/admin")} className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
-                      Admin
+                    <Link href={getTenantUrl("/my-classes")} className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                      My Classes
                     </Link>
+                    {userRole === 'admin' && (
+                      <Link href={getTenantUrl("/admin")} className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                        Admin
+                      </Link>
+                    )}
                   </>
                 )}
               </>
@@ -167,8 +168,8 @@ export default function Navigation() {
           <div className="relative w-4/5 max-w-sm h-full bg-white shadow-xl flex flex-col">
             <div className="p-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <Link href="/" className="text-xl font-bold text-gray-900" onClick={() => setIsMenuOpen(false)}>
-                  Dance School
+                <Link href={finalTenantSlug ? `/${finalTenantSlug}` : '/'} className="text-xl font-bold" style={{ color: brandColor }} onClick={() => setIsMenuOpen(false)}>
+                  {brandName}
                 </Link>
                 <button
                   onClick={() => setIsMenuOpen(false)}
@@ -198,7 +199,7 @@ export default function Navigation() {
                       className="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors font-medium"
                       onClick={() => setIsMenuOpen(false)}
                     >
-                      Calendar
+                      Schedule
                     </Link>
                     {user && (
                       <>
@@ -207,15 +208,24 @@ export default function Navigation() {
                           className="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors font-medium"
                           onClick={() => setIsMenuOpen(false)}
                         >
-                          My Subscriptions
+                          My Passes
                         </Link>
                         <Link 
-                          href={getTenantUrl("/admin")} 
+                          href={getTenantUrl("/my-classes")} 
                           className="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors font-medium"
                           onClick={() => setIsMenuOpen(false)}
                         >
-                          Admin
+                          My Classes
                         </Link>
+                        {userRole === 'admin' && (
+                          <Link 
+                            href={getTenantUrl("/admin")} 
+                            className="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors font-medium"
+                            onClick={() => setIsMenuOpen(false)}
+                          >
+                            Admin
+                          </Link>
+                        )}
                       </>
                     )}
                   </>

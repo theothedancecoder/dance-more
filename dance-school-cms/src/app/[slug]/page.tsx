@@ -3,13 +3,32 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useTenant } from '@/contexts/TenantContext';
-import { SignedIn, SignedOut, SignInButton } from '@clerk/nextjs';
+import { SignedIn, SignedOut, SignInButton, useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
 import Image from 'next/image';
 import CookiePolicy from '@/components/CookiePolicy';
+
 export default function TenantHomePage() {
   const params = useParams();
   const { tenant, isLoading, error } = useTenant();
+  const { isSignedIn } = useAuth();
+  const [hasActivePasses, setHasActivePasses] = useState<boolean | null>(null);
+
+  const tenantSlug = params.slug as string;
+
+  // Check if signed-in user has any active passes (for onboarding banner)
+  useEffect(() => {
+    if (isSignedIn && tenantSlug) {
+      fetch('/api/user/subscriptions', { headers: { 'x-tenant-slug': tenantSlug } })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data) {
+            setHasActivePasses((data.activeSubscriptions?.length ?? 0) > 0);
+          }
+        })
+        .catch(() => setHasActivePasses(false));
+    }
+  }, [isSignedIn, tenantSlug]);
 
   // Show loading while tenant context is loading
   if (isLoading) {
@@ -106,6 +125,50 @@ export default function TenantHomePage() {
           </div>
         </div>
       </section>
+
+      {/* Onboarding Banner for new signed-in users with no pass */}
+      <SignedIn>
+        {hasActivePasses === false && (
+          <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-0">
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-2xl p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-base font-semibold text-gray-900 mb-1">Welcome! Here's how to get started 👋</h3>
+                  <p className="text-sm text-gray-600 mb-4">Follow these 3 steps to book your first class:</p>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Link
+                      href={`/${tenantSlug}/classes`}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:border-blue-300 hover:shadow-sm transition-all"
+                    >
+                      <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center flex-shrink-0">1</span>
+                      Browse Classes
+                    </Link>
+                    <Link
+                      href={`/${tenantSlug}/subscriptions`}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:border-purple-300 hover:shadow-sm transition-all"
+                    >
+                      <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-700 text-xs font-bold flex items-center justify-center flex-shrink-0">2</span>
+                      Buy a Pass
+                    </Link>
+                    <Link
+                      href={`/${tenantSlug}/calendar`}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:border-green-300 hover:shadow-sm transition-all"
+                    >
+                      <span className="w-5 h-5 rounded-full bg-green-100 text-green-700 text-xs font-bold flex items-center justify-center flex-shrink-0">3</span>
+                      Book a Class
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+      </SignedIn>
 
       {/* Quick Actions */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">

@@ -28,6 +28,9 @@ export default function MyClassesPage() {
   const { tenant, isLoading, error } = useTenant();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
+  const [cancelMessage, setCancelMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const tenantSlug = params.slug as string;
 
@@ -36,6 +39,29 @@ export default function MyClassesPage() {
       fetchBookings();
     }
   }, [isLoaded, user, tenantSlug]);
+
+  const handleCancelBooking = async (bookingId: string) => {
+    setCancellingId(bookingId);
+    setConfirmCancelId(null);
+    try {
+      const response = await fetch(`/api/bookings?bookingId=${bookingId}`, {
+        method: 'DELETE',
+        headers: { 'x-tenant-slug': tenantSlug },
+      });
+      if (response.ok) {
+        setCancelMessage({ type: 'success', text: 'Booking cancelled successfully.' });
+        setBookings(prev => prev.filter(b => b._id !== bookingId));
+      } else {
+        const data = await response.json().catch(() => ({}));
+        setCancelMessage({ type: 'error', text: data.error || 'Failed to cancel booking. Please try again.' });
+      }
+    } catch {
+      setCancelMessage({ type: 'error', text: 'Network error. Please try again.' });
+    } finally {
+      setCancellingId(null);
+      setTimeout(() => setCancelMessage(null), 5000);
+    }
+  };
 
   const fetchBookings = async () => {
     try {
@@ -48,11 +74,9 @@ export default function MyClassesPage() {
         const data = await response.json();
         setBookings(data.bookings || []);
       } else {
-        console.error('Failed to fetch bookings:', response.statusText);
         setBookings([]);
       }
-    } catch (error) {
-      console.error('Error fetching bookings:', error);
+    } catch {
       setBookings([]);
     } finally {
       setLoading(false);
@@ -102,27 +126,7 @@ export default function MyClassesPage() {
   const pastBookings = bookings.filter(booking => new Date(booking.date) <= now);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <Link href={`/${tenantSlug}`} className="text-2xl font-bold" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
-                {tenant.schoolName}
-              </Link>
-            </div>
-            <nav className="flex space-x-8">
-              <Link href={`/${tenantSlug}`} className="text-gray-500 hover:text-gray-900">Home</Link>
-              <Link href={`/${tenantSlug}/classes`} className="text-gray-500 hover:text-gray-900">Classes</Link>
-              <Link href={`/${tenantSlug}/calendar`} className="text-gray-500 hover:text-gray-900">Calendar</Link>
-              <Link href={`/${tenantSlug}/subscriptions`} className="text-gray-500 hover:text-gray-900">Passes</Link>
-              <Link href={`/${tenantSlug}/my-classes`} className="text-gray-900 font-medium">My Classes</Link>
-            </nav>
-          </div>
-        </div>
-      </div>
-
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-8">
           <div className="flex items-center justify-between">
@@ -141,6 +145,17 @@ export default function MyClassesPage() {
             </Link>
           </div>
         </div>
+
+        {/* Cancel status message */}
+        {cancelMessage && (
+          <div className={`mb-6 p-4 rounded-xl border text-sm font-medium ${
+            cancelMessage.type === 'success'
+              ? 'bg-green-50 border-green-200 text-green-800'
+              : 'bg-red-50 border-red-200 text-red-800'
+          }`}>
+            {cancelMessage.text}
+          </div>
+        )}
 
         {/* Upcoming Classes */}
         <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
@@ -259,16 +274,38 @@ export default function MyClassesPage() {
                           </div>
                         </div>
                         
-                        {booking.userBooking && (
-                          <div className="mt-4 pt-3 border-t border-gray-100">
+                        <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
+                          {booking.userBooking && (
                             <div className="flex items-center text-xs text-gray-500">
                               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3 h-3 mr-1">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
                               Booked on {format(new Date(booking.userBooking.bookingTime), 'MMM d, yyyy')} • {booking.userBooking.bookingType}
                             </div>
-                          </div>
-                        )}
+                          )}
+                          <button
+                            onClick={() => setConfirmCancelId(booking._id)}
+                            disabled={cancellingId === booking._id}
+                            className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors disabled:opacity-50 flex items-center gap-1 ml-auto"
+                          >
+                            {cancellingId === booking._id ? (
+                              <>
+                                <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                </svg>
+                                Cancelling...
+                              </>
+                            ) : (
+                              <>
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3 h-3">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                Cancel Booking
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -278,34 +315,73 @@ export default function MyClassesPage() {
           )}
         </div>
 
+        {/* Cancel Confirmation Modal */}
+        {confirmCancelId && (() => {
+          const booking = bookings.find(b => b._id === confirmCancelId);
+          if (!booking) return null;
+          return (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-2">Cancel Booking?</h3>
+                <p className="text-gray-600 text-sm mb-1">
+                  <span className="font-medium">{booking.parentClass.title}</span>
+                </p>
+                <p className="text-gray-500 text-sm mb-6">
+                  {format(new Date(booking.date), 'EEEE, MMMM d')} at {format(new Date(booking.date), 'h:mm a')}
+                </p>
+                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3 mb-6">
+                  Your class credit will be returned to your pass after cancellation.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setConfirmCancelId(null)}
+                    className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+                  >
+                    Keep Booking
+                  </button>
+                  <button
+                    onClick={() => handleCancelBooking(confirmCancelId)}
+                    className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition-colors"
+                  >
+                    Yes, Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Past Classes */}
         <div className="bg-white rounded-lg shadow-lg p-6">
           <h2 className="text-xl font-semibold mb-4 text-gray-900">Past Classes</h2>
           {pastBookings.length === 0 ? (
-            <p className="text-gray-500 text-center py-4">No past classes</p>
+            <p className="text-gray-500 text-center py-4">No past classes yet</p>
           ) : (
             <div className="space-y-4">
               {pastBookings.map((booking) => (
-                <div key={booking._id} className="border border-gray-200 rounded-lg p-4 opacity-75">
+                <div key={booking._id} className="border border-gray-200 rounded-lg p-4 opacity-75 hover:opacity-100 transition-opacity">
                   <div className="flex justify-between items-start">
-                    <div>
+                    <div className="flex-1">
                       <h3 className="font-semibold text-lg text-gray-900">{booking.parentClass.title}</h3>
-                      <p className="text-gray-700">
-                        {format(new Date(booking.date), 'EEEE, MMMM d, yyyy')}
-                      </p>
-                      <p className="text-gray-700">
-                        {format(new Date(booking.date), 'h:mm a')}
+                      <p className="text-gray-700 text-sm">
+                        {format(new Date(booking.date), 'EEEE, MMMM d, yyyy')} at {format(new Date(booking.date), 'h:mm a')}
                       </p>
                       <p className="text-sm text-gray-600 mt-1">
-                        Instructor: {booking.parentClass.instructor.name}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Location: {booking.parentClass.location}
+                        {booking.parentClass.instructor.name} · {booking.parentClass.location}
                       </p>
                     </div>
-                    <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm">
-                      Completed
-                    </span>
+                    <div className="flex flex-col items-end gap-2 ml-4">
+                      <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-medium">
+                        Completed
+                      </span>
+                      <Link
+                        href={`/${tenantSlug}/calendar`}
+                        className="text-xs font-medium transition-colors hover:opacity-80"
+                        style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}
+                      >
+                        Book Again →
+                      </Link>
+                    </div>
                   </div>
                 </div>
               ))}

@@ -40,10 +40,20 @@ export default function CalendarPage() {
   const [bookingLoading, setBookingLoading] = useState<string | null>(null);
   const [bookingMessage, setBookingMessage] = useState<{ type: 'success' | 'error'; text: string; redirectUrl?: string } | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('weekly');
+  const [confirmInstance, setConfirmInstance] = useState<ClassInstance | null>(null);
 
   const tenantSlug = params.slug as string;
 
   const handleBookClass = async (classInstanceId: string) => {
+    // If called from the confirm modal, proceed; otherwise show the modal first
+    if (!confirmInstance || confirmInstance._id !== classInstanceId) {
+      const instance = classInstances.find(i => i._id === classInstanceId);
+      if (instance) {
+        setConfirmInstance(instance);
+        return;
+      }
+    }
+    setConfirmInstance(null);
     setBookingLoading(classInstanceId);
     setBookingMessage(null);
 
@@ -103,22 +113,17 @@ export default function CalendarPage() {
       try {
         const startDate = new Date();
         const endDate = new Date();
-        endDate.setDate(startDate.getDate() + 30); // Get next 30 days
+        endDate.setDate(startDate.getDate() + 30);
 
-        console.log('Fetching class instances for tenant:', tenantSlug);
         const response = await fetch(`/api/classes/instances/public?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}&tenantSlug=${tenantSlug}`);
 
         if (response.ok) {
           const data = await response.json();
-          console.log('Received class instances:', data.instances?.length || 0);
           setClassInstances(data.instances || []);
         } else {
-          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-          console.error('Failed to fetch class instances:', response.statusText, errorData);
           setClassInstances([]);
         }
-      } catch (err) {
-        console.error('Error fetching class instances:', err);
+      } catch {
         setClassInstances([]);
       } finally {
         setLoading(false);
@@ -164,60 +169,7 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4 sm:py-6">
-            <div>
-              <Link href={`/${tenantSlug}`} className="text-xl sm:text-2xl font-bold" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
-                {tenant.schoolName}
-              </Link>
-            </div>
-            {/* Desktop Navigation */}
-            <nav className="hidden md:flex space-x-8">
-              <Link href={`/${tenantSlug}`} className="text-gray-500 hover:text-gray-900">Home</Link>
-              <Link href={`/${tenantSlug}/classes`} className="text-gray-500 hover:text-gray-900">Classes</Link>
-              <Link href={`/${tenantSlug}/calendar`} className="text-gray-900 font-medium">Calendar</Link>
-              <Link href={`/${tenantSlug}/subscriptions`} className="text-gray-500 hover:text-gray-900">Passes</Link>
-              <SignedOut>
-                <SignInButton mode="modal">
-                  <button className="text-gray-500 hover:text-gray-900">Sign In</button>
-                </SignInButton>
-              </SignedOut>
-              <SignedIn>
-                <Link href={`/${tenantSlug}/my-classes`} className="text-gray-500 hover:text-gray-900">My Classes</Link>
-              </SignedIn>
-            </nav>
-            {/* Mobile Menu Button */}
-            <div className="md:hidden">
-              <button className="text-gray-500 hover:text-gray-900 p-2">
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
-            </div>
-          </div>
-          {/* Mobile Navigation */}
-          <div className="md:hidden border-t border-gray-200 py-4">
-            <div className="flex flex-wrap gap-4 text-sm">
-              <Link href={`/${tenantSlug}`} className="text-gray-500 hover:text-gray-900">Home</Link>
-              <Link href={`/${tenantSlug}/classes`} className="text-gray-500 hover:text-gray-900">Classes</Link>
-              <Link href={`/${tenantSlug}/calendar`} className="text-gray-900 font-medium">Calendar</Link>
-              <Link href={`/${tenantSlug}/subscriptions`} className="text-gray-500 hover:text-gray-900">Passes</Link>
-              <SignedOut>
-                <SignInButton mode="modal">
-                  <button className="text-gray-500 hover:text-gray-900">Sign In</button>
-                </SignInButton>
-              </SignedOut>
-              <SignedIn>
-                <Link href={`/${tenantSlug}/my-classes`} className="text-gray-500 hover:text-gray-900">My Classes</Link>
-              </SignedIn>
-            </div>
-          </div>
-        </div>
-      </div>
-
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
       {/* Hero Section */}
       <section className="relative py-8 sm:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -490,6 +442,80 @@ export default function CalendarPage() {
           </Link>
         </div>
       </section>
+
+      {/* Booking Confirmation Modal */}
+      {confirmInstance && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-scale-in">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Confirm Booking</h2>
+              <button
+                onClick={() => setConfirmInstance(null)}
+                className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                aria-label="Close"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="bg-gray-50 rounded-xl p-4 mb-6 space-y-3">
+              <h3 className="text-lg font-semibold text-gray-900">{confirmInstance.title}</h3>
+              <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
+                <div className="flex items-center gap-2">
+                  <CalendarIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                  <span>{(() => {
+                    const [y, m, d] = confirmInstance.date.split('T')[0].split('-').map(Number);
+                    return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                  })()}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <ClockIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                  <span>{confirmInstance.startTime} – {confirmInstance.endTime}</span>
+                </div>
+                {confirmInstance.location && (
+                  <div className="flex items-center gap-2 col-span-2">
+                    <MapPinIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                    <span>{confirmInstance.location}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 col-span-2">
+                  <svg className="h-4 w-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  <span>Instructor: {confirmInstance.instructor}</span>
+                </div>
+              </div>
+              <div className="pt-2 border-t border-gray-200 flex items-center justify-between">
+                <span className="text-sm text-gray-500">Spots available</span>
+                <span className="text-sm font-medium text-gray-700">{confirmInstance.capacity - confirmInstance.booked} / {confirmInstance.capacity}</span>
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-500 mb-6">
+              This class will be deducted from your active pass. Make sure you can attend before confirming.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmInstance(null)}
+                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleBookClass(confirmInstance._id)}
+                disabled={bookingLoading === confirmInstance._id}
+                className="flex-1 px-4 py-3 rounded-xl text-white font-medium transition-colors hover:opacity-90 disabled:opacity-50"
+                style={{ backgroundColor: tenant.branding?.primaryColor || '#3B82F6' }}
+              >
+                {bookingLoading === confirmInstance._id ? 'Booking...' : 'Confirm Booking'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
