@@ -24,13 +24,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // First get the tenant ID
-    const tenant = await sanityClient.fetch(
-      `*[_type == "tenant" && slug.current == $tenantSlug][0] {
-        _id
-      }`,
-      { tenantSlug }
-    );
+    // First get the tenant ID and the Sanity user document ID
+    const [tenant, sanityUserGet] = await Promise.all([
+      sanityClient.fetch(
+        `*[_type == "tenant" && slug.current == $tenantSlug][0] { _id }`,
+        { tenantSlug }
+      ),
+      sanityClient.fetch(
+        `*[_type == "user" && clerkId == $userId][0]{ _id }`,
+        { userId }
+      ),
+    ]);
 
     if (!tenant) {
       return NextResponse.json(
@@ -39,9 +43,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Support both old bookings (stored with Clerk ID) and new ones (stored with Sanity user _id)
+    const studentRef = sanityUserGet?._id ?? userId;
+
     // Get class instances with user's bookings for this specific tenant
     const bookings = await sanityClient.fetch(
-      `*[_type == "classInstance" && $userId in bookings[].student._ref && parentClass->tenant._ref == $tenantId] {
+      `*[_type == "classInstance" && ($studentRef in bookings[].student._ref || $userId in bookings[].student._ref) && parentClass->tenant._ref == $tenantId] {
         _id,
         date,
         isCancelled,
@@ -55,9 +62,9 @@ export async function GET(request: NextRequest) {
             slug
           }
         },
-        "userBooking": bookings[student._ref == $userId][0]
+        "userBooking": bookings[student._ref == $studentRef || student._ref == $userId][0]
       } | order(date asc)`,
-      { userId, tenantId: tenant._id }
+      { userId, studentRef, tenantId: tenant._id }
     );
 
     return NextResponse.json({ bookings });
