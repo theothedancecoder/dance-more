@@ -54,22 +54,14 @@ export async function PUT(
       );
     }
 
-    if (finalValidityType === 'date') {
-      if (!expiryDate) {
-        return NextResponse.json(
-          { error: 'expiryDate is required when using date-based validity' },
-          { status: 400 }
-        );
-      }
-      
-      const expiry = new Date(expiryDate);
-      if (expiry <= new Date()) {
-        return NextResponse.json(
-          { error: 'expiryDate must be in the future' },
-          { status: 400 }
-        );
-      }
+    if (finalValidityType === 'date' && !expiryDate) {
+      return NextResponse.json(
+        { error: 'expiryDate is required when using date-based validity' },
+        { status: 400 }
+      );
     }
+    // Note: We intentionally do NOT validate that expiryDate is in the future
+    // on updates — admins must be able to deactivate passes that have already expired.
 
     // Update pass document in Sanity
     const result = await writeClient
