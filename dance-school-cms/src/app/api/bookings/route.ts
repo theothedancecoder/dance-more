@@ -159,11 +159,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check user's active subscriptions - need to find subscriptions via user's clerkId
+    // Check user's active subscriptions - filter by tenant to prevent cross-school usage
+    const tenantId = classInstance.parentClass.tenant?._ref;
     const now = new Date();
     const activeSubscriptions = await sanityClient.fetch(
-      `*[_type == "subscription" && user->clerkId == $userId && isActive == true && endDate > $now] | order(_createdAt desc)`,
-      { userId, now: now.toISOString() }
+      `*[_type == "subscription" && user->clerkId == $userId && tenant._ref == $tenantId && isActive == true && endDate > $now] | order(_createdAt desc)`,
+      { userId, tenantId, now: now.toISOString() }
     );
 
     if (activeSubscriptions.length === 0) {
@@ -208,11 +209,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Look up the Sanity user document so we store a valid Sanity reference
+    const sanityUser = await sanityClient.fetch(
+      `*[_type == "user" && clerkId == $userId][0]{ _id }`,
+      { userId }
+    );
+    const studentRef = sanityUser?._id ?? userId; // fall back to clerkId if not found
+
     // Create booking
     const newBooking = {
       student: {
         _type: 'reference',
-        _ref: userId,
+        _ref: studentRef,
       },
       bookingType,
       bookingTime: now.toISOString(),
