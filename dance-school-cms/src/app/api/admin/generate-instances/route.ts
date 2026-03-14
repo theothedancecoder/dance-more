@@ -2,6 +2,34 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sanityClient } from '@/lib/sanity';
 import { auth } from '@clerk/nextjs/server';
 
+interface WeeklyScheduleItem {
+  dayOfWeek: string;
+  startTime: string;
+}
+
+interface RecurringSchedule {
+  weeklySchedule?: WeeklyScheduleItem[];
+}
+
+interface ClassData {
+  _id: string;
+  title: string;
+  capacity: number;
+  recurringSchedule?: RecurringSchedule;
+}
+
+interface GenerationResultItem {
+  classId: string;
+  className: string;
+  instancesCreated: number;
+  message: string;
+}
+
+interface CreateError {
+  message?: string;
+  statusCode?: number;
+}
+
 // Get the date for a specific day of the week in a given week
 function getDateForDayInWeek(weekStartDate: Date, targetDayOfWeek: number): Date {
   const result = new Date(weekStartDate);
@@ -29,12 +57,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get tenant from headers
-    const tenantId = request.headers.get('x-tenant-id');
-    
+    // Get tenant context from headers (support both id and slug)
+    let tenantId = request.headers.get('x-tenant-id');
+    const tenantSlug = request.headers.get('x-tenant-slug');
+
+    // Resolve tenant ID from slug if needed
+    if (!tenantId && tenantSlug) {
+      const tenant = await sanityClient.fetch(
+        `*[_type == "tenant" && slug.current == $tenantSlug][0]{ _id }`,
+        { tenantSlug }
+      );
+
+      if (!tenant?._id) {
+        return NextResponse.json(
+          { error: `Invalid tenant slug: ${tenantSlug}` },
+          { status: 403 }
+        );
+      }
+
+      tenantId = tenant._id;
+    }
+
     if (!tenantId) {
       return NextResponse.json(
-        { error: 'Tenant context required' },
+        { error: 'Tenant context required (x-tenant-id or x-tenant-slug)' },
         { status: 403 }
       );
     }
@@ -53,7 +99,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get all recurring classes for this tenant that need instances
-    const classes = await sanityClient.fetch(
+    const classes: ClassData[] = await sanityClient.fetch(
       `*[_type == "class" && tenant._ref == $tenantId && isRecurring == true && isActive == true] {
         _id,
         title,
@@ -67,7 +113,7 @@ export async function POST(request: NextRequest) {
     console.log(`Processing ${classes.length} classes for tenant ${tenantId}`);
 
     let totalInstancesCreated = 0;
-    const results = [];
+    const results: GenerationResultItem[] = [];
 
     for (const classData of classes) {
       if (!classData.recurringSchedule?.weeklySchedule) {
@@ -156,12 +202,13 @@ export async function POST(request: NextRequest) {
             try {
               await sanityClient.create(instance);
               createdCount++;
-            } catch (createError: any) {
+            } catch (createError: unknown) {
               // Skip if instance already exists (duplicate key error)
-              if (createError?.message?.includes('already exists') || createError?.statusCode === 409) {
+              const errorWithMeta = createError as CreateError;
+              if (errorWithMeta?.message?.includes('already exists') || errorWithMeta?.statusCode === 409) {
                 console.log(`Instance already exists, skipping...`);
               } else {
-                console.log(`Error creating instance:`, createError?.message || createError);
+                console.log(`Error creating instance:`, errorWithMeta?.message || createError);
               }
             }
           }
@@ -205,7 +252,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error generating class instances:', error);
     return NextResponse.json(
-      { error: 'Failed to generate class instances' },
+      {
+        error: 'Failed to generate class instances',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }

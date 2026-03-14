@@ -29,6 +29,13 @@ interface UserData {
   };
 }
 
+interface InstanceGenerationDetail {
+  classId: string;
+  className: string;
+  instancesCreated: number;
+  message: string;
+}
+
 export default function SimpleAdminPage() {
   const params = useParams();
   const tenantSlug = params.slug as string;
@@ -41,7 +48,7 @@ export default function SimpleAdminPage() {
   const [instanceGenerationResult, setInstanceGenerationResult] = useState<{
     success: boolean;
     message: string;
-    details?: any[];
+    details?: InstanceGenerationDetail[];
   } | null>(null);
 
   useEffect(() => {
@@ -97,7 +104,8 @@ export default function SimpleAdminPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-tenant-id': tenantData._id,
+          'x-tenant-slug': tenantSlug,
+          ...(tenantData?._id ? { 'x-tenant-id': tenantData._id } : {}),
         },
       });
 
@@ -110,9 +118,10 @@ export default function SimpleAdminPage() {
           details: data.results,
         });
       } else {
+        const errorMessage = [data?.error, data?.details].filter(Boolean).join(': ');
         setInstanceGenerationResult({
           success: false,
-          message: data.error || 'Failed to generate class instances',
+          message: errorMessage || 'Failed to generate class instances',
         });
       }
     } catch (error) {
@@ -237,7 +246,7 @@ export default function SimpleAdminPage() {
                 </svg>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">This Week's Classes</p>
+                <p className="text-sm font-medium text-gray-500">This Week&apos;s Classes</p>
                 <p className="text-2xl font-semibold text-gray-900">{tenantData?.stats?.thisWeeksClasses || 0}</p>
               </div>
             </div>
@@ -388,7 +397,7 @@ export default function SimpleAdminPage() {
               <div className="mt-4 bg-gray-50 rounded-lg p-4">
                 <h4 className="font-medium text-gray-900 mb-2">Generation Results:</h4>
                 <ul className="text-sm text-gray-600 space-y-1">
-                  {instanceGenerationResult.details.map((result: any, index: number) => (
+                  {instanceGenerationResult.details.map((result: InstanceGenerationDetail, index: number) => (
                     <li key={index}>
                       <strong>{result.className}:</strong> {result.instancesCreated} instances created - {result.message}
                     </li>
