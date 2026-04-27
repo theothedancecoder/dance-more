@@ -18,10 +18,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Dance School CMS",
   description: "Comprehensive dance school management system",
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
+  applicationName: "Dance School CMS",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Dance School CMS",
+  },
+  formatDetection: {
+    telephone: false,
   },
   icons: {
     icon: [
@@ -44,7 +49,7 @@ export const metadata: Metadata = {
     shortcut: '/favicon.ico',
     apple: [
       {
-        url: '/api/favicon?format=png&size=180',
+        url: '/dancemoreapp.png',
         sizes: '180x180',
         type: 'image/png',
       },

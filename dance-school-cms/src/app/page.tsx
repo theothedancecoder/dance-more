@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import CookiePolicy from '@/components/CookiePolicy';
 import TenantSearch from '@/components/TenantSearch';
+import InstallAppButton from '@/components/InstallAppButton';
 
 export default function HomePage() {
   const { tenant, isLoading } = useTenant();
@@ -126,6 +127,9 @@ export default function HomePage() {
                     View Schedule
                   </Link>
                 </SignedIn>
+              </div>
+              <div className="mt-6 flex justify-center">
+                <InstallAppButton />
               </div>
             </div>
           </div>
@@ -317,6 +321,9 @@ export default function HomePage() {
                     >
                       Register Your Dance School
                     </Link>
+                  </div>
+                  <div className="mt-6 flex justify-center">
+                    <InstallAppButton />
                   </div>
                 </div>
               )}

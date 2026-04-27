@@ -7,6 +7,7 @@ import { SignedIn, SignedOut, SignInButton, useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
 import Image from 'next/image';
 import CookiePolicy from '@/components/CookiePolicy';
+import InstallAppButton from '@/components/InstallAppButton';
 
 export default function TenantHomePage() {
   const params = useParams();
@@ -122,6 +123,9 @@ export default function TenantHomePage() {
             <p className="text-lg sm:text-xl text-gray-700 max-w-3xl mx-auto leading-relaxed animate-slide-up-delay font-medium">
               {tenant?.description || 'Join our vibrant dance community and explore our exciting classes'}
             </p>
+            <div className="mt-6 flex justify-center">
+              <InstallAppButton />
+            </div>
           </div>
         </div>
       </section>
