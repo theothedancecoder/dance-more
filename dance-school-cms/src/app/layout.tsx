@@ -31,20 +31,25 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: '/dancemoreapp.png?v=2',
+        url: '/favicon-32.png?v=3',
+        sizes: '32x32',
+        type: 'image/png',
+      },
+      {
+        url: '/icon-192.png?v=3',
         sizes: '192x192',
         type: 'image/png',
       },
       {
-        url: '/dancemoreapp.png?v=2',
+        url: '/icon-512.png?v=3',
         sizes: '512x512',
         type: 'image/png',
       },
     ],
-    shortcut: '/dancemoreapp.png?v=2',
+    shortcut: '/favicon-32.png?v=3',
     apple: [
       {
-        url: '/dancemoreapp.png?v=2',
+        url: '/apple-touch-icon.png?v=3',
         sizes: '180x180',
         type: 'image/png',
       },
