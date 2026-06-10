@@ -69,7 +69,7 @@ export default function ClassesPage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">School Not Found</h1>
           <p className="text-gray-600 mb-6">
-            The dance school "{params.slug}" could not be found or is not available.
+            The dance school &quot;{params.slug}&quot; could not be found or is not available.
           </p>
           <Link
             href="/"

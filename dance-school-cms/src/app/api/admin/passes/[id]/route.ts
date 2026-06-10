@@ -31,7 +31,8 @@ export async function PUT(
       validityDays,
       expiryDate,
       classesLimit,
-      isActive
+      isActive,
+      category
     } = body;
 
     // Add backward compatibility - if validityType is not provided, default to 'days'
@@ -76,6 +77,7 @@ export async function PUT(
         expiryDate: finalValidityType === 'date' ? expiryDate : null,
         classesLimit: ['multi', 'multi-pass'].includes(type) ? classesLimit : null,
         isActive: isActive ?? true,
+        category: category?.trim() || null,
         updatedAt: new Date().toISOString()
       })
       .commit();

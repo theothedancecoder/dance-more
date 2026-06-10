@@ -36,6 +36,26 @@ export default function MyClassesPage() {
 
   useEffect(() => {
     if (isLoaded && user && tenantSlug) {
+      const fetchBookings = async () => {
+        try {
+          const response = await fetch('/api/bookings', {
+            headers: {
+              'x-tenant-slug': tenantSlug,
+            },
+          });
+          if (response.ok) {
+            const data = await response.json();
+            setBookings(data.bookings || []);
+          } else {
+            setBookings([]);
+          }
+        } catch {
+          setBookings([]);
+        } finally {
+          setLoading(false);
+        }
+      };
+
       fetchBookings();
     }
   }, [isLoaded, user, tenantSlug]);
@@ -63,25 +83,6 @@ export default function MyClassesPage() {
     }
   };
 
-  const fetchBookings = async () => {
-    try {
-      const response = await fetch('/api/bookings', {
-        headers: {
-          'x-tenant-slug': tenantSlug,
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setBookings(data.bookings || []);
-      } else {
-        setBookings([]);
-      }
-    } catch {
-      setBookings([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (isLoading || !isLoaded || loading) {
     return (
@@ -97,7 +98,7 @@ export default function MyClassesPage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">School Not Found</h1>
           <p className="text-gray-600 mb-6">
-            The dance school "{params.slug}" could not be found or is not available.
+            The dance school &quot;{params.slug}&quot; could not be found or is not available.
           </p>
           <Link
             href="/"

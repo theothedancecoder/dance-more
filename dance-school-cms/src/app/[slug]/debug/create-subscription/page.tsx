@@ -3,8 +3,10 @@
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 
+type DebugResult = Record<string, unknown>;
+
 export default function CreateSubscriptionDebugPage() {
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<DebugResult | null>(null);
   const [loading, setLoading] = useState(false);
   const params = useParams();
   const tenantSlug = params.slug as string;
@@ -59,7 +61,7 @@ export default function CreateSubscriptionDebugPage() {
 
           <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="text-yellow-800 text-sm">
-              <strong>Note:</strong> After creating a subscription, go back to the subscriptions page to see it appear in your "Your Active Passes" section.
+              <strong>Note:</strong> After creating a subscription, go back to the subscriptions page to see it appear in your &quot;Your Active Passes&quot; section.
             </p>
           </div>
         </div>
