@@ -50,7 +50,7 @@ export default function TenantHomePage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">School Not Found</h1>
           <p className="text-gray-600 mb-6">
-            The dance school "{params.slug}" could not be found or is not available.
+            The dance school &quot;{params.slug}&quot; could not be found or is not available.
           </p>
           <div className="space-y-4">
             <button
@@ -142,7 +142,7 @@ export default function TenantHomePage() {
                   </svg>
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-base font-semibold text-gray-900 mb-1">Welcome! Here's how to get started 👋</h3>
+                  <h3 className="text-base font-semibold text-gray-900 mb-1">Welcome! Here&apos;s how to get started 👋</h3>
                   <p className="text-sm text-gray-600 mb-4">Follow these 3 steps to book your first class:</p>
                   <div className="flex flex-col sm:flex-row gap-3">
                     <Link

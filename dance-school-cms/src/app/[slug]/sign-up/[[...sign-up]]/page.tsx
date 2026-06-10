@@ -33,7 +33,7 @@ export default function TenantSignUpPage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">School Not Found</h1>
           <p className="text-gray-600 mb-6">
-            The dance school "{tenantSlug}" could not be found.
+            The dance school &quot;{tenantSlug}&quot; could not be found.
           </p>
           <button
             onClick={() => router.push('/')}

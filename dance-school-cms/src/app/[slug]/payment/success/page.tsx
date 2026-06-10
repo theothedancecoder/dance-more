@@ -6,11 +6,17 @@ import Link from 'next/link';
 import { CheckCircleIcon } from '@heroicons/react/24/solid';
 import { useTenant } from '@/contexts/TenantContext';
 
+type PaymentDetails = {
+  sessionId: string | null;
+  passId: string | null;
+  timestamp: string;
+};
+
 function PaymentSuccessContent() {
   const params = useParams();
   const tenantSlug = params.slug as string;
   const { tenant } = useTenant();
-  const [paymentDetails, setPaymentDetails] = useState<any>(null);
+  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(null);
 
   useEffect(() => {
     // Extract payment details from URL parameters if available
@@ -63,7 +69,7 @@ function PaymentSuccessContent() {
         
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">
-            What's next?
+            What&apos;s next?
           </h3>
           <ul className="space-y-3 text-sm text-gray-600">
             <li className="flex items-start">
@@ -125,7 +131,7 @@ function PaymentSuccessContent() {
         {tenant?.schoolName && (
           <div className="text-center">
             <p className="text-xs text-gray-500">
-              Welcome to {tenant.schoolName}! We're excited to have you join our dance community.
+              Welcome to {tenant.schoolName}! We&apos;re excited to have you join our dance community.
             </p>
           </div>
         )}

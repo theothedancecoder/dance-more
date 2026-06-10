@@ -33,7 +33,7 @@ export default function TenantSignInPage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">School Not Found</h1>
           <p className="text-gray-600 mb-6">
-            The dance school "{tenantSlug}" could not be found.
+            The dance school &quot;{tenantSlug}&quot; could not be found.
           </p>
           <button
             onClick={() => router.push('/')}
@@ -102,7 +102,7 @@ export default function TenantSignInPage() {
           
           <div className="text-center mt-6">
             <p className="text-sm text-gray-600">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <button
                 onClick={() => router.push(`/${tenantSlug}/sign-up`)}
                 className="font-medium hover:underline"
