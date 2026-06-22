@@ -154,6 +154,11 @@ export async function POST(request: NextRequest) {
           continue;
       }
 
+      const promoCode = session.metadata?.promoCode || null;
+      const originalPrice = session.metadata?.originalPrice ? parseFloat(session.metadata.originalPrice) : null;
+      const finalPrice = session.metadata?.finalPrice ? parseFloat(session.metadata.finalPrice) : null;
+      const discountAmount = session.metadata?.discountAmount ? parseFloat(session.metadata.discountAmount) : 0;
+
       const subscriptionData = {
         _type: 'subscription',
         user: {
@@ -171,6 +176,10 @@ export async function POST(request: NextRequest) {
         passId: pass._id, // Store original pass ID
         passName: pass.name,
         purchasePrice: session.amount_total ? session.amount_total / 100 : pass.price,
+        originalPrice: originalPrice ?? pass.price,
+        finalPrice: finalPrice ?? (session.amount_total ? session.amount_total / 100 : pass.price),
+        discountAmount: discountAmount || 0,
+        promoCode,
         stripePaymentId: session.payment_intent as string,
         stripeSessionId: session.id, // Add session ID for proper tracking
         isActive: true,

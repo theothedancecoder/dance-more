@@ -58,6 +58,8 @@ export default function SubscriptionsPage() {
   const [availablePasses, setAvailablePasses] = useState<Pass[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [promoCodes, setPromoCodes] = useState<Record<string, string>>({});
+  const [promoErrors, setPromoErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (isLoaded && user) {
@@ -113,6 +115,9 @@ export default function SubscriptionsPage() {
 
   const purchasePass = async (passId: string, passName: string) => {
     try {
+      const enteredPromo = (promoCodes[passId] || '').trim();
+      setPromoErrors((prev) => ({ ...prev, [passId]: '' }));
+
       // Create Stripe checkout session
       const response = await fetch('/api/stripe/checkout-pass', {
         method: 'POST',
@@ -121,6 +126,7 @@ export default function SubscriptionsPage() {
         },
         body: JSON.stringify({
           passId,
+          promoCode: enteredPromo || undefined,
           successUrl: `${window.location.origin}/subscriptions?success=true`,
           cancelUrl: `${window.location.origin}/subscriptions?canceled=true`,
         }),
@@ -128,6 +134,9 @@ export default function SubscriptionsPage() {
 
       if (!response.ok) {
         const error = await response.json();
+        if (error?.error) {
+          setPromoErrors((prev) => ({ ...prev, [passId]: error.error }));
+        }
         throw new Error(error.error || 'Failed to create checkout session');
       }
 
@@ -137,7 +146,9 @@ export default function SubscriptionsPage() {
       }
     } catch (error) {
       console.error('Error initiating pass purchase:', error);
-      alert('Failed to initiate pass purchase. Please try again.');
+      if (!promoErrors[passId]) {
+        alert('Failed to initiate pass purchase. Please try again.');
+      }
     }
   };
 
@@ -217,6 +228,22 @@ export default function SubscriptionsPage() {
                       )}
                       <p>Valid for {pass.validityDays} days</p>
                     </div>
+                    <div className="mb-3">
+                      <input
+                        type="text"
+                        value={promoCodes[pass._id] || ''}
+                        onChange={(e) => {
+                          const value = e.target.value.toUpperCase();
+                          setPromoCodes((prev) => ({ ...prev, [pass._id]: value }));
+                          setPromoErrors((prev) => ({ ...prev, [pass._id]: '' }));
+                        }}
+                        placeholder="Promo code (optional)"
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      {promoErrors[pass._id] && (
+                        <p className="mt-1 text-xs text-red-600">{promoErrors[pass._id]}</p>
+                      )}
+                    </div>
                     <button
                       onClick={() => purchasePass(pass._id, pass.name)}
                       className="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
@@ -261,13 +288,28 @@ export default function SubscriptionsPage() {
                 <p className="text-sm text-gray-600 mb-3">Need more classes?</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {availablePasses.map((pass) => (
-                    <button
-                      key={pass._id}
-                      onClick={() => purchasePass(pass._id, pass.name)}
-                      className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors text-sm"
-                    >
-                      Buy {pass.name} - {pass.price} kr
-                    </button>
+                    <div key={pass._id} className="space-y-2">
+                      <input
+                        type="text"
+                        value={promoCodes[pass._id] || ''}
+                        onChange={(e) => {
+                          const value = e.target.value.toUpperCase();
+                          setPromoCodes((prev) => ({ ...prev, [pass._id]: value }));
+                          setPromoErrors((prev) => ({ ...prev, [pass._id]: '' }));
+                        }}
+                        placeholder={`Promo for ${pass.name} (optional)`}
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      {promoErrors[pass._id] && (
+                        <p className="text-xs text-red-600">{promoErrors[pass._id]}</p>
+                      )}
+                      <button
+                        onClick={() => purchasePass(pass._id, pass.name)}
+                        className="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors text-sm"
+                      >
+                        Buy {pass.name} - {pass.price} kr
+                      </button>
+                    </div>
                   ))}
                 </div>
               </div>

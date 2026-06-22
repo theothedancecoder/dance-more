@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Tenant context required' }, { status: 403 });
     }
 
-    const { passId, successUrl, cancelUrl, upgradeFromSubscriptionId } = await request.json();
+    const { passId, promoCode, successUrl, cancelUrl, upgradeFromSubscriptionId } = await request.json();
 
     if (!passId) {
       return NextResponse.json({ error: 'Pass ID is required' }, { status: 400 });
@@ -82,6 +82,10 @@ export async function POST(request: NextRequest) {
         price,
         validityDays,
         classesLimit,
+        promoActive,
+        promoCode,
+        promoDiscountType,
+        promoDiscountValue,
         tenant->{
           _id,
           schoolName,
@@ -128,6 +132,37 @@ export async function POST(request: NextRequest) {
 
     // Calculate pricing for upgrade or regular purchase
     let finalPrice = passData.price;
+    const originalPrice = passData.price;
+    let discountAmount = 0;
+    let appliedPromoCode: string | null = null;
+
+    if (promoCode && !upgradeInfo) {
+      const normalizedPromoCode = String(promoCode).trim().toUpperCase();
+      const configuredPromoCode = String(passData.promoCode || '').trim().toUpperCase();
+
+      if (!passData.promoActive || !configuredPromoCode) {
+        return NextResponse.json({ error: 'Promo code is not active for this pass' }, { status: 400 });
+      }
+
+      if (normalizedPromoCode !== configuredPromoCode) {
+        return NextResponse.json({ error: 'Invalid promo code' }, { status: 400 });
+      }
+
+      if (!passData.promoDiscountType || !passData.promoDiscountValue) {
+        return NextResponse.json({ error: 'Promo configuration is incomplete' }, { status: 400 });
+      }
+
+      if (passData.promoDiscountType === 'percentage') {
+        discountAmount = (originalPrice * passData.promoDiscountValue) / 100;
+      } else {
+        discountAmount = passData.promoDiscountValue;
+      }
+
+      discountAmount = Math.max(0, Math.min(discountAmount, originalPrice));
+      finalPrice = Math.max(1, originalPrice - discountAmount);
+      appliedPromoCode = normalizedPromoCode;
+    }
+
     let productName = passData.name;
     let productDescription = description;
     let sessionMetadata: any = {
@@ -137,6 +172,10 @@ export async function POST(request: NextRequest) {
       type: 'pass_purchase',
       tenantId: passData.tenant._id,
       tenantSlug: finalTenantSlug,
+      originalPrice: String(originalPrice),
+      finalPrice: String(finalPrice),
+      discountAmount: String(discountAmount),
+      ...(appliedPromoCode ? { promoCode: appliedPromoCode } : {}),
     };
 
     if (upgradeInfo) {
@@ -158,6 +197,13 @@ export async function POST(request: NextRequest) {
         finalPrice = 1; // 1 NOK minimal charge for processing
         productDescription += ' (Free upgrade - minimal processing fee)';
       }
+
+      // Upgrade flow should not combine with promo
+      if (promoCode) {
+        productDescription += ' (Promo codes are not applicable on upgrades)';
+      }
+    } else if (appliedPromoCode) {
+      productDescription += ` (Promo ${appliedPromoCode} applied: -${discountAmount.toFixed(2)} kr)`;
     }
 
     // Create Stripe Connect checkout session

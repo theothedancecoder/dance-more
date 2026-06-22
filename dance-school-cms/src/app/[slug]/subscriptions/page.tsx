@@ -22,6 +22,10 @@ interface PassData {
   isPopular?: boolean;
   isActive: boolean;
   category?: string;
+  promoActive?: boolean;
+  promoCode?: string;
+  promoDiscountType?: 'percentage' | 'fixed';
+  promoDiscountValue?: number;
 }
 
 interface UserSubscription {
@@ -76,6 +80,8 @@ export default function SubscriptionsPage() {
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [manualSyncLoading, setManualSyncLoading] = useState(false);
+  const [promoCodes, setPromoCodes] = useState<Record<string, string>>({});
+  const [promoErrors, setPromoErrors] = useState<Record<string, string>>({});
 
   const tenantSlug = params.slug as string;
 
@@ -170,6 +176,9 @@ export default function SubscriptionsPage() {
 
   const handlePurchase = async (pass: PassData) => {
     try {
+      const enteredPromo = (promoCodes[pass._id] || '').trim();
+      setPromoErrors((prev) => ({ ...prev, [pass._id]: '' }));
+
       // Create Stripe checkout session for pass purchase
       const response = await fetch('/api/stripe/checkout-pass', {
         method: 'POST',
@@ -180,6 +189,7 @@ export default function SubscriptionsPage() {
         },
         body: JSON.stringify({
           passId: pass._id,
+          promoCode: enteredPromo || undefined,
           successUrl: `${window.location.origin}/${tenantSlug}/payment/success`,
           cancelUrl: window.location.href,
         }),
@@ -191,10 +201,15 @@ export default function SubscriptionsPage() {
         // Redirect to Stripe checkout
         window.location.href = data.url;
       } else {
+        if (data?.error) {
+          setPromoErrors((prev) => ({ ...prev, [pass._id]: data.error }));
+        }
         throw new Error(data.error || 'Failed to create checkout session');
       }
     } catch {
-      alert('Failed to process purchase. Please try again.');
+      if (!promoErrors[pass._id]) {
+        alert('Failed to process purchase. Please try again.');
+      }
     }
   };
 
@@ -739,6 +754,22 @@ export default function SubscriptionsPage() {
                       </Link>
                     </SignedOut>
                     <SignedIn>
+                      <div className="mb-3">
+                        <input
+                          type="text"
+                          value={promoCodes[pass._id] || ''}
+                          onChange={(e) => {
+                            const value = e.target.value.toUpperCase();
+                            setPromoCodes((prev) => ({ ...prev, [pass._id]: value }));
+                            setPromoErrors((prev) => ({ ...prev, [pass._id]: '' }));
+                          }}
+                          placeholder="Promo code (optional)"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        {promoErrors[pass._id] && (
+                          <p className="mt-1 text-xs text-red-600">{promoErrors[pass._id]}</p>
+                        )}
+                      </div>
                       <button 
                         onClick={() => handlePurchase(pass)}
                         className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${

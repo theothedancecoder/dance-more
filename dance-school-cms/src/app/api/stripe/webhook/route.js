@@ -295,6 +295,11 @@ async function createSubscriptionFromSession(session, eventId) {
     }
 
     // Create subscription with retry
+    const promoCode = session.metadata?.promoCode || null;
+    const originalPrice = session.metadata?.originalPrice ? parseFloat(session.metadata.originalPrice) : null;
+    const finalPrice = session.metadata?.finalPrice ? parseFloat(session.metadata.finalPrice) : null;
+    const discountAmount = session.metadata?.discountAmount ? parseFloat(session.metadata.discountAmount) : 0;
+
     const subscriptionData = {
       _type: 'subscription',
       user: {
@@ -312,6 +317,10 @@ async function createSubscriptionFromSession(session, eventId) {
       passId: pass._id,
       passName: pass.name,
       purchasePrice: session.amount_total ? session.amount_total / 100 : pass.price,
+      originalPrice: originalPrice ?? pass.price,
+      finalPrice: finalPrice ?? (session.amount_total ? session.amount_total / 100 : pass.price),
+      discountAmount: discountAmount || 0,
+      promoCode,
       stripePaymentId: session.payment_intent,
       stripeSessionId: session.id,
       webhookEventId: eventId, // Track which webhook created this
