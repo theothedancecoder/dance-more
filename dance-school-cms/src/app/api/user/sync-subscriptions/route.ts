@@ -29,18 +29,18 @@ export async function POST(request: NextRequest) {
 
     console.log('🔄 Syncing subscriptions for user:', userId, 'tenant:', tenant.schoolName);
 
-    // Ensure user exists in Sanity first
+    // Ensure user exists in Sanity first (match webhook model by clerkId)
     let user = await sanityClient.fetch(
-      `*[_type == "user" && _id == $userId][0]`,
+      `*[_type == "user" && clerkId == $userId][0]`,
       { userId }
     );
 
     if (!user) {
-      console.log('👤 Creating user in Sanity during sync:', userId);
+      console.log('👤 Creating user in Sanity during sync with Clerk ID:', userId);
       try {
         user = await writeClient.create({
           _type: 'user',
-          _id: userId,
+          clerkId: userId,
           name: 'User', // Will be updated when we have more info
           email: '', // Will be updated when we have more info
           role: 'student',
@@ -111,7 +111,23 @@ export async function POST(request: NextRequest) {
 
       // Create the missing subscription
       const sessionDate = new Date(session.created * 1000);
-      const endDate = new Date(sessionDate.getTime() + pass.validityDays * 24 * 60 * 60 * 1000);
+      let endDate: Date;
+
+      // Align expiry logic with webhook route
+      if (pass.validityType === 'date' && pass.expiryDate) {
+        endDate = new Date(pass.expiryDate);
+      } else if (pass.validityType === 'days' && pass.validityDays) {
+        endDate = new Date(sessionDate.getTime() + pass.validityDays * 24 * 60 * 60 * 1000);
+      } else if (pass.validityDays) {
+        // Fallback for legacy pass docs without validityType
+        endDate = new Date(sessionDate.getTime() + pass.validityDays * 24 * 60 * 60 * 1000);
+      } else {
+        const expiryError = `Pass ${pass._id} has no valid expiry configuration`;
+        console.error('❌', expiryError);
+        errors.push(`Session ${session.id}: ${expiryError}`);
+        errorCount++;
+        continue;
+      }
 
       let subscriptionType: string;
       let remainingClips: number | undefined;
@@ -142,7 +158,7 @@ export async function POST(request: NextRequest) {
         _type: 'subscription',
         user: {
           _type: 'reference',
-          _ref: userId,
+          _ref: user._id,
         },
         tenant: {
           _type: 'reference',

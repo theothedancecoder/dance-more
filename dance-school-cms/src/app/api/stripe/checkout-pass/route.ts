@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { stripeConnect, STRIPE_CONFIG } from '@/lib/stripe';
+import { stripeConnect, resolveStripeCurrency } from '@/lib/stripe';
 import { auth } from '@clerk/nextjs/server';
 import { sanityClient } from '@/lib/sanity';
 
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
       description += ` - ${passData.classesLimit} classes valid for ${passData.validityDays} days`;
     }
 
-    const currency = passData.tenant.stripeConnect.currency || STRIPE_CONFIG.currency;
+    const currency = resolveStripeCurrency(passData.tenant.stripeConnect.currency);
     const applicationFeePercent = passData.tenant.stripeConnect.applicationFeePercent || 5;
     const finalTenantSlug = passData.tenant.slug?.current || tenantSlug;
 
@@ -197,10 +197,22 @@ export async function POST(request: NextRequest) {
       url: session.url,
       connectedAccountId: passData.tenant.stripeConnect.accountId
     });
-  } catch (error) {
-    console.error('Stripe Connect pass checkout error:', error);
+  } catch (error: any) {
+    const stripeErrorCode = error?.code || error?.raw?.code || 'unknown_error';
+    const stripeErrorMessage = error?.message || error?.raw?.message || 'Failed to create checkout session';
+
+    console.error('Stripe Connect pass checkout error:', {
+      code: stripeErrorCode,
+      message: stripeErrorMessage,
+      type: error?.type,
+      requestId: error?.requestId,
+    });
+
     return NextResponse.json(
-      { error: 'Failed to create checkout session' },
+      {
+        error: 'Failed to create checkout session',
+        details: stripeErrorCode === 'unknown_error' ? undefined : stripeErrorCode,
+      },
       { status: 500 }
     );
   }

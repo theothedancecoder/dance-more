@@ -106,6 +106,63 @@ export const passType = defineType({
       initialValue: true,
     }),
     defineField({
+      name: 'promoActive',
+      title: 'Promo Code Active',
+      type: 'boolean',
+      description: 'Enable promo code discount for this pass',
+      initialValue: false,
+    }),
+    defineField({
+      name: 'promoCode',
+      title: 'Promo Code',
+      type: 'string',
+      description: 'Code students can enter at checkout (e.g. WELCOME20)',
+      hidden: ({ document }) => !(document as any)?.promoActive,
+      validation: (Rule) =>
+        Rule.custom((value, context) => {
+          const promoActive = (context.document as any)?.promoActive;
+          if (promoActive && !value) return 'Promo code is required when promo is active';
+          return true;
+        }),
+    }),
+    defineField({
+      name: 'promoDiscountType',
+      title: 'Promo Discount Type',
+      type: 'string',
+      options: {
+        list: [
+          { title: 'Percentage', value: 'percentage' },
+          { title: 'Fixed Amount (kr)', value: 'fixed' },
+        ],
+      },
+      hidden: ({ document }) => !(document as any)?.promoActive,
+      validation: (Rule) =>
+        Rule.custom((value, context) => {
+          const promoActive = (context.document as any)?.promoActive;
+          if (promoActive && !value) return 'Promo discount type is required when promo is active';
+          return true;
+        }),
+    }),
+    defineField({
+      name: 'promoDiscountValue',
+      title: 'Promo Discount Value',
+      type: 'number',
+      description: 'If percentage: 1-100. If fixed: amount in kr.',
+      hidden: ({ document }) => !(document as any)?.promoActive,
+      validation: (Rule) =>
+        Rule.custom((value, context) => {
+          const doc = context.document as any;
+          if (!doc?.promoActive) return true;
+          if (value === undefined || value === null || value <= 0) {
+            return 'Promo discount value must be greater than 0';
+          }
+          if (doc.promoDiscountType === 'percentage' && value > 100) {
+            return 'Percentage discount cannot exceed 100';
+          }
+          return true;
+        }),
+    }),
+    defineField({
       name: 'createdAt',
       title: 'Created At',
       type: 'datetime',
@@ -135,8 +192,12 @@ export const passType = defineType({
       validityType: 'validityType',
       validityDays: 'validityDays',
       expiryDate: 'expiryDate',
+      promoActive: 'promoActive',
+      promoCode: 'promoCode',
+      promoDiscountType: 'promoDiscountType',
+      promoDiscountValue: 'promoDiscountValue',
     },
-    prepare({ title, type, price, isActive, validityType, validityDays, expiryDate }) {
+    prepare({ title, type, price, isActive, validityType, validityDays, expiryDate, promoActive, promoCode, promoDiscountType, promoDiscountValue }) {
       const typeLabels = {
         single: 'Single Class',
         'multi-pass': 'Multi-Class Pass',
@@ -152,9 +213,13 @@ export const passType = defineType({
         validityInfo = ` • Until ${expiry.toLocaleDateString()}`;
       }
       
+      const promoInfo = promoActive && promoCode && promoDiscountValue
+        ? ` • Promo: ${promoCode.toUpperCase()} (${promoDiscountType === 'percentage' ? `${promoDiscountValue}%` : `${promoDiscountValue} kr`})`
+        : '';
+
       return {
         title,
-        subtitle: `${typeLabels[type as keyof typeof typeLabels]} • ${price} kr${validityInfo}${!isActive ? ' (Inactive)' : ''}`,
+        subtitle: `${typeLabels[type as keyof typeof typeLabels]} • ${price} kr${validityInfo}${promoInfo}${!isActive ? ' (Inactive)' : ''}`,
       };
     },
   },
