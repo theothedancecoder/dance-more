@@ -208,16 +208,16 @@ export default function ScheduleManagementPage() {
       {/* Header */}
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+          <div className="flex flex-col gap-4 py-4 sm:py-6 lg:flex-row lg:justify-between lg:items-center">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Schedule Management</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Schedule Management</h1>
               <p className="text-sm text-gray-500">Manage recurring classes and generate instances</p>
             </div>
-            <div className="flex space-x-4">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <button
                 onClick={generateAllInstances}
                 disabled={generating}
-                className={`px-4 py-2 rounded-lg flex items-center space-x-2 ${
+                className={`w-full sm:w-auto px-4 py-2 rounded-lg flex items-center justify-center space-x-2 ${
                   generating 
                     ? 'bg-gray-400 cursor-not-allowed' 
                     : 'bg-green-600 hover:bg-green-700'
@@ -237,14 +237,14 @@ export default function ScheduleManagementPage() {
               </button>
               <Link
                 href={`/${tenantSlug}/admin/classes/new`}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2"
+                className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center space-x-2"
               >
                 <PlusIcon className="h-5 w-5" />
                 <span>Create New Class</span>
               </Link>
               <Link
                 href={`/${tenantSlug}/admin`}
-                className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
+                className="w-full sm:w-auto bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 text-center"
               >
                 ← Back to Admin
               </Link>
@@ -254,7 +254,7 @@ export default function ScheduleManagementPage() {
       </div>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {classes.length === 0 ? (
           <div className="text-center py-12">
             <CalendarIcon className="mx-auto h-12 w-12 text-gray-400" />
@@ -278,17 +278,17 @@ export default function ScheduleManagementPage() {
               {classes.map((classItem) => (
                 <li key={classItem._id}>
                   <div className="px-4 py-4 sm:px-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="flex items-start">
                         <div className="flex-shrink-0">
                           <CalendarIcon className="h-8 w-8 text-blue-500" />
                         </div>
-                        <div className="ml-4">
-                          <div className="flex items-center">
-                            <p className="text-lg font-medium text-blue-600 truncate">
+                        <div className="ml-3 sm:ml-4 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-base sm:text-lg font-medium text-blue-600 break-words">
                               {classItem.title}
                             </p>
-                            <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                               (classItem.isActive !== false)
                                 ? 'bg-green-100 text-green-800'
                                 : 'bg-red-100 text-red-800'
@@ -296,9 +296,9 @@ export default function ScheduleManagementPage() {
                               {(classItem.isActive !== false) ? 'Active' : 'Inactive'}
                             </span>
                           </div>
-                          <div className="mt-2 flex items-center text-sm text-gray-500">
-                            <ClockIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
-                            <p>
+                          <div className="mt-2 flex items-start text-sm text-gray-500">
+                            <ClockIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400 mt-0.5" />
+                            <p className="break-words leading-relaxed">
                               {classItem.isRecurring ? (
                                 classItem.recurringSchedule?.weeklySchedule?.length ? (
                                   classItem.recurringSchedule.weeklySchedule.map((schedule, index) => (
@@ -328,7 +328,7 @@ export default function ScheduleManagementPage() {
                         <button
                           onClick={() => generateInstances(classItem._id)}
                           disabled={generatingClass === classItem._id}
-                          className={`px-3 py-1 rounded text-sm flex items-center space-x-1 ${
+                          className={`w-full px-3 py-2 rounded text-sm flex items-center justify-center space-x-1 ${
                             generatingClass === classItem._id
                               ? 'bg-gray-400 cursor-not-allowed'
                               : 'bg-green-600 hover:bg-green-700'
@@ -345,7 +345,7 @@ export default function ScheduleManagementPage() {
                         </button>
                         <Link
                           href={`/${tenantSlug}/admin/classes/${classItem._id}/edit`}
-                          className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
+                          className="w-full bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700 text-center"
                         >
                           Edit
                         </Link>
@@ -378,23 +378,23 @@ export default function ScheduleManagementPage() {
                 {inactiveClasses.map((classItem) => (
                   <li key={classItem._id}>
                     <div className="px-4 py-4 sm:px-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="flex items-start">
                           <div className="flex-shrink-0">
                             <CalendarIcon className="h-8 w-8 text-red-500" />
                           </div>
-                          <div className="ml-4">
-                            <div className="flex items-center">
-                              <p className="text-lg font-medium text-red-600 truncate">
+                          <div className="ml-3 sm:ml-4 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="text-base sm:text-lg font-medium text-red-600 break-words">
                                 {classItem.title}
                               </p>
-                              <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                                 Inactive - Deleted
                               </span>
                             </div>
-                            <div className="mt-2 flex items-center text-sm text-gray-500">
-                              <ClockIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
-                              <p>
+                            <div className="mt-2 flex items-start text-sm text-gray-500">
+                              <ClockIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400 mt-0.5" />
+                              <p className="break-words leading-relaxed">
                                 {classItem.isRecurring ? (
                                   classItem.recurringSchedule?.weeklySchedule?.length ? (
                                     classItem.recurringSchedule.weeklySchedule.map((schedule, index) => (

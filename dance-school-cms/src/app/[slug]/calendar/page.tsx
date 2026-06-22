@@ -171,21 +171,21 @@ export default function CalendarPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
       {/* Hero Section */}
-      <section className="relative py-8 sm:py-16">
+      <section className="relative py-6 sm:py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1 className="text-2xl sm:text-4xl font-bold mb-4" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
               Class Schedule
             </h1>
-            <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto mb-6 sm:mb-8">
+            <p className="text-base sm:text-xl text-gray-600 max-w-3xl mx-auto mb-5 sm:mb-8">
               Book your spot in our upcoming dance classes. Choose your preferred view below.
             </p>
             
             {/* View Mode Selector */}
-            <div className="flex flex-col sm:flex-row justify-center gap-2 sm:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 max-w-2xl mx-auto">
               <button
                 onClick={() => setViewMode('weekly')}
-                className={`flex items-center justify-center px-4 sm:px-6 py-3 rounded-lg font-medium transition-colors ${
+                className={`w-full flex items-center justify-center px-4 sm:px-6 py-3 rounded-lg font-medium transition-colors ${
                   viewMode === 'weekly'
                     ? 'bg-blue-600 text-white'
                     : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
@@ -197,7 +197,7 @@ export default function CalendarPage() {
               </button>
               <button
                 onClick={() => setViewMode('calendar')}
-                className={`flex items-center justify-center px-4 sm:px-6 py-3 rounded-lg font-medium transition-colors ${
+                className={`w-full flex items-center justify-center px-4 sm:px-6 py-3 rounded-lg font-medium transition-colors ${
                   viewMode === 'calendar'
                     ? 'bg-blue-600 text-white'
                     : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
@@ -209,7 +209,7 @@ export default function CalendarPage() {
               </button>
               <button
                 onClick={() => setViewMode('daily')}
-                className={`flex items-center justify-center px-4 sm:px-6 py-3 rounded-lg font-medium transition-colors ${
+                className={`w-full flex items-center justify-center px-4 sm:px-6 py-3 rounded-lg font-medium transition-colors ${
                   viewMode === 'daily'
                     ? 'bg-blue-600 text-white'
                     : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
@@ -250,7 +250,7 @@ export default function CalendarPage() {
       )}
 
       {/* Calendar Content */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10 sm:pb-16">
         {viewMode === 'weekly' && (
           <WeeklySchedule 
             tenantSlug={tenantSlug} 
@@ -281,8 +281,8 @@ export default function CalendarPage() {
                   min={new Date().toISOString().split('T')[0]}
                 />
                 
-                <div className="mt-6">
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">Quick Select</h4>
+                <div className="mt-5">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Quick Select</h4>
                   <div className="grid grid-cols-2 lg:grid-cols-1 gap-2">
                     {[0, 1, 2, 3, 4, 5, 6].map((days) => {
                       const date = new Date();
@@ -301,7 +301,7 @@ export default function CalendarPage() {
                         <button
                           key={days}
                           onClick={() => setSelectedDate(dateStr)}
-                          className={`w-full text-left p-2 rounded-lg transition-colors text-sm ${
+                          className={`w-full text-left p-2.5 rounded-lg transition-colors text-sm ${
                             selectedDate === dateStr
                               ? 'bg-blue-100 text-blue-800'
                               : 'hover:bg-gray-100'
@@ -318,8 +318,8 @@ export default function CalendarPage() {
 
             {/* Class Instances */}
             <div className="lg:col-span-3 order-1 lg:order-2">
-              <div className="mb-4 sm:mb-6">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+              <div className="mb-3 sm:mb-6">
+                <h2 className="text-lg sm:text-2xl font-bold text-gray-900 leading-tight">
                   Classes for {(() => {
                     const [year, month, day] = selectedDate.split('-').map(Number);
                     const date = new Date(year, month - 1, day); // month is 0-indexed
@@ -342,7 +342,7 @@ export default function CalendarPage() {
                   </p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {filteredInstances.map((instance) => (
                     <div key={instance._id} className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow">
                       <div className="flex flex-col space-y-4">
@@ -359,13 +359,13 @@ export default function CalendarPage() {
                           </span>
                         </div>
                         
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-600">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 text-sm text-gray-600">
                           <div className="flex items-center">
                             <ClockIcon className="h-4 w-4 mr-2 flex-shrink-0" />
                             <span>{instance.startTime} - {instance.endTime}</span>
                           </div>
                           <div className="flex items-center">
-                            <span className="font-medium">Instructor: {instance.instructor}</span>
+                            <span className="font-medium break-words">Instructor: {instance.instructor}</span>
                           </div>
                           {instance.location && (
                             <div className="flex items-center">
@@ -380,7 +380,7 @@ export default function CalendarPage() {
                             {instance.price} {tenant?.settings?.currency || tenant?.stripeConnect?.currency || 'kr'}
                           </div>
                           
-                          <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                             {instance.booked >= instance.capacity ? (
                               <button 
                                 disabled
@@ -425,7 +425,7 @@ export default function CalendarPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="bg-white py-12 sm:py-16">
+      <section className="bg-white py-10 sm:py-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
             Need a Class Pass?
@@ -445,8 +445,8 @@ export default function CalendarPage() {
 
       {/* Booking Confirmation Modal */}
       {confirmInstance && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-scale-in">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-4 sm:p-6 animate-scale-in">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-gray-900">Confirm Booking</h2>
               <button
@@ -497,7 +497,7 @@ export default function CalendarPage() {
               This class will be deducted from your active pass. Make sure you can attend before confirming.
             </p>
 
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={() => setConfirmInstance(null)}
                 className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"

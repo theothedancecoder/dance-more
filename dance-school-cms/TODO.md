@@ -5,29 +5,39 @@
   - [x] Improve mobile brand row responsiveness
   - [x] Improve mobile menu tap targets and spacing
 
-- [ ] Update `src/app/page.tsx`
-  - [ ] Reduce dense spacing on mobile sections
-  - [ ] Improve CTA/button stacking and widths for small screens
-  - [ ] Improve card readability on mobile
+- [x] Update `src/app/[slug]/page.tsx`
+  - [x] Apply mobile spacing, typography, and CTA improvements
 
-- [ ] Update `src/app/[slug]/page.tsx`
-  - [ ] Apply mobile spacing, typography, and CTA improvements
+- [x] Update `src/app/[slug]/classes/page.tsx`
+  - [x] Improve filter and card mobile layout
+  - [x] Prevent overflow/squeezing on small screens
 
-- [ ] Update `src/app/[slug]/classes/page.tsx`
-  - [ ] Improve filter and card mobile layout
-  - [ ] Prevent overflow/squeezing on small screens
+- [x] Update `src/app/subscriptions/page.tsx`
+  - [x] Improve pass card layout and mobile actions
+  - [x] Improve stacked mobile layout/readability
 
-- [ ] Update `src/app/[slug]/subscriptions/page.tsx`
-  - [ ] Improve pass card layout and mobile actions
-  - [ ] Improve promo input section responsiveness
+- [x] Update `src/app/admin/passes/page.tsx`
+  - [x] Improve mobile form and action button usability
 
-- [ ] Update `src/app/subscriptions/page.tsx`
-  - [ ] Improve pass card layout and mobile actions
-  - [ ] Improve promo input section responsiveness
+- [x] Validate and deploy (partial)
+  - [x] Commit and push to `main` to trigger Vercel
 
-- [ ] Update `src/app/admin/passes/page.tsx`
-  - [ ] Improve mobile form and action button usability
+## New Scope: Calendar + Admin Schedule Mobile Improvements
 
-- [ ] Validate and deploy
-  - [ ] Run quick lint/type sanity checks (targeted if full lint is noisy)
-  - [ ] Commit and push to `main` to trigger Vercel
+- [ ] Update `src/app/[slug]/calendar/page.tsx`
+  - [ ] Tighten mobile spacing in hero/content sections
+  - [ ] Improve view-switch button layout/tap targets
+  - [ ] Improve daily card metadata wrapping and action grouping
+  - [ ] Improve confirmation modal spacing and small-screen button layout
+
+- [ ] Update `src/app/[slug]/admin/schedule/page.tsx`
+  - [ ] Improve header/action bar stacking on mobile
+  - [ ] Convert class rows to mobile-friendly stacked cards
+  - [ ] Improve long metadata readability/wrapping
+  - [ ] Stack row action buttons on mobile
+  - [ ] Improve inactive section and quick actions spacing
+
+- [ ] Validate this scope
+  - [ ] Run lint checks
+  - [ ] Runtime mobile verification where env permits
+  - [ ] Commit and push to `main`
