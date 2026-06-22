@@ -53,6 +53,10 @@ export async function GET(request: NextRequest) {
       expiryDate,
       classesLimit,
       isActive,
+      promoActive,
+      promoCode,
+      promoDiscountType,
+      promoDiscountValue,
       tenant->{
         _id,
         schoolName,
@@ -69,6 +73,10 @@ export async function GET(request: NextRequest) {
       ...pass,
       validityType: pass.validityType || 'days',
       validityDays: pass.validityDays || 30,
+      promoActive: pass.promoActive || false,
+      promoCode: pass.promoCode || '',
+      promoDiscountType: pass.promoDiscountType || null,
+      promoDiscountValue: pass.promoDiscountValue || null,
     }));
 
     return NextResponse.json({ passes: passesWithDefaults });
@@ -106,7 +114,11 @@ export async function POST(request: NextRequest) {
       validityDays,
       expiryDate,
       classesLimit,
-      isActive
+      isActive,
+      promoActive,
+      promoCode,
+      promoDiscountType,
+      promoDiscountValue
     } = body;
 
     // Validate required fields
@@ -176,6 +188,10 @@ export async function POST(request: NextRequest) {
       expiryDate: validityType === 'date' ? expiryDate : null,
       classesLimit: ['multi', 'multi-pass'].includes(type) ? classesLimit : null,
       isActive: isActive ?? true,
+      promoActive: promoActive ?? false,
+      promoCode: promoActive && promoCode ? String(promoCode).trim().toUpperCase() : null,
+      promoDiscountType: promoActive ? promoDiscountType || null : null,
+      promoDiscountValue: promoActive ? promoDiscountValue || null : null,
       tenant: {
         _type: 'reference',
         _ref: tenant._id

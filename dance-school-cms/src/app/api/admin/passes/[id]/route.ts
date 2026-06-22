@@ -32,7 +32,11 @@ export async function PUT(
       expiryDate,
       classesLimit,
       isActive,
-      category
+      category,
+      promoActive,
+      promoCode,
+      promoDiscountType,
+      promoDiscountValue
     } = body;
 
     // Add backward compatibility - if validityType is not provided, default to 'days'
@@ -78,6 +82,10 @@ export async function PUT(
         classesLimit: ['multi', 'multi-pass'].includes(type) ? classesLimit : null,
         isActive: isActive ?? true,
         category: category?.trim() || null,
+        promoActive: promoActive ?? false,
+        promoCode: promoActive && promoCode ? String(promoCode).trim().toUpperCase() : null,
+        promoDiscountType: promoActive ? promoDiscountType || null : null,
+        promoDiscountValue: promoActive ? promoDiscountValue || null : null,
         updatedAt: new Date().toISOString()
       })
       .commit();

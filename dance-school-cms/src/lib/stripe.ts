@@ -13,13 +13,48 @@ export const getStripe = () => {
 
 // Stripe configuration
 export const STRIPE_CONFIG = {
-  currency: 'nok', // Norwegian Kroner
+  currency: 'nok', // Norwegian Kroner (fallback only)
   payment_method_types: ['card'],
   connect: {
     application_fee_percent: 5, // Default platform fee
     country: 'NO', // Norway
   },
 };
+
+const SUPPORTED_STRIPE_CURRENCIES = new Set([
+  'usd',
+  'nok',
+  'eur',
+  'sek',
+  'dkk',
+  'gbp',
+]);
+
+export function normalizeStripeCurrency(currency?: string | null): string | null {
+  if (!currency) return null;
+  const normalized = currency.trim().toLowerCase();
+  return normalized || null;
+}
+
+export function isSupportedStripeCurrency(currency?: string | null): boolean {
+  const normalized = normalizeStripeCurrency(currency);
+  if (!normalized) return false;
+  return SUPPORTED_STRIPE_CURRENCIES.has(normalized);
+}
+
+export function resolveStripeCurrency(tenantCurrency?: string | null): string {
+  const normalizedTenantCurrency = normalizeStripeCurrency(tenantCurrency);
+  if (normalizedTenantCurrency && isSupportedStripeCurrency(normalizedTenantCurrency)) {
+    return normalizedTenantCurrency;
+  }
+
+  const normalizedDefaultCurrency = normalizeStripeCurrency(STRIPE_CONFIG.currency);
+  if (normalizedDefaultCurrency && isSupportedStripeCurrency(normalizedDefaultCurrency)) {
+    return normalizedDefaultCurrency;
+  }
+
+  return 'usd';
+}
 
 // Stripe Connect helper functions
 export const stripeConnect = {
