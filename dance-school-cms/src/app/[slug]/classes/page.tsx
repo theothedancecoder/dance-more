@@ -139,7 +139,7 @@ export default function ClassesPage() {
       </section>
 
       {/* Classes Grid */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 sm:pb-16">
         {(() => {
           const filtered = activeFilter === 'all' ? classes : classes.filter(c => c.level === activeFilter);
           return filtered.length === 0 && activeFilter !== 'all' ? (
@@ -151,12 +151,12 @@ export default function ClassesPage() {
             </div>
           ) : null;
         })()}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-8">
           {(activeFilter === 'all' ? classes : classes.filter(c => c.level === activeFilter)).map((classItem) => (
             <div key={classItem._id} className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-semibold text-gray-900">{classItem.title}</h3>
+              <div className="p-5 sm:p-6">
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 leading-tight">{classItem.title}</h3>
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                     classItem.level === 'beginner' 
                       ? 'bg-green-100 text-green-800'
@@ -235,25 +235,25 @@ export default function ClassesPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="bg-white py-16">
+      <section className="bg-white py-12 sm:py-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold mb-6" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
+          <h2 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
             Ready to Start Dancing?
           </h2>
-          <p className="text-xl text-gray-600 mb-8">
+          <p className="text-base sm:text-xl text-gray-600 mb-6 sm:mb-8">
             Join our community and discover the joy of dance!
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href={`/${tenantSlug}/calendar`}
-              className="px-8 py-4 rounded-xl text-white font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-lg inline-block"
+              className="w-full sm:w-auto px-8 py-4 rounded-xl text-white font-semibold transition-all duration-300 transform sm:hover:scale-105 hover:shadow-lg inline-block"
               style={{ backgroundColor: tenant.branding?.primaryColor || '#3B82F6' }}
             >
               View Schedule
             </Link>
             <Link
               href={`/${tenantSlug}/subscriptions`}
-              className="px-8 py-4 rounded-xl text-white font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-lg inline-block"
+              className="w-full sm:w-auto px-8 py-4 rounded-xl text-white font-semibold transition-all duration-300 transform sm:hover:scale-105 hover:shadow-lg inline-block"
               style={{ backgroundColor: tenant.branding?.secondaryColor || tenant.branding?.primaryColor || '#3B82F6' }}
             >
               View Passes

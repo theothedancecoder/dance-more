@@ -36,6 +36,19 @@ export default function Navigation() {
     }
   }, [user, finalTenantSlug]);
 
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (isMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMenuOpen]);
+
   if (!isLoaded) return null;
 
   const brandName = tenant?.schoolName || 'Dance-More';
@@ -53,19 +66,19 @@ export default function Navigation() {
     <nav className="bg-white shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 min-w-0 flex-1 md:flex-none">
             {tenant?.logo && (
               <Image
                 src={tenant.logo.asset?.url || '/placeholder-logo.png'}
                 alt={`${tenant.schoolName} logo`}
-                width={40}
-                height={40}
-                className="rounded-full"
+                width={36}
+                height={36}
+                className="rounded-full flex-shrink-0"
               />
             )}
             <Link 
               href={finalTenantSlug ? `/${finalTenantSlug}` : "/"} 
-              className="text-xl font-bold"
+              className="text-lg sm:text-xl font-bold truncate"
               style={{ color: brandColor }}
             >
               {brandName}
@@ -132,7 +145,7 @@ export default function Navigation() {
           </div>
 
           {/* Mobile menu button */}
-          <div className="md:hidden flex items-center">
+          <div className="md:hidden flex items-center ml-2">
             {user && (
               <div className="mr-4">
                 <UserButton afterSignOutUrl={finalTenantSlug ? `/${finalTenantSlug}` : "/"} />
@@ -140,7 +153,7 @@ export default function Navigation() {
             )}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="text-gray-700 hover:text-blue-600 focus:outline-none p-2"
+              className="text-gray-700 hover:text-blue-600 focus:outline-none p-3 rounded-lg"
               aria-label="Toggle menu"
             >
               {isMenuOpen ? (
@@ -165,7 +178,7 @@ export default function Navigation() {
           ></div>
           
           {/* Menu Content */}
-          <div className="relative w-4/5 max-w-sm h-full bg-white shadow-xl flex flex-col">
+          <div className="relative w-[85%] max-w-sm h-full bg-white shadow-xl flex flex-col">
             <div className="p-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <Link href={finalTenantSlug ? `/${finalTenantSlug}` : '/'} className="text-xl font-bold" style={{ color: brandColor }} onClick={() => setIsMenuOpen(false)}>
@@ -183,7 +196,7 @@ export default function Navigation() {
             </div>
 
             <div className="flex-1 overflow-y-auto">
-              <nav className="px-4 py-4 space-y-2">
+              <nav className="px-4 py-5 space-y-3">
                 {tenant || finalTenantSlug ? (
                   // Tenant-specific navigation
                   <>

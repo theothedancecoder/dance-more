@@ -185,12 +185,12 @@ export default function SubscriptionsPage() {
   ).slice(0, 10);
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className="min-h-screen bg-gray-50 py-6 sm:py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
+        <div className="mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">My Subscriptions</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Subscriptions</h1>
               <p className="text-gray-600 mt-2">Manage your subscriptions and view your bookings</p>
             </div>
             <Link 
@@ -206,15 +206,15 @@ export default function SubscriptionsPage() {
         </div>
 
         {/* Active Subscriptions */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+        <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-6 sm:mb-8">
           <h2 className="text-xl font-semibold mb-4">Active Subscriptions</h2>
           
           {activeSubscriptions.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-gray-500 mb-4">You don&apos;t have any active subscriptions.</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl mx-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 max-w-4xl mx-auto">
                 {availablePasses.map((pass) => (
-                  <div key={pass._id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                  <div key={pass._id} className="border border-gray-200 rounded-lg p-4 sm:p-5 hover:shadow-md transition-shadow">
                     <h3 className="font-semibold text-lg mb-2">{pass.name}</h3>
                     <ReadMoreText 
                       text={pass.description} 
@@ -258,7 +258,7 @@ export default function SubscriptionsPage() {
             <div className="grid gap-4">
               {activeSubscriptions.map((subscription) => (
                 <div key={subscription._id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex justify-between items-start">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                     <div>
                       <h3 className="font-semibold text-lg">
                         {subscription.passName || getSubscriptionDisplayName(subscription.type)}
@@ -318,7 +318,7 @@ export default function SubscriptionsPage() {
         </div>
 
         {/* Upcoming Bookings */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+        <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-6 sm:mb-8">
           <h2 className="text-xl font-semibold mb-4">Upcoming Classes</h2>
           
           {upcomingBookings.length === 0 ? (
@@ -327,7 +327,7 @@ export default function SubscriptionsPage() {
             <div className="space-y-4">
               {upcomingBookings.map((booking) => (
                 <div key={booking._id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex justify-between items-start">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                     <div>
                       <h3 className="font-semibold">{booking.parentClass.title}</h3>
                       <p className="text-gray-600">{booking.parentClass.danceStyle}</p>
@@ -361,12 +361,12 @@ export default function SubscriptionsPage() {
 
         {/* Past Bookings */}
         {pastBookings.length > 0 && (
-          <div className="bg-white rounded-lg shadow-lg p-6">
+          <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
             <h2 className="text-xl font-semibold mb-4">Recent Classes</h2>
             <div className="space-y-3">
               {pastBookings.map((booking) => (
                 <div key={booking._id} className="border border-gray-200 rounded-lg p-3 opacity-75">
-                  <div className="flex justify-between items-center">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                     <div>
                       <h4 className="font-medium">{booking.parentClass.title}</h4>
                       <p className="text-sm text-gray-500">

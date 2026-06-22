@@ -86,7 +86,7 @@ export default function TenantHomePage() {
         <div className="absolute bottom-20 left-20 w-12 h-12 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full opacity-20 animate-bounce-in animate-stagger-3"></div>
         <div className="absolute bottom-40 right-10 w-24 h-24 bg-gradient-to-r from-green-400 to-teal-500 rounded-full opacity-20 animate-bounce-in animate-stagger-4"></div>
         
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-20">
           <div className="text-center">
             {tenant?.logo?.asset?.url ? (
               <div className="mb-8 animate-bounce-in">
@@ -110,7 +110,7 @@ export default function TenantHomePage() {
               </div>
             )}
             <h1 
-              className="text-3xl sm:text-4xl lg:text-6xl font-bold mb-6 animate-slide-up bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent animate-gradient"
+              className="text-2xl sm:text-4xl lg:text-6xl font-bold mb-4 sm:mb-6 animate-slide-up bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent animate-gradient"
               style={{ 
                 backgroundImage: `linear-gradient(45deg, ${tenant?.branding?.primaryColor || '#3B82F6'}, ${tenant?.branding?.secondaryColor || '#8B5CF6'}, ${tenant?.branding?.accentColor || '#F59E0B'})`,
                 WebkitBackgroundClip: 'text',
@@ -120,7 +120,7 @@ export default function TenantHomePage() {
             >
               Welcome to {tenant?.schoolName}
             </h1>
-            <p className="text-lg sm:text-xl text-gray-700 max-w-3xl mx-auto leading-relaxed animate-slide-up-delay font-medium">
+            <p className="text-base sm:text-xl text-gray-700 max-w-3xl mx-auto leading-relaxed animate-slide-up-delay font-medium px-2 sm:px-0">
               {tenant?.description || 'Join our vibrant dance community and explore our exciting classes'}
             </p>
             <div className="mt-6 flex justify-center">
@@ -175,11 +175,11 @@ export default function TenantHomePage() {
       </SignedIn>
 
       {/* Quick Actions */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
           <Link
             href={`/${params.slug}/classes`}
-            className="group bg-gradient-to-br from-white via-purple-50 to-pink-50 p-6 sm:p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 hover:scale-105 animate-scale-in animate-stagger-1 border-2 border-transparent hover:border-purple-200"
+            className="group bg-gradient-to-br from-white via-purple-50 to-pink-50 p-5 sm:p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 md:hover:scale-105 animate-scale-in animate-stagger-1 border-2 border-transparent hover:border-purple-200"
             style={{ 
               borderTop: `6px solid ${tenant?.branding?.primaryColor || '#3B82F6'}`,
               background: `linear-gradient(135deg, white 0%, ${tenant?.branding?.primaryColor || '#3B82F6'}10 100%)`
@@ -213,7 +213,7 @@ export default function TenantHomePage() {
           
           <Link
             href={`/${params.slug}/calendar`}
-            className="group bg-gradient-to-br from-white via-blue-50 to-cyan-50 p-6 sm:p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 hover:scale-105 animate-scale-in animate-stagger-2 border-2 border-transparent hover:border-blue-200"
+            className="group bg-gradient-to-br from-white via-blue-50 to-cyan-50 p-5 sm:p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 md:hover:scale-105 animate-scale-in animate-stagger-2 border-2 border-transparent hover:border-blue-200"
             style={{ 
               borderTop: `6px solid ${tenant?.branding?.secondaryColor || tenant?.branding?.primaryColor || '#3B82F6'}`,
               background: `linear-gradient(135deg, white 0%, ${tenant?.branding?.secondaryColor || '#8B5CF6'}10 100%)`
@@ -247,7 +247,7 @@ export default function TenantHomePage() {
           
           <Link
             href={`/${params.slug}/subscriptions`}
-            className="group bg-gradient-to-br from-white via-yellow-50 to-orange-50 p-6 sm:p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 hover:scale-105 animate-scale-in animate-stagger-3 sm:col-span-2 lg:col-span-1 border-2 border-transparent hover:border-yellow-200"
+            className="group bg-gradient-to-br from-white via-yellow-50 to-orange-50 p-5 sm:p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 md:hover:scale-105 animate-scale-in animate-stagger-3 sm:col-span-2 lg:col-span-1 border-2 border-transparent hover:border-yellow-200"
             style={{ 
               borderTop: `6px solid ${tenant?.branding?.accentColor || tenant?.branding?.primaryColor || '#F59E0B'}`,
               background: `linear-gradient(135deg, white 0%, ${tenant?.branding?.accentColor || '#F59E0B'}10 100%)`
@@ -282,7 +282,7 @@ export default function TenantHomePage() {
       </section>
 
       {/* CTA Section */}
-      <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
         <div className="text-center">
           <SignedOut>
             <div 
@@ -312,7 +312,7 @@ export default function TenantHomePage() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in">
                 <SignInButton mode="modal">
                   <button 
-                    className="px-10 py-4 rounded-2xl text-white font-bold text-lg transition-all duration-500 transform hover:scale-110 hover:shadow-2xl animate-bounce-in shadow-lg"
+                    className="w-full sm:w-auto px-8 sm:px-10 py-4 rounded-2xl text-white font-bold text-base sm:text-lg transition-all duration-500 transform sm:hover:scale-110 hover:shadow-2xl animate-bounce-in shadow-lg"
                     style={{ 
                       background: `linear-gradient(135deg, ${tenant?.branding?.primaryColor || '#3B82F6'}, ${tenant?.branding?.secondaryColor || '#8B5CF6'})`,
                       boxShadow: `0 10px 30px ${tenant?.branding?.primaryColor || '#3B82F6'}40`
@@ -323,7 +323,7 @@ export default function TenantHomePage() {
                 </SignInButton>
                 <Link
                   href="/sign-up"
-                  className="px-10 py-4 rounded-2xl text-white font-bold text-lg transition-all duration-500 transform hover:scale-110 hover:shadow-2xl inline-block animate-bounce-in shadow-lg"
+                  className="w-full sm:w-auto px-8 sm:px-10 py-4 rounded-2xl text-white font-bold text-base sm:text-lg transition-all duration-500 transform sm:hover:scale-110 hover:shadow-2xl inline-block animate-bounce-in shadow-lg"
                   style={{ 
                     background: `linear-gradient(135deg, ${tenant?.branding?.secondaryColor || '#8B5CF6'}, ${tenant?.branding?.accentColor || '#F59E0B'})`,
                     boxShadow: `0 10px 30px ${tenant?.branding?.secondaryColor || '#8B5CF6'}40`
@@ -360,10 +360,10 @@ export default function TenantHomePage() {
               <p className="text-gray-700 mb-8 text-lg font-medium animate-slide-up-delay">
                 Ready to continue your exciting dance journey?
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center animate-fade-in">
                 <Link
                   href={`/${params.slug}/calendar`}
-                  className="px-10 py-4 rounded-2xl text-white font-bold text-lg transition-all duration-500 transform hover:scale-110 hover:shadow-2xl inline-block animate-bounce-in shadow-lg"
+                  className="w-full sm:w-auto px-8 sm:px-10 py-4 rounded-2xl text-white font-bold text-base sm:text-lg transition-all duration-500 transform sm:hover:scale-110 hover:shadow-2xl inline-block animate-bounce-in shadow-lg"
                   style={{ 
                     background: `linear-gradient(135deg, ${tenant?.branding?.primaryColor || '#3B82F6'}, ${tenant?.branding?.secondaryColor || '#8B5CF6'})`,
                     boxShadow: `0 10px 30px ${tenant?.branding?.primaryColor || '#3B82F6'}40`
@@ -373,7 +373,7 @@ export default function TenantHomePage() {
                 </Link>
                 <Link
                   href={`/${params.slug}/my-classes`}
-                  className="px-10 py-4 rounded-2xl text-white font-bold text-lg transition-all duration-500 transform hover:scale-110 hover:shadow-2xl inline-block animate-bounce-in shadow-lg"
+                  className="w-full sm:w-auto px-8 sm:px-10 py-4 rounded-2xl text-white font-bold text-base sm:text-lg transition-all duration-500 transform sm:hover:scale-110 hover:shadow-2xl inline-block animate-bounce-in shadow-lg"
                   style={{ 
                     background: `linear-gradient(135deg, ${tenant?.branding?.accentColor || '#F59E0B'}, ${tenant?.branding?.primaryColor || '#3B82F6'})`,
                     boxShadow: `0 10px 30px ${tenant?.branding?.accentColor || '#F59E0B'}40`

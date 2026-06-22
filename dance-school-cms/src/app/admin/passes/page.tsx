@@ -160,17 +160,17 @@ export default function PassesManagementPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className="min-h-screen bg-gray-50 py-6 sm:py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
+        <div className="mb-6 sm:mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Passes & Clipcards Management</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Passes & Clipcards Management</h1>
               <p className="text-gray-600 mt-2">
                 Create and manage subscription passes and clipcards for your dance school
               </p>
             </div>
-            <div className="flex space-x-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <button
                 onClick={() => router.push('/admin')}
                 className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
@@ -192,12 +192,12 @@ export default function PassesManagementPage() {
 
         {/* Create/Edit Form */}
         {showCreateForm && (
-          <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+          <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-6 sm:mb-8">
             <h2 className="text-xl font-semibold mb-4">
               {editingPass ? 'Edit Pass' : 'Create New Pass'}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Pass Name *
@@ -369,17 +369,17 @@ export default function PassesManagementPage() {
                 />
               </div>
 
-              <div className="flex justify-end space-x-3">
+              <div className="flex flex-col sm:flex-row sm:justify-end gap-3 sm:space-x-3">
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                  className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                 >
                   {editingPass ? 'Update Pass' : 'Create Pass'}
                 </button>
@@ -407,10 +407,10 @@ export default function PassesManagementPage() {
           ) : (
             <div className="divide-y divide-gray-200">
               {passes.map((pass) => (
-                <div key={pass._id} className="p-6">
-                  <div className="flex justify-between items-start">
+                <div key={pass._id} className="p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                     <div className="flex-1">
-                      <div className="flex items-center space-x-3">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                         <h3 className="text-lg font-semibold text-gray-900">{pass.name}</h3>
                         <span className={`px-2 py-1 text-xs rounded-full ${
                           pass.type === 'unlimited' ? 'bg-purple-100 text-purple-800' :
