@@ -17,6 +17,10 @@ interface PassData {
   classesLimit?: number;
   isActive: boolean;
   description?: string;
+  promoActive?: boolean;
+  promoCode?: string;
+  promoDiscountType?: 'percentage' | 'fixed';
+  promoDiscountValue?: number;
 }
 
 export default function PassesManagementPage() {
@@ -70,6 +74,10 @@ export default function PassesManagementPage() {
     expiryDate?: string;
     classesLimit?: number;
     isActive: boolean;
+    promoActive?: boolean;
+    promoCode?: string;
+    promoDiscountType?: 'percentage' | 'fixed';
+    promoDiscountValue?: number;
   }) => {
     setCreating(true);
     try {
@@ -115,6 +123,10 @@ export default function PassesManagementPage() {
       ...pass,
       validityType: pass.validityType || 'days' as 'days' | 'date',
       validityDays: pass.validityDays || 30,
+      promoActive: pass.promoActive || false,
+      promoCode: pass.promoCode || '',
+      promoDiscountType: pass.promoDiscountType || 'percentage',
+      promoDiscountValue: pass.promoDiscountValue || 0,
     };
     setEditingPass(passWithDefaults);
     setShowEditModal(true);
@@ -130,6 +142,10 @@ export default function PassesManagementPage() {
     expiryDate?: string;
     classesLimit?: number;
     isActive: boolean;
+    promoActive?: boolean;
+    promoCode?: string;
+    promoDiscountType?: 'percentage' | 'fixed';
+    promoDiscountValue?: number;
   }) => {
     if (!editingPass) return;
     
@@ -431,6 +447,18 @@ export default function PassesManagementPage() {
                         }
                       </span>
                     </div>
+                    {pass.promoActive && (
+                      <div className="flex justify-between text-sm text-gray-500 mt-1">
+                        <span>Promo:</span>
+                        <span className="font-medium text-green-700">
+                          {pass.promoCode || 'Enabled'} (
+                          {pass.promoDiscountType === 'percentage'
+                            ? `${pass.promoDiscountValue || 0}%`
+                            : `${pass.promoDiscountValue || 0} kr`}
+                          )
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {pass.description && (
@@ -542,6 +570,7 @@ export default function PassesManagementPage() {
                 e.preventDefault();
                 const formData = new FormData(e.currentTarget);
                 const validityType = formData.get('validityType') as string;
+                const promoActive = formData.get('promoActive') === 'on';
                 const data = {
                   name: formData.get('name') as string,
                   description: formData.get('description') as string,
@@ -552,6 +581,10 @@ export default function PassesManagementPage() {
                   expiryDate: validityType === 'date' ? formData.get('expiryDate') as string : undefined,
                   classesLimit: ['multi', 'multi-pass'].includes(formData.get('type') as string) ? Number(formData.get('classesLimit')) : undefined,
                   isActive: formData.get('isActive') === 'on',
+                  promoActive,
+                  promoCode: promoActive ? String(formData.get('promoCode') || '').trim().toUpperCase() : undefined,
+                  promoDiscountType: promoActive ? (formData.get('promoDiscountType') as 'percentage' | 'fixed') : undefined,
+                  promoDiscountValue: promoActive ? Number(formData.get('promoDiscountValue')) : undefined,
                 };
                 handleCreatePass(data);
               }}>
@@ -653,6 +686,60 @@ export default function PassesManagementPage() {
                   <div className="flex items-center">
                     <input
                       type="checkbox"
+                      name="promoActive"
+                      id="create-promoActive"
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      onChange={(e) => {
+                        const promoFields = document.getElementById('create-promo-fields');
+                        if (promoFields) {
+                          promoFields.style.display = e.target.checked ? 'block' : 'none';
+                        }
+                      }}
+                    />
+                    <label htmlFor="create-promoActive" className="ml-2 block text-sm text-gray-900">
+                      Enable promo code for this pass
+                    </label>
+                  </div>
+
+                  <div id="create-promo-fields" style={{ display: 'none' }} className="space-y-3 border border-green-200 bg-green-50 rounded-md p-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Promo Code</label>
+                      <input
+                        type="text"
+                        name="promoCode"
+                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 uppercase focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="e.g., SUMMER20"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Discount Type</label>
+                      <select
+                        name="promoDiscountType"
+                        defaultValue="percentage"
+                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="percentage">Percentage (%)</option>
+                        <option value="fixed">Fixed amount (kr)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Discount Value</label>
+                      <input
+                        type="number"
+                        name="promoDiscountValue"
+                        min="0"
+                        step="0.01"
+                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="e.g., 20"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
                       name="isActive"
                       defaultChecked
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
@@ -696,6 +783,7 @@ export default function PassesManagementPage() {
                 e.preventDefault();
                 const formData = new FormData(e.currentTarget);
                 const validityType = formData.get('validityType') as string;
+                const promoActive = formData.get('promoActive') === 'on';
                 const data = {
                   name: formData.get('name') as string,
                   description: formData.get('description') as string,
@@ -706,6 +794,10 @@ export default function PassesManagementPage() {
                   expiryDate: validityType === 'date' ? formData.get('expiryDate') as string : undefined,
                   classesLimit: ['multi', 'multi-pass'].includes(formData.get('type') as string) ? Number(formData.get('classesLimit')) : undefined,
                   isActive: formData.get('isActive') === 'on',
+                  promoActive,
+                  promoCode: promoActive ? String(formData.get('promoCode') || '').trim().toUpperCase() : undefined,
+                  promoDiscountType: promoActive ? (formData.get('promoDiscountType') as 'percentage' | 'fixed') : undefined,
+                  promoDiscountValue: promoActive ? Number(formData.get('promoDiscountValue')) : undefined,
                 };
                 handleUpdatePass(data);
               }}>
@@ -811,6 +903,67 @@ export default function PassesManagementPage() {
                       className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                       placeholder="10"
                     />
+                  </div>
+
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      name="promoActive"
+                      id="edit-promoActive"
+                      defaultChecked={!!editingPass.promoActive}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      onChange={(e) => {
+                        const promoFields = document.getElementById('edit-promo-fields');
+                        if (promoFields) {
+                          promoFields.style.display = e.target.checked ? 'block' : 'none';
+                        }
+                      }}
+                    />
+                    <label htmlFor="edit-promoActive" className="ml-2 block text-sm text-gray-900">
+                      Enable promo code for this pass
+                    </label>
+                  </div>
+
+                  <div
+                    id="edit-promo-fields"
+                    style={{ display: editingPass.promoActive ? 'block' : 'none' }}
+                    className="space-y-3 border border-green-200 bg-green-50 rounded-md p-3"
+                  >
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Promo Code</label>
+                      <input
+                        type="text"
+                        name="promoCode"
+                        defaultValue={editingPass.promoCode || ''}
+                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 uppercase focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="e.g., SUMMER20"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Discount Type</label>
+                      <select
+                        name="promoDiscountType"
+                        defaultValue={editingPass.promoDiscountType || 'percentage'}
+                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="percentage">Percentage (%)</option>
+                        <option value="fixed">Fixed amount (kr)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Discount Value</label>
+                      <input
+                        type="number"
+                        name="promoDiscountValue"
+                        min="0"
+                        step="0.01"
+                        defaultValue={editingPass.promoDiscountValue || ''}
+                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="e.g., 20"
+                      />
+                    </div>
                   </div>
 
                   <div className="flex items-center">
