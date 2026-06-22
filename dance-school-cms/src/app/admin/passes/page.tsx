@@ -13,6 +13,10 @@ interface Pass {
   validityDays: number;
   classesLimit: number | null;
   isActive: boolean;
+  promoActive?: boolean;
+  promoCode?: string;
+  promoDiscountType?: 'percentage' | 'fixed';
+  promoDiscountValue?: number | null;
 }
 
 export default function PassesManagementPage() {
@@ -29,7 +33,11 @@ export default function PassesManagementPage() {
     price: 0,
     validityDays: 30,
     classesLimit: 10,
-    isActive: true
+    isActive: true,
+    promoActive: false,
+    promoCode: '',
+    promoDiscountType: 'percentage',
+    promoDiscountValue: 0
   });
 
   useEffect(() => {
@@ -72,10 +80,17 @@ export default function PassesManagementPage() {
       const url = editingPass ? `/api/admin/passes/${editingPass._id}` : '/api/admin/passes';
       const method = editingPass ? 'PUT' : 'POST';
       
+      const payload = {
+        ...formData,
+        promoCode: formData.promoActive ? (formData.promoCode || '').trim().toUpperCase() : undefined,
+        promoDiscountType: formData.promoActive ? formData.promoDiscountType : undefined,
+        promoDiscountValue: formData.promoActive ? Number(formData.promoDiscountValue || 0) : undefined
+      };
+
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
       if (response.ok) {
@@ -100,7 +115,11 @@ export default function PassesManagementPage() {
       price: 0,
       validityDays: 30,
       classesLimit: 10,
-      isActive: true
+      isActive: true,
+      promoActive: false,
+      promoCode: '',
+      promoDiscountType: 'percentage',
+      promoDiscountValue: 0
     });
     setShowCreateForm(false);
     setEditingPass(null);
@@ -263,6 +282,68 @@ export default function PassesManagementPage() {
                 <div className="flex items-center">
                   <input
                     type="checkbox"
+                    name="promoActive"
+                    checked={!!formData.promoActive}
+                    onChange={handleInputChange}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label className="ml-2 block text-sm text-gray-700">
+                    Enable promo code for this pass
+                  </label>
+                </div>
+
+                {formData.promoActive && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Promo Code
+                      </label>
+                      <input
+                        type="text"
+                        name="promoCode"
+                        value={formData.promoCode || ''}
+                        onChange={handleInputChange}
+                        className="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-gray-900 uppercase"
+                        placeholder="e.g., SUMMER20"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Promo Discount Type
+                      </label>
+                      <select
+                        name="promoDiscountType"
+                        value={formData.promoDiscountType || 'percentage'}
+                        onChange={handleInputChange}
+                        className="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                      >
+                        <option value="percentage">Percentage (%)</option>
+                        <option value="fixed">Fixed amount (kr)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Promo Discount Value
+                      </label>
+                      <input
+                        type="number"
+                        name="promoDiscountValue"
+                        min="0"
+                        step="0.01"
+                        value={formData.promoDiscountValue || 0}
+                        onChange={handleInputChange}
+                        className="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                        placeholder="e.g., 20"
+                      />
+                    </div>
+                  </>
+                )}
+
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
                     name="isActive"
                     checked={formData.isActive}
                     onChange={handleInputChange}
@@ -352,6 +433,13 @@ export default function PassesManagementPage() {
                         <span className="font-medium">{pass.price} kr</span>
                         {(pass.type === 'multi' || pass.type === 'multi-pass') && <span> • {pass.classesLimit} classes</span>}
                         <span> • Valid for {pass.validityDays} days</span>
+                        {pass.promoActive && (
+                          <span>
+                            {' • '}Promo: {pass.promoCode || 'Enabled'} ({pass.promoDiscountType === 'percentage'
+                              ? `${pass.promoDiscountValue || 0}%`
+                              : `${pass.promoDiscountValue || 0} kr`})
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="flex space-x-2">
