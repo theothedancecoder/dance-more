@@ -742,3 +742,50 @@ body {
 /* ============================================
    END VALENTINE'S DAY THEME
    ============================================ */
+
+/* FullCalendar mobile responsiveness */
+@media (max-width: 640px) {
+  .fc .fc-toolbar {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .fc .fc-toolbar.fc-header-toolbar {
+    margin-bottom: 0.75rem;
+  }
+
+  .fc .fc-toolbar-title {
+    font-size: 1rem !important;
+    line-height: 1.25rem;
+    text-align: center;
+    width: 100%;
+    order: -1;
+  }
+
+  .fc .fc-button {
+    padding: 0.35rem 0.5rem !important;
+    font-size: 0.75rem !important;
+    border-radius: 0.5rem !important;
+  }
+
+  .fc .fc-daygrid-day-number {
+    font-size: 0.75rem;
+    padding: 0.25rem;
+  }
+
+  .fc .fc-timegrid-slot-label-cushion,
+  .fc .fc-timegrid-axis-cushion {
+    font-size: 0.7rem !important;
+  }
+
+  .fc .fc-event {
+    font-size: 0.7rem;
+    line-height: 1rem;
+    padding: 1px 2px;
+  }
+
+  .fc .fc-col-header-cell-cushion {
+    font-size: 0.72rem;
+    padding: 0.25rem 0.1rem;
+  }
+}

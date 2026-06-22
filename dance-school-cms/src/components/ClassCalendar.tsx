@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -42,6 +42,7 @@ export default function ClassCalendar({ isAdmin = false }: ClassCalendarProps) {
   const [selectedEvent, setSelectedEvent] = useState<ClassInstance | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [userSubscriptions, setUserSubscriptions] = useState<any[]>([]);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     if (tenant) {
@@ -51,6 +52,31 @@ export default function ClassCalendar({ isAdmin = false }: ClassCalendarProps) {
       }
     }
   }, [user, tenant]);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 640);
+    onResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const mobileHeaderToolbar = useMemo(
+    () => ({
+      left: 'prev,next',
+      center: 'title',
+      right: 'today',
+    }),
+    []
+  );
+
+  const desktopHeaderToolbar = useMemo(
+    () => ({
+      left: 'prev,next today',
+      center: 'title',
+      right: 'dayGridMonth,timeGridWeek,timeGridDay',
+    }),
+    []
+  );
 
   const fetchEvents = async () => {
     if (!tenant) return;
@@ -233,27 +259,24 @@ export default function ClassCalendar({ isAdmin = false }: ClassCalendarProps) {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
+    <div className="bg-white rounded-lg shadow-lg p-3 sm:p-6">
       <FullCalendar
         plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-        initialView="dayGridMonth"
-        headerToolbar={{
-          left: 'prev,next today',
-          center: 'title',
-          right: 'dayGridMonth,timeGridWeek,timeGridDay'
-        }}
+        initialView={isMobile ? 'timeGridDay' : 'dayGridMonth'}
+        headerToolbar={isMobile ? mobileHeaderToolbar : desktopHeaderToolbar}
         events={events}
         eventClick={handleEventClick}
-        height="auto"
+        height={isMobile ? 620 : 'auto'}
         eventDisplay="block"
-        dayMaxEvents={3}
+        dayMaxEvents={isMobile ? 2 : 3}
+        expandRows
         moreLinkClick="popover"
       />
 
       {/* Event Details Modal */}
       {showModal && selectedEvent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white rounded-lg p-4 sm:p-6 max-w-md w-full mx-2 sm:mx-4">
             <div className="flex justify-between items-start mb-4">
               <h3 className="text-xl font-bold">{selectedEvent.title}</h3>
               <button
@@ -278,7 +301,7 @@ export default function ClassCalendar({ isAdmin = false }: ClassCalendarProps) {
               )}
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               {!isAdmin && user && canBookClass() && (
                 <button
                   onClick={handleBookClass}
@@ -325,7 +348,7 @@ export default function ClassCalendar({ isAdmin = false }: ClassCalendarProps) {
 
               <button
                 onClick={() => setShowModal(false)}
-                className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 transition-colors"
               >
                 Close
               </button>
