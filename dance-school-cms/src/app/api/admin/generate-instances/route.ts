@@ -126,25 +126,10 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Check if instances already exist for this class (quick check)
-      const existingInstances = await sanityClient.fetch(
-        `count(*[_type == "classInstance" && parentClass._ref == $classId && date > now()])`,
-        { classId: classData._id }
-      );
-
-      if (existingInstances > 0) {
-        results.push({
-          classId: classData._id,
-          className: classData.title,
-          instancesCreated: 0,
-          message: `Already has ${existingInstances} future instances`
-        });
-        continue;
-      }
-
       // Generate instances for the next 4 weeks only (reduced from 8 to prevent timeout)
       const instances = [];
       const now = new Date();
+      const candidateDateSet = new Set<string>();
       
       for (const schedule of classData.recurringSchedule.weeklySchedule) {
         // Day mapping: JavaScript getDay() returns 0=Sunday, 1=Monday, etc.
@@ -179,11 +164,17 @@ export async function POST(request: NextRequest) {
           
           // Skip if this instance is in the past
           if (instanceDate <= now) continue;
+
+          const isoDate = instanceDate.toISOString();
+
+          // Deduplicate schedule collisions in-memory before DB checks
+          if (candidateDateSet.has(isoDate)) continue;
+          candidateDateSet.add(isoDate);
           
           const instance = {
             _type: 'classInstance',
             parentClass: { _ref: classData._id },
-            date: instanceDate.toISOString(),
+            date: isoDate,
             isCancelled: false,
             remainingCapacity: classData.capacity,
             bookings: []
@@ -193,19 +184,31 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Create instances in smaller batches to avoid timeout
+      // Create instances one by one, skipping existing date-times
       if (instances.length > 0) {
         try {
-          // Create instances one by one but with better error handling
           let createdCount = 0;
+          let skippedExistingCount = 0;
+
           for (const instance of instances) {
+            const existingForDate = await sanityClient.fetch(
+              `count(*[_type == "classInstance" && parentClass._ref == $classId && date == $date])`,
+              { classId: classData._id, date: instance.date }
+            );
+
+            if (existingForDate > 0) {
+              skippedExistingCount++;
+              continue;
+            }
+
             try {
               await sanityClient.create(instance);
               createdCount++;
             } catch (createError: unknown) {
-              // Skip if instance already exists (duplicate key error)
+              // Skip if instance already exists (duplicate key error/race)
               const errorWithMeta = createError as CreateError;
               if (errorWithMeta?.message?.includes('already exists') || errorWithMeta?.statusCode === 409) {
+                skippedExistingCount++;
                 console.log(`Instance already exists, skipping...`);
               } else {
                 console.log(`Error creating instance:`, errorWithMeta?.message || createError);
@@ -219,7 +222,11 @@ export async function POST(request: NextRequest) {
             classId: classData._id,
             className: classData.title,
             instancesCreated: createdCount,
-            message: 'Success'
+            message: createdCount > 0
+              ? `Success (${createdCount} created, ${skippedExistingCount} already existed)`
+              : skippedExistingCount > 0
+                ? `No new instances created (${skippedExistingCount} already existed)`
+                : 'No future instances needed'
           });
         } catch (error) {
           console.error(`Error creating instances for ${classData.title}:`, error);

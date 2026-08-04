@@ -22,22 +22,13 @@
 - [x] Validate and deploy (partial)
   - [x] Commit and push to `main` to trigger Vercel
 
-## New Scope: Calendar + Admin Schedule Mobile Improvements
+## New Scope: Calendar Instance Generation Fix
 
-- [ ] Update `src/app/[slug]/calendar/page.tsx`
-  - [ ] Tighten mobile spacing in hero/content sections
-  - [ ] Improve view-switch button layout/tap targets
-  - [ ] Improve daily card metadata wrapping and action grouping
-  - [ ] Improve confirmation modal spacing and small-screen button layout
-
-- [ ] Update `src/app/[slug]/admin/schedule/page.tsx`
-  - [ ] Improve header/action bar stacking on mobile
-  - [ ] Convert class rows to mobile-friendly stacked cards
-  - [ ] Improve long metadata readability/wrapping
-  - [ ] Stack row action buttons on mobile
-  - [ ] Improve inactive section and quick actions spacing
+- [x] Update `src/app/api/admin/generate-instances/route.ts`
+  - [x] Remove class-level skip based on any existing future instances
+  - [x] Generate candidate dates from recurring schedules and dedupe by datetime
+  - [x] Check/create per instance datetime so missing dates get created
+  - [x] Keep safe duplicate handling and accurate created counts/messages
 
 - [ ] Validate this scope
-  - [ ] Run lint checks
-  - [ ] Runtime mobile verification where env permits
-  - [ ] Commit and push to `main`
+  - [ ] Run lint/type checks for touched API route
