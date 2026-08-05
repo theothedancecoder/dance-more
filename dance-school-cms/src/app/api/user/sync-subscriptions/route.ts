@@ -64,12 +64,18 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const userSessions = recentSessions.data.filter(session => 
-      session.metadata?.userId === userId && 
-      session.metadata?.tenantId === tenant._id &&
-      session.metadata?.type === 'pass_purchase' &&
-      session.payment_status === 'paid'
-    );
+    const userSessions = recentSessions.data.filter(session => {
+      const metadataUserId = session.metadata?.userId || session.client_reference_id;
+      const metadataTenantId = session.metadata?.tenantId || session.metadata?.tenant || session.metadata?.tenant_id;
+      const sessionType = session.metadata?.type;
+
+      const matchesUser = metadataUserId === userId;
+      const matchesTenant = metadataTenantId === tenant._id;
+      const isRecoverableType = sessionType === 'pass_purchase' || sessionType === 'pass_upgrade';
+      const isPaid = session.payment_status === 'paid';
+
+      return matchesUser && matchesTenant && isRecoverableType && isPaid;
+    });
 
     console.log('💳 Found recent paid sessions for user:', userSessions.length);
 
@@ -79,10 +85,24 @@ export async function POST(request: NextRequest) {
     const errors: string[] = [];
 
     for (const session of userSessions) {
-      const { passId } = session.metadata || {};
+      const metadata = session.metadata || {};
+      const passId = metadata.passId;
+      const sessionType = metadata.type;
+      const upgradeFromSubscriptionId = metadata.upgradeFromSubscriptionId;
       
       if (!passId) {
-        console.log('⚠️ Session missing passId:', session.id);
+        const msg = `Session ${session.id}: missing passId in metadata`;
+        console.log('⚠️', msg);
+        errors.push(msg);
+        errorCount++;
+        continue;
+      }
+
+      if (!sessionType || !['pass_purchase', 'pass_upgrade'].includes(sessionType)) {
+        const msg = `Session ${session.id}: unsupported session type "${sessionType || 'undefined'}"`;
+        console.log('⚠️', msg);
+        errors.push(msg);
+        errorCount++;
         continue;
       }
 
@@ -183,6 +203,11 @@ export async function POST(request: NextRequest) {
         stripePaymentId: session.payment_intent as string,
         stripeSessionId: session.id, // Add session ID for proper tracking
         isActive: true,
+        isUpgrade: sessionType === 'pass_upgrade',
+        upgradedFromSubscriptionId: sessionType === 'pass_upgrade' ? upgradeFromSubscriptionId : undefined,
+        upgradeCost: sessionType === 'pass_upgrade' && metadata.upgradeCost
+          ? parseFloat(metadata.upgradeCost)
+          : undefined,
       };
 
       try {

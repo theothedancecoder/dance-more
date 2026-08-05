@@ -22,13 +22,13 @@
 - [x] Validate and deploy (partial)
   - [x] Commit and push to `main` to trigger Vercel
 
-## New Scope: Calendar Instance Generation Fix
+## New Scope: Subscription Recovery Fix (Purchased passes not showing)
 
-- [x] Update `src/app/api/admin/generate-instances/route.ts`
-  - [x] Remove class-level skip based on any existing future instances
-  - [x] Generate candidate dates from recurring schedules and dedupe by datetime
-  - [x] Check/create per instance datetime so missing dates get created
-  - [x] Keep safe duplicate handling and accurate created counts/messages
+- [ ] Update `src/app/api/user/sync-subscriptions/route.ts`
+  - [ ] Recover both `pass_purchase` and `pass_upgrade` checkout sessions when webhook processing is missed
+  - [ ] Make user/tenant session matching more robust against metadata variations
+  - [ ] Add clearer diagnostics for skipped sessions (missing metadata/pass/type mismatch)
+  - [ ] Preserve idempotency by checking existing subscriptions with session/payment IDs before create
 
 - [ ] Validate this scope
   - [ ] Run lint/type checks for touched API route
