@@ -57,7 +57,7 @@ export default function StudentPassesPage() {
   const fetchUserPasses = async () => {
     try {
       console.log('🔍 Fetching user passes...');
-      const response = await fetch('/api/student/passes');
+      const response = await fetch('/api/student/passes', { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         console.log('✅ Passes fetched successfully:', data.subscriptions);
@@ -136,6 +136,7 @@ export default function StudentPassesPage() {
     try {
       const response = await fetch('/api/student/passes/upgrade', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
