@@ -99,8 +99,9 @@ export async function POST(req) {
     console.log('🔑 Signature header:', sig.substring(0, 50) + '...');
     console.log('📄 Body preview:', rawBody.toString('utf8', 0, 100) + '...');
     
-    // Verify webhook signature with buffer converted to string
-    event = stripe.webhooks.constructEvent(rawBody.toString('utf8'), sig, webhookSecret);
+    // Verify webhook signature using the raw buffer (passing Buffer preserves exact bytes)
+    // Passing the Buffer directly avoids encoding differences that can break signature verification
+    event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
     
   } catch (err) {
     console.error('❌ Webhook signature verification failed:', err.message);
