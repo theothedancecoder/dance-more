@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
-import { getAdminEmails } from '@/lib/auth';
+import { getAdminEmails, getServerUser } from '@/lib/auth';
 import { findTenantForDebug, getPassVisibilityReport } from '@/lib/pass-visibility-debug';
+import { UserRole } from '@/types';
 
 type BatchRequestBody = {
   tenantSlug?: string;
@@ -17,11 +18,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const serverUser = await getServerUser();
     const requesterEmail = clerkUser.emailAddresses[0]?.emailAddress?.toLowerCase();
-    const isAdminRequester = !!requesterEmail && getAdminEmails().includes(requesterEmail);
+    const isAdminEmailRequester = !!requesterEmail && getAdminEmails().includes(requesterEmail);
+    const isTenantAdminRequester = serverUser?.role === UserRole.ADMIN;
+    const isAdminRequester = isAdminEmailRequester || isTenantAdminRequester;
     if (!isAdminRequester) {
       return NextResponse.json(
-        { error: 'Forbidden: only admin emails can run batch visibility diagnostics' },
+        { error: 'Forbidden: tenant admin role or admin email required for batch diagnostics' },
         { status: 403 }
       );
     }

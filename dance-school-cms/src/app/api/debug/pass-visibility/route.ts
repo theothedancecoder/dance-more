@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { getAdminEmails } from '@/lib/auth';
 import { findTenantForDebug, getPassVisibilityReport } from '@/lib/pass-visibility-debug';
+import { getServerUser } from '@/lib/auth';
+import { UserRole } from '@/types';
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,12 +20,15 @@ export async function GET(request: NextRequest) {
 
     const requestedClerkUserId = url.searchParams.get('clerkUserId') || userId;
     if (requestedClerkUserId !== userId) {
+      const serverUser = await getServerUser();
       const clerkUser = await currentUser();
       const requesterEmail = clerkUser?.emailAddresses[0]?.emailAddress?.toLowerCase();
-      const isAdminRequester = !!requesterEmail && getAdminEmails().includes(requesterEmail);
+      const isAdminEmailRequester = !!requesterEmail && getAdminEmails().includes(requesterEmail);
+      const isTenantAdminRequester = serverUser?.role === UserRole.ADMIN;
+      const isAdminRequester = isAdminEmailRequester || isTenantAdminRequester;
       if (!isAdminRequester) {
         return NextResponse.json(
-          { error: 'Forbidden: only admin emails can inspect other users' },
+          { error: 'Forbidden: tenant admin role or admin email required to inspect other users' },
           { status: 403 }
         );
       }
