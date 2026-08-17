@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { stripeConnect, resolveStripeCurrency } from '@/lib/stripe';
 import { auth } from '@clerk/nextjs/server';
 import { sanityClient } from '@/lib/sanity';
+import { resolveUserReferenceIds } from '@/lib/user-references';
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,9 +28,10 @@ export async function POST(request: NextRequest) {
     // Handle upgrade logic if upgradeFromSubscriptionId is provided
     let upgradeInfo = null;
     if (upgradeFromSubscriptionId) {
+      const userReferenceIds = await resolveUserReferenceIds(userId);
       // Get the current subscription details
       const currentSubscription = await sanityClient.fetch(`
-        *[_type == "subscription" && _id == $subscriptionId && user->clerkId == $userId][0] {
+        *[_type == "subscription" && _id == $subscriptionId && user._ref in $userReferenceIds][0] {
           _id,
           passName,
           type,
@@ -40,7 +42,7 @@ export async function POST(request: NextRequest) {
           endDate,
           isActive
         }
-      `, { subscriptionId: upgradeFromSubscriptionId, userId });
+      `, { subscriptionId: upgradeFromSubscriptionId, userReferenceIds });
 
       if (!currentSubscription || !currentSubscription.isActive) {
         return NextResponse.json({ error: 'Current subscription not found or inactive' }, { status: 404 });

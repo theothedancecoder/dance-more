@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { sanityClient } from '@/lib/sanity';
+import { resolveUserReferenceIds } from '@/lib/user-references';
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,10 +18,11 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('🔍 Checking subscription status for session:', sessionId);
+    const userReferenceIds = await resolveUserReferenceIds(userId);
 
     // Check if subscription exists for this session
     const subscription = await sanityClient.fetch(
-      `*[_type == "subscription" && stripeSessionId == $sessionId && user->clerkId == $userId][0] {
+      `*[_type == "subscription" && stripeSessionId == $sessionId && (user._ref in $userReferenceIds || user->clerkId == $userId)][0] {
         _id,
         type,
         passName,
@@ -30,7 +32,7 @@ export async function POST(request: NextRequest) {
         isActive,
         createdViaWebhook
       }`,
-      { sessionId, userId }
+      { sessionId, userId, userReferenceIds }
     );
 
     if (subscription) {

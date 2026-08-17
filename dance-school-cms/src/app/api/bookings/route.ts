@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { sanityClient, writeClient } from '@/lib/sanity';
+import { resolveUserReferenceIds } from '@/lib/user-references';
 
 // Get user's bookings
 export async function GET(request: NextRequest) {
@@ -24,16 +25,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // First get the tenant ID and the Sanity user document ID
-    const [tenant, sanityUserGet] = await Promise.all([
+    // First get tenant and all supported user refs (legacy + current)
+    const [tenant, userReferenceIds] = await Promise.all([
       sanityClient.fetch(
         `*[_type == "tenant" && slug.current == $tenantSlug][0] { _id }`,
         { tenantSlug }
       ),
-      sanityClient.fetch(
-        `*[_type == "user" && clerkId == $userId][0]{ _id }`,
-        { userId }
-      ),
+      resolveUserReferenceIds(userId),
     ]);
 
     if (!tenant) {
@@ -43,12 +41,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Support both old bookings (stored with Clerk ID) and new ones (stored with Sanity user _id)
-    const studentRef = sanityUserGet?._id ?? userId;
-
     // Get class instances with user's bookings for this specific tenant
     const bookings = await sanityClient.fetch(
-      `*[_type == "classInstance" && ($studentRef in bookings[].student._ref || $userId in bookings[].student._ref) && parentClass->tenant._ref == $tenantId] {
+      `*[_type == "classInstance" && count(bookings[student._ref in $userReferenceIds]) > 0 && parentClass->tenant._ref == $tenantId] {
         _id,
         date,
         isCancelled,
@@ -62,9 +57,9 @@ export async function GET(request: NextRequest) {
             slug
           }
         },
-        "userBooking": bookings[student._ref == $studentRef || student._ref == $userId][0]
+        "userBooking": bookings[student._ref in $userReferenceIds][0]
       } | order(date asc)`,
-      { userId, studentRef, tenantId: tenant._id }
+      { userReferenceIds, tenantId: tenant._id }
     );
 
     return NextResponse.json({ bookings });
@@ -154,9 +149,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const userReferenceIds = await resolveUserReferenceIds(userId);
+
     // Check if user already booked this class
     const existingBooking = classInstance.bookings?.find(
-      (booking: any) => booking.student._ref === userId
+      (booking: any) => userReferenceIds.includes(booking.student._ref)
     );
 
     if (existingBooking) {
@@ -169,9 +166,13 @@ export async function POST(request: NextRequest) {
     // Check user's active subscriptions - filter by tenant to prevent cross-school usage
     const tenantId = classInstance.parentClass.tenant?._ref;
     const now = new Date();
+    const tenantPassIds = await sanityClient.fetch<string[]>(
+      `*[_type == "pass" && tenant._ref == $tenantId]._id`,
+      { tenantId }
+    );
     const activeSubscriptions = await sanityClient.fetch(
-      `*[_type == "subscription" && user->clerkId == $userId && tenant._ref == $tenantId && isActive == true && endDate > $now] | order(_createdAt desc)`,
-      { userId, tenantId, now: now.toISOString() }
+      `*[_type == "subscription" && user._ref in $userReferenceIds && isActive == true && endDate > $now && (tenant._ref == $tenantId || (!defined(tenant) && ((defined(passId) && passId in $tenantPassIds) || (defined(pass._ref) && pass._ref in $tenantPassIds))))] | order(_createdAt desc)`,
+      { userReferenceIds, tenantId, now: now.toISOString(), tenantPassIds }
     );
 
     if (activeSubscriptions.length === 0) {
@@ -216,12 +217,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Look up the Sanity user document so we store a valid Sanity reference
-    const sanityUser = await sanityClient.fetch(
-      `*[_type == "user" && clerkId == $userId][0]{ _id }`,
-      { userId }
-    );
-    const studentRef = sanityUser?._id ?? userId; // fall back to clerkId if not found
+    const studentRef = userReferenceIds.find((ref) => ref !== userId) ?? userId;
 
     // Create booking
     const newBooking = {
