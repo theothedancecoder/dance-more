@@ -12,6 +12,7 @@ interface ClassInstance {
   startTime: string;
   endTime: string;
   date: string;
+  dayOfWeek?: string;
   capacity: number;
   booked: number;
   price: number;
@@ -38,13 +39,16 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
     const d = new Date(date);
     const day = d.getDay();
     const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
-    return new Date(d.setDate(diff));
+    d.setDate(diff);
+    d.setHours(0, 0, 0, 0);
+    return d;
   }
 
   // Get week end (Sunday)
   function getWeekEnd(weekStart: Date): Date {
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
     return weekEnd;
   }
 
@@ -54,11 +58,6 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
       month: 'short', 
       day: 'numeric' 
     });
-  }
-
-  // Get day name
-  function getDayName(date: Date): string {
-    return date.toLocaleDateString('en-US', { weekday: 'long' });
   }
 
   // Navigate weeks
@@ -117,17 +116,9 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
     });
 
     classInstances.forEach(instance => {
-      // Parse the date as local date to avoid timezone shifts
-      // Extract YYYY-MM-DD part and create date at local midnight
-      const dateString = instance.date.split('T')[0]; // Get date part only
-      const [year, month, day] = dateString.split('-').map(Number);
-      const instanceDate = new Date(year, month - 1, day); // Month is 0-indexed
+      const dayName = instance.dayOfWeek?.toLowerCase();
 
-      // Use getDay() to get the correct day, consistent with getWeekStart calculation
-      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-      const dayName = dayNames[instanceDate.getDay()];
-
-      if (grouped[dayName]) {
+      if (dayName && grouped[dayName]) {
         grouped[dayName].push(instance);
       }
     });
@@ -207,7 +198,7 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
               There are no classes scheduled for this week. Try selecting a different week or check back later.
             </p>
             <p className="text-sm text-gray-400">
-              If you're an admin, you can add classes through the admin panel.
+              If you&apos;re an admin, you can add classes through the admin panel.
             </p>
           </div>
         </div>

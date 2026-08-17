@@ -1,6 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sanityClient } from '@/lib/sanity';
 
+const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
+
+interface WeeklyScheduleItem {
+  dayOfWeek?: string;
+  startTime?: string;
+  endTime?: string;
+}
+
+interface PublicClassInstance {
+  _id: string;
+  date: string;
+  isCancelled: boolean;
+  remainingCapacity: number;
+  bookingCount?: number;
+  parentClass: {
+    _id: string;
+    title: string;
+    danceStyle?: string;
+    level?: string;
+    duration?: number;
+    capacity?: number;
+    price?: number;
+    location?: string;
+    recurringSchedule?: {
+      weeklySchedule?: WeeklyScheduleItem[];
+    };
+    instructor?: {
+      name?: string;
+      image?: unknown;
+    };
+  };
+}
+
+function getDayOfWeekFromIsoDateTime(isoDateTime: string) {
+  return DAY_NAMES[new Date(isoDateTime).getUTCDay()];
+}
+
+function addDurationToTime(startTime: string, durationMinutes: number) {
+  const [hours, minutes] = startTime.split(':').map(Number);
+  const totalMinutes = hours * 60 + minutes + durationMinutes;
+  const normalizedMinutes = ((totalMinutes % (24 * 60)) + (24 * 60)) % (24 * 60);
+  const endHours = Math.floor(normalizedMinutes / 60);
+  const endMinutes = normalizedMinutes % 60;
+
+  return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
+}
+
 // Public endpoint for class instances (for calendar view)
 export async function GET(request: NextRequest) {
   try {
@@ -72,51 +119,25 @@ export async function GET(request: NextRequest) {
     console.log('Found class instances:', instances.length);
 
     // Transform instances to calendar events
-    let calendarEvents = instances.map((instance: any) => {
-      const instanceDate = new Date(instance.date);
-      
-      // Smart time handling: only use scheduled time for classes that need timezone correction
-      let startTime, endTime;
-      const utcHours = instanceDate.getUTCHours();
-      const utcMinutes = instanceDate.getUTCMinutes();
-      const scheduledTime = instance.parentClass?.recurringSchedule?.weeklySchedule?.[0]?.startTime;
-      
-      // Check if this class needs timezone correction
-      // Classes stored at 16:00 UTC but scheduled for 18:00 need correction
-      // Classes stored at 17:00 UTC but scheduled for 19:00 need correction
-      const needsCorrection = scheduledTime && (
-        (utcHours === 16 && scheduledTime === '18:00') ||
-        (utcHours === 16 && scheduledTime === '19:00') ||
-        (utcHours === 17 && scheduledTime === '19:00')
+    let calendarEvents = instances.map((instance: PublicClassInstance) => {
+      const dayOfWeek = getDayOfWeekFromIsoDateTime(instance.date);
+      const matchingSchedule = instance.parentClass?.recurringSchedule?.weeklySchedule?.find(
+        (schedule) => schedule.dayOfWeek?.toLowerCase() === dayOfWeek
       );
-      
-      if (needsCorrection) {
-        // Use the scheduled time for classes that need correction
-        startTime = scheduledTime;
-        
-        // Calculate end time based on duration
-        const [hours, minutes] = startTime.split(':').map(Number);
-        const duration = instance.parentClass.duration || 60; // Default 60 minutes
-        const endDate = new Date();
-        endDate.setHours(hours, minutes + duration, 0, 0);
-        endTime = `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`;
-      } else {
-        // For classes that don't need correction, use the UTC time directly
-        // This preserves the original display behavior for correctly stored classes
-        startTime = `${utcHours.toString().padStart(2, '0')}:${utcMinutes.toString().padStart(2, '0')}`;
-        
-        // Calculate end time
-        const endHours = utcHours + 1; // Assume 1 hour duration
-        endTime = `${endHours.toString().padStart(2, '0')}:${utcMinutes.toString().padStart(2, '0')}`;
-      }
-      
+      const duration = instance.parentClass.duration || 60;
+      const instanceDate = new Date(instance.date);
+      const fallbackStartTime = `${instanceDate.getUTCHours().toString().padStart(2, '0')}:${instanceDate.getUTCMinutes().toString().padStart(2, '0')}`;
+      const startTime = matchingSchedule?.startTime || fallbackStartTime;
+      const endTime = matchingSchedule?.endTime || addDurationToTime(startTime, duration);
+       
       return {
         _id: instance._id,
         title: instance.parentClass.title,
         instructor: instance.parentClass.instructor?.name || 'TBA',
         startTime: startTime,
         endTime: endTime,
-        date: instanceDate.toISOString().split('T')[0], // Use date-only format
+        date: instance.date.split('T')[0],
+        dayOfWeek,
         capacity: instance.parentClass.capacity,
         booked: instance.bookingCount || 0,
         price: instance.parentClass.price,
@@ -203,7 +224,7 @@ export async function GET(request: NextRequest) {
             }
             
             // Generate instances week by week within the effective date range
-            let currentWeekStart = new Date(effectiveStartDate);
+            const currentWeekStart = new Date(effectiveStartDate);
             // Adjust to the start of the week (Monday)
             const currentDayOfWeek = currentWeekStart.getDay();
             const daysToMonday = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
@@ -245,13 +266,9 @@ export async function GET(request: NextRequest) {
                 // Use the scheduled time directly instead of converting UTC
                 const startTime = schedule.startTime;
                 
-                // Calculate end time based on duration
-                const [hours, minutes] = startTime.split(':').map(Number);
                 const duration = classData.duration || 60; // Default 60 minutes
-                const endDate = new Date();
-                endDate.setHours(hours, minutes + duration, 0, 0);
-                const endTime = `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`;
-                
+                const endTime = schedule.endTime || addDurationToTime(startTime, duration);
+                 
                 virtualInstances.push({
                   _id: `virtual-${classData._id}-${instanceDate.getTime()}`,
                   title: classData.title,
@@ -259,6 +276,7 @@ export async function GET(request: NextRequest) {
                   startTime: startTime,
                   endTime: endTime,
                   date: instanceDate.toISOString().split('T')[0],
+                  dayOfWeek: schedule.dayOfWeek?.toLowerCase(),
                   capacity: classData.capacity || 10,
                   booked: 0,
                   price: classData.price || 0,
@@ -296,6 +314,7 @@ export async function GET(request: NextRequest) {
               startTime: startTime,
               endTime: endTime,
               date: sampleDate.toISOString().split('T')[0],
+              dayOfWeek: getDayOfWeekFromIsoDateTime(sampleDate.toISOString()),
               capacity: classData.capacity || 10,
               booked: 0,
               price: classData.price || 0,

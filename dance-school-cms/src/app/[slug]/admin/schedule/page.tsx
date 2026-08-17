@@ -37,6 +37,24 @@ interface ClassData {
   _updatedAt?: string;
 }
 
+interface RepairPreviewResultItem {
+  classId: string;
+  className: string;
+  previewInstancesToCreate?: number;
+  previewInstancesToDelete?: number;
+  bookedMismatchesRetained?: number;
+  bookedDuplicatesRetained?: number;
+  message: string;
+}
+
+interface RepairPreviewData {
+  totalPreviewInstancesToCreate: number;
+  totalPreviewInstancesToDelete: number;
+  classesProcessed: number;
+  message: string;
+  results: RepairPreviewResultItem[];
+}
+
 export default function ScheduleManagementPage() {
   const params = useParams();
   const { isLoaded, isSignedIn, userId } = useAuth();
@@ -44,8 +62,11 @@ export default function ScheduleManagementPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [previewingRepair, setPreviewingRepair] = useState(false);
+  const [repairing, setRepairing] = useState(false);
   const [generatingClass, setGeneratingClass] = useState<string | null>(null);
   const [inactiveClasses, setInactiveClasses] = useState<ClassData[]>([]);
+  const [repairPreview, setRepairPreview] = useState<RepairPreviewData | null>(null);
 
   const tenantSlug = params.slug as string;
 
@@ -111,6 +132,7 @@ export default function ScheduleManagementPage() {
 
   const generateAllInstances = async () => {
     setGenerating(true);
+    setRepairPreview(null);
     try {
       const response = await fetch('/api/admin/generate-instances', {
         method: 'POST',
@@ -137,6 +159,71 @@ export default function ScheduleManagementPage() {
       alert('Error generating instances: ' + errorMessage);
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const repairFutureSchedule = async () => {
+    if (!confirm('Repair future schedule? This will create missing future instances and delete unexpected unbooked future instances for recurring classes. Booked mismatches will be kept for safety.')) {
+      return;
+    }
+
+    setRepairing(true);
+    setRepairPreview(null);
+    try {
+      const response = await fetch('/api/admin/generate-instances', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-slug': tenantSlug,
+        },
+        body: JSON.stringify({
+          repairSchedule: true,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to repair schedule');
+      }
+
+      const result = await response.json();
+      alert(
+        `Repair complete.\nCreated: ${result.totalInstancesCreated}\nDeleted: ${result.totalInstancesDeleted}\n\n${result.message || ''}`
+      );
+      window.location.reload();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      alert('Error repairing schedule: ' + errorMessage);
+    } finally {
+      setRepairing(false);
+    }
+  };
+
+  const previewRepairFutureSchedule = async () => {
+    setPreviewingRepair(true);
+    try {
+      const response = await fetch('/api/admin/generate-instances', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-slug': tenantSlug,
+        },
+        body: JSON.stringify({
+          repairSchedule: true,
+          dryRun: true,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to preview schedule repair');
+      }
+
+      const result: RepairPreviewData = await response.json();
+      setRepairPreview(result);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      alert('Error previewing schedule repair: ' + errorMessage);
+    } finally {
+      setPreviewingRepair(false);
     }
   };
 
@@ -203,6 +290,13 @@ export default function ScheduleManagementPage() {
     );
   }
 
+  const impactedPreviewResults = repairPreview?.results.filter((item) =>
+    (item.previewInstancesToCreate || 0) > 0 ||
+    (item.previewInstancesToDelete || 0) > 0 ||
+    (item.bookedMismatchesRetained || 0) > 0 ||
+    (item.bookedDuplicatesRetained || 0) > 0
+  ) || [];
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -216,9 +310,9 @@ export default function ScheduleManagementPage() {
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <button
                 onClick={generateAllInstances}
-                disabled={generating}
+                disabled={generating || repairing || previewingRepair}
                 className={`w-full sm:w-auto px-4 py-2 rounded-lg flex items-center justify-center space-x-2 ${
-                  generating 
+                  generating || repairing || previewingRepair
                     ? 'bg-gray-400 cursor-not-allowed' 
                     : 'bg-green-600 hover:bg-green-700'
                 } text-white`}
@@ -232,6 +326,48 @@ export default function ScheduleManagementPage() {
                   <>
                     <CalendarIcon className="h-5 w-5" />
                     <span>Generate All Instances</span>
+                  </>
+                )}
+              </button>
+              <button
+                onClick={previewRepairFutureSchedule}
+                disabled={generating || repairing || previewingRepair}
+                className={`w-full sm:w-auto px-4 py-2 rounded-lg flex items-center justify-center space-x-2 ${
+                  generating || repairing || previewingRepair
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-orange-500 hover:bg-orange-600'
+                } text-white`}
+              >
+                {previewingRepair ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <span>Previewing...</span>
+                  </>
+                ) : (
+                  <>
+                    <CalendarIcon className="h-5 w-5" />
+                    <span>Preview Repair</span>
+                  </>
+                )}
+              </button>
+              <button
+                onClick={repairFutureSchedule}
+                disabled={generating || repairing || previewingRepair}
+                className={`w-full sm:w-auto px-4 py-2 rounded-lg flex items-center justify-center space-x-2 ${
+                  generating || repairing || previewingRepair
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-amber-600 hover:bg-amber-700'
+                } text-white`}
+              >
+                {repairing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <span>Repairing...</span>
+                  </>
+                ) : (
+                  <>
+                    <ClockIcon className="h-5 w-5" />
+                    <span>Repair Future Schedule</span>
                   </>
                 )}
               </button>
@@ -255,6 +391,87 @@ export default function ScheduleManagementPage() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        {repairPreview && (
+          <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 shadow-sm">
+            <div className="flex items-start justify-between gap-4 border-b border-amber-200 px-4 py-4 sm:px-6">
+              <div>
+                <h2 className="text-lg font-semibold text-amber-900">Repair Preview</h2>
+                <p className="mt-1 text-sm text-amber-800">{repairPreview.message}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRepairPreview(null)}
+                className="rounded-md px-2 py-1 text-sm text-amber-700 hover:bg-amber-100"
+              >
+                Dismiss
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 px-4 py-4 sm:grid-cols-3 sm:px-6">
+              <div className="rounded-md bg-white px-4 py-3 shadow-sm">
+                <p className="text-sm text-gray-500">Would create</p>
+                <p className="mt-1 text-2xl font-semibold text-green-700">{repairPreview.totalPreviewInstancesToCreate}</p>
+              </div>
+              <div className="rounded-md bg-white px-4 py-3 shadow-sm">
+                <p className="text-sm text-gray-500">Would delete</p>
+                <p className="mt-1 text-2xl font-semibold text-red-700">{repairPreview.totalPreviewInstancesToDelete}</p>
+              </div>
+              <div className="rounded-md bg-white px-4 py-3 shadow-sm">
+                <p className="text-sm text-gray-500">Classes checked</p>
+                <p className="mt-1 text-2xl font-semibold text-blue-700">{repairPreview.classesProcessed}</p>
+              </div>
+            </div>
+
+            <div className="px-4 pb-4 sm:px-6">
+              {impactedPreviewResults.length === 0 ? (
+                <div className="rounded-md bg-white px-4 py-3 text-sm text-gray-600 shadow-sm">
+                  No recurring classes need schedule repair.
+                </div>
+              ) : (
+                <div className="overflow-hidden rounded-md bg-white shadow-sm">
+                  <div className="border-b border-gray-200 px-4 py-3">
+                    <h3 className="text-sm font-medium text-gray-900">Impacted Classes</h3>
+                  </div>
+                  <ul className="divide-y divide-gray-200">
+                    {impactedPreviewResults.map((item) => (
+                      <li key={item.classId} className="px-4 py-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <p className="font-medium text-gray-900">{item.className}</p>
+                            <p className="text-sm text-gray-500">{item.message}</p>
+                          </div>
+                          <div className="flex flex-wrap gap-2 text-xs">
+                            {(item.previewInstancesToCreate || 0) > 0 && (
+                              <span className="rounded-full bg-green-100 px-2.5 py-1 font-medium text-green-800">
+                                Create {item.previewInstancesToCreate}
+                              </span>
+                            )}
+                            {(item.previewInstancesToDelete || 0) > 0 && (
+                              <span className="rounded-full bg-red-100 px-2.5 py-1 font-medium text-red-800">
+                                Delete {item.previewInstancesToDelete}
+                              </span>
+                            )}
+                            {(item.bookedMismatchesRetained || 0) > 0 && (
+                              <span className="rounded-full bg-yellow-100 px-2.5 py-1 font-medium text-yellow-800">
+                                Keep booked mismatches {item.bookedMismatchesRetained}
+                              </span>
+                            )}
+                            {(item.bookedDuplicatesRetained || 0) > 0 && (
+                              <span className="rounded-full bg-yellow-100 px-2.5 py-1 font-medium text-yellow-800">
+                                Keep booked duplicates {item.bookedDuplicatesRetained}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {classes.length === 0 ? (
           <div className="text-center py-12">
             <CalendarIcon className="mx-auto h-12 w-12 text-gray-400" />
@@ -370,7 +587,7 @@ export default function ScheduleManagementPage() {
             <h2 className="text-xl font-semibold mb-4 text-red-600">Inactive Classes (Deleted)</h2>
             <p className="text-sm text-gray-600 mb-4">
               These classes have been deactivated but their instances may still appear in the calendar.
-              Use "Hard Delete" to permanently remove them and all their instances.
+              Use &quot;Hard Delete&quot; to permanently remove them and all their instances.
             </p>
 
             <div className="bg-white shadow overflow-hidden sm:rounded-md">

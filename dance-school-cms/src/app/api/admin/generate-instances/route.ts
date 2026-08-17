@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sanityClient } from '@/lib/sanity';
+import { sanityClient, writeClient } from '@/lib/sanity';
 import { auth } from '@clerk/nextjs/server';
 
 interface WeeklyScheduleItem {
   dayOfWeek: string;
   startTime: string;
+  endTime?: string;
 }
 
 interface RecurringSchedule {
+  startDate?: string;
+  endDate?: string;
   weeklySchedule?: WeeklyScheduleItem[];
 }
 
@@ -23,11 +26,32 @@ interface GenerationResultItem {
   className: string;
   instancesCreated: number;
   message: string;
+  instancesDeleted?: number;
+  previewInstancesToCreate?: number;
+  previewInstancesToDelete?: number;
+  bookedMismatchesRetained?: number;
+  duplicateInstancesDeleted?: number;
+  bookedDuplicatesRetained?: number;
 }
 
 interface CreateError {
   message?: string;
   statusCode?: number;
+}
+
+interface GeneratedInstance {
+  _type: 'classInstance';
+  parentClass: { _type: 'reference'; _ref: string };
+  date: string;
+  isCancelled: false;
+  remainingCapacity: number;
+  bookings: [];
+}
+
+interface ExistingInstance {
+  _id: string;
+  date: string;
+  bookingCount: number;
 }
 
 // Get the date for a specific day of the week in a given week
@@ -44,6 +68,68 @@ function getDateForDayInWeek(weekStartDate: Date, targetDayOfWeek: number): Date
   result.setDate(result.getDate() + daysFromMonday);
   
   return result;
+}
+
+function buildFutureInstances(classData: ClassData, now: Date): GeneratedInstance[] {
+  const instances: GeneratedInstance[] = [];
+  const candidateDateSet = new Set<string>();
+  const dayMap = {
+    monday: 1,
+    tuesday: 2,
+    wednesday: 3,
+    thursday: 4,
+    friday: 5,
+    saturday: 6,
+    sunday: 0
+  } as const;
+
+  if (!classData.recurringSchedule?.weeklySchedule?.length) {
+    instances.sort((a, b) => a.date.localeCompare(b.date));
+    return instances;
+  }
+
+  const scheduleStart = classData.recurringSchedule.startDate ? new Date(classData.recurringSchedule.startDate) : null;
+  const scheduleEnd = classData.recurringSchedule.endDate ? new Date(classData.recurringSchedule.endDate) : null;
+
+  for (const schedule of classData.recurringSchedule.weeklySchedule) {
+    const targetDay = dayMap[schedule.dayOfWeek.toLowerCase() as keyof typeof dayMap];
+    if (targetDay === undefined) {
+      console.warn(`Invalid day of week: ${schedule.dayOfWeek}`);
+      continue;
+    }
+
+    for (let week = 0; week < 4; week++) {
+      const mondayOfWeek = new Date(now);
+      mondayOfWeek.setDate(now.getDate() + week * 7);
+
+      const dayOfWeek = mondayOfWeek.getDay();
+      const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      mondayOfWeek.setDate(mondayOfWeek.getDate() + daysToMonday);
+
+      const instanceDate = getDateForDayInWeek(mondayOfWeek, targetDay);
+      const [hours, minutes] = schedule.startTime.split(':');
+      instanceDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+
+      if (instanceDate <= now) continue;
+      if (scheduleStart && instanceDate < scheduleStart) continue;
+      if (scheduleEnd && instanceDate > scheduleEnd) continue;
+
+      const isoDate = instanceDate.toISOString();
+      if (candidateDateSet.has(isoDate)) continue;
+      candidateDateSet.add(isoDate);
+
+      instances.push({
+        _type: 'classInstance',
+        parentClass: { _type: 'reference', _ref: classData._id },
+        date: isoDate,
+        isCancelled: false,
+        remainingCapacity: classData.capacity,
+        bookings: []
+      });
+    }
+  }
+
+  return instances;
 }
 
 export async function POST(request: NextRequest) {
@@ -98,6 +184,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let repairSchedule = false;
+    let dryRun = false;
+    const contentLength = request.headers.get('content-length');
+    if (contentLength && Number(contentLength) > 0) {
+      const body = await request.json();
+      repairSchedule = body.repairSchedule === true;
+      dryRun = body.dryRun === true;
+    }
+
     // Get all recurring classes for this tenant that need instances
     const classes: ClassData[] = await sanityClient.fetch(
       `*[_type == "class" && tenant._ref == $tenantId && isRecurring == true && isActive == true] {
@@ -113,7 +208,11 @@ export async function POST(request: NextRequest) {
     console.log(`Processing ${classes.length} classes for tenant ${tenantId}`);
 
     let totalInstancesCreated = 0;
+    let totalInstancesDeleted = 0;
+    let totalPreviewInstancesToCreate = 0;
+    let totalPreviewInstancesToDelete = 0;
     const results: GenerationResultItem[] = [];
+    const now = new Date();
 
     for (const classData of classes) {
       if (!classData.recurringSchedule?.weeklySchedule) {
@@ -126,86 +225,113 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Generate instances for the next 4 weeks only (reduced from 8 to prevent timeout)
-      const instances = [];
-      const now = new Date();
-      const candidateDateSet = new Set<string>();
-      
-      for (const schedule of classData.recurringSchedule.weeklySchedule) {
-        // Day mapping: JavaScript getDay() returns 0=Sunday, 1=Monday, etc.
-        const dayMap = {
-          'monday': 1, 'tuesday': 2, 'wednesday': 3, 'thursday': 4,
-          'friday': 5, 'saturday': 6, 'sunday': 0
-        };
-        
-        const targetDay = dayMap[schedule.dayOfWeek.toLowerCase() as keyof typeof dayMap];
-        if (targetDay === undefined) {
-          console.warn(`Invalid day of week: ${schedule.dayOfWeek}`);
-          continue;
-        }
-        
-        // Generate instances for the next 4 weeks
-        for (let week = 0; week < 4; week++) {
-          // Calculate the Monday of the target week
-          const mondayOfWeek = new Date(now);
-          mondayOfWeek.setDate(now.getDate() + (week * 7));
-          
-          // Adjust to get Monday of this week
-          const dayOfWeek = mondayOfWeek.getDay();
-          const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-          mondayOfWeek.setDate(mondayOfWeek.getDate() + daysToMonday);
-          
-          // Get the specific day for this class
-          const instanceDate = getDateForDayInWeek(mondayOfWeek, targetDay);
-          
-          // Set the time
-          const [hours, minutes] = schedule.startTime.split(':');
-          instanceDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-          
-          // Skip if this instance is in the past
-          if (instanceDate <= now) continue;
-
-          const isoDate = instanceDate.toISOString();
-
-          // Deduplicate schedule collisions in-memory before DB checks
-          if (candidateDateSet.has(isoDate)) continue;
-          candidateDateSet.add(isoDate);
-          
-          const instance = {
-            _type: 'classInstance',
-            parentClass: { _ref: classData._id },
-            date: isoDate,
-            isCancelled: false,
-            remainingCapacity: classData.capacity,
-            bookings: []
-          };
-          
-          instances.push(instance);
-        }
-      }
+      const instances = buildFutureInstances(classData, now);
 
       // Create instances one by one, skipping existing date-times
       if (instances.length > 0) {
-        try {
-          let createdCount = 0;
-          let skippedExistingCount = 0;
+       try {
+         let createdCount = 0;
+         let skippedExistingCount = 0;
+         let deletedCount = 0;
+         let previewCreateCount = 0;
+         let previewDeleteCount = 0;
+         let bookedMismatchesRetained = 0;
+         let duplicateInstancesDeleted = 0;
+         let bookedDuplicatesRetained = 0;
 
-          for (const instance of instances) {
-            const existingForDate = await sanityClient.fetch(
-              `count(*[_type == "classInstance" && parentClass._ref == $classId && date == $date])`,
-              { classId: classData._id, date: instance.date }
-            );
+         const earliestDate = instances[0]?.date;
+         const latestDate = instances[instances.length - 1]?.date;
+         const queryStartDate = new Date(earliestDate);
+         queryStartDate.setDate(queryStartDate.getDate() - 7);
+         const queryEndDate = new Date(latestDate);
+         queryEndDate.setDate(queryEndDate.getDate() + 7);
+         const expectedDateSet = new Set(instances.map((instance) => instance.date));
+         const existingInstances: ExistingInstance[] = await sanityClient.fetch(
+           `*[_type == "classInstance" && parentClass._ref == $classId && date >= $startDate && date <= $endDate] {
+             _id,
+             date,
+             "bookingCount": count(bookings)
+           } | order(date asc)`,
+           {
+             classId: classData._id,
+             startDate: queryStartDate.toISOString(),
+             endDate: queryEndDate.toISOString()
+           }
+         );
 
-            if (existingForDate > 0) {
-              skippedExistingCount++;
-              continue;
-            }
+         const existingByDate = new Map<string, ExistingInstance[]>();
+         for (const existingInstance of existingInstances) {
+           const matches = existingByDate.get(existingInstance.date) || [];
+           matches.push(existingInstance);
+           existingByDate.set(existingInstance.date, matches);
+         }
 
-            try {
-              await sanityClient.create(instance);
-              createdCount++;
-            } catch (createError: unknown) {
-              // Skip if instance already exists (duplicate key error/race)
+         if (repairSchedule) {
+           const instanceIdsToDelete = new Set<string>();
+
+           for (const existingInstance of existingInstances) {
+             if (!expectedDateSet.has(existingInstance.date)) {
+               if (existingInstance.bookingCount > 0) {
+                 bookedMismatchesRetained++;
+               } else {
+                 instanceIdsToDelete.add(existingInstance._id);
+                 deletedCount++;
+                 previewDeleteCount++;
+               }
+             }
+           }
+
+           for (const group of existingByDate.values()) {
+             if (group.length <= 1) continue;
+
+             const bookedInstances = group.filter((instance) => instance.bookingCount > 0);
+             const primaryInstance = bookedInstances[0] || group[0];
+
+             for (const instance of group) {
+               if (instance._id === primaryInstance._id) continue;
+
+               if (instance.bookingCount > 0) {
+                 bookedDuplicatesRetained++;
+                 continue;
+               }
+
+               if (!instanceIdsToDelete.has(instance._id)) {
+                 instanceIdsToDelete.add(instance._id);
+                 deletedCount++;
+                 previewDeleteCount++;
+                 duplicateInstancesDeleted++;
+               }
+             }
+           }
+
+           if (!dryRun && instanceIdsToDelete.size > 0) {
+             const transaction = writeClient.transaction();
+             for (const instanceId of instanceIdsToDelete) {
+               transaction.delete(instanceId);
+             }
+             await transaction.commit();
+           }
+         }
+
+         for (const instance of instances) {
+           const existingForDate = existingByDate.get(instance.date) || [];
+
+           if (existingForDate.length > 0) {
+             skippedExistingCount++;
+             continue;
+           }
+
+           previewCreateCount++;
+
+           if (dryRun) {
+             continue;
+           }
+
+           try {
+             await writeClient.create(instance);
+             createdCount++;
+           } catch (createError: unknown) {
+             // Skip if instance already exists (duplicate key error/race)
               const errorWithMeta = createError as CreateError;
               if (errorWithMeta?.message?.includes('already exists') || errorWithMeta?.statusCode === 409) {
                 skippedExistingCount++;
@@ -217,16 +343,27 @@ export async function POST(request: NextRequest) {
           }
           
           totalInstancesCreated += createdCount;
+          totalInstancesDeleted += deletedCount;
+          totalPreviewInstancesToCreate += previewCreateCount;
+          totalPreviewInstancesToDelete += previewDeleteCount;
           
           results.push({
             classId: classData._id,
             className: classData.title,
             instancesCreated: createdCount,
-            message: createdCount > 0
-              ? `Success (${createdCount} created, ${skippedExistingCount} already existed)`
-              : skippedExistingCount > 0
-                ? `No new instances created (${skippedExistingCount} already existed)`
-                : 'No future instances needed'
+            instancesDeleted: deletedCount,
+            previewInstancesToCreate: previewCreateCount,
+            previewInstancesToDelete: previewDeleteCount,
+            bookedMismatchesRetained,
+            duplicateInstancesDeleted,
+            bookedDuplicatesRetained,
+            message: dryRun
+              ? `Preview (${previewCreateCount} to create${repairSchedule ? `, ${previewDeleteCount} to delete` : ''}, ${skippedExistingCount} already existed)`
+              : createdCount > 0
+                ? `Success (${createdCount} created${repairSchedule ? `, ${deletedCount} deleted` : ''}, ${skippedExistingCount} already existed)`
+                : skippedExistingCount > 0 || deletedCount > 0
+                  ? `No new instances created (${skippedExistingCount} already existed${repairSchedule ? `, ${deletedCount} deleted` : ''})`
+                  : 'No future instances needed'
           });
         } catch (error) {
           console.error(`Error creating instances for ${classData.title}:`, error);
@@ -250,10 +387,20 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      dryRun,
       totalInstancesCreated,
+      totalInstancesDeleted,
+      totalPreviewInstancesToCreate,
+      totalPreviewInstancesToDelete,
       classesProcessed: classes.length,
       results,
-      message: totalInstancesCreated > 0 ? `Successfully created ${totalInstancesCreated} new instances.` : 'All classes already have future instances.'
+      message: dryRun
+        ? `Preview complete: ${totalPreviewInstancesToCreate} would be created and ${totalPreviewInstancesToDelete} would be deleted.`
+        : repairSchedule
+          ? `Repair complete: created ${totalInstancesCreated} and deleted ${totalInstancesDeleted} future instances.`
+          : totalInstancesCreated > 0
+            ? `Successfully created ${totalInstancesCreated} new instances.`
+            : 'All classes already have future instances.'
     });
 
   } catch (error) {

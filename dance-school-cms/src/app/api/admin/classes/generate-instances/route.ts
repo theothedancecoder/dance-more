@@ -86,14 +86,6 @@ function getDateForDayOfWeek(baseDate: Date, dayOfWeek: string): Date {
   const date = new Date(baseDate);
   const currentDay = date.getDay();
   
-  // Calculate days to add to get to the target day
-  let daysToAdd = targetDay - currentDay;
-  
-  // If the target day is today or in the past this week, move to next week
-  if (daysToAdd <= 0) {
-    daysToAdd += 7;
-  }
-  
-  date.setDate(date.getDate() + daysToAdd);
+  date.setDate(date.getDate() + (targetDay - currentDay));
   return date;
 }
