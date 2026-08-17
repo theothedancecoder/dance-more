@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { sanityClient } from '@/lib/sanity';
 import { getServerUser } from '@/lib/auth';
+import { resolveUserReferenceIds } from '@/lib/user-references';
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,9 +24,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Subscription ID is required' }, { status: 400 });
     }
 
+    const userReferenceIds = await resolveUserReferenceIds(user.clerkId || user.id);
+
     // Get the current subscription details
     const currentSubscription = await sanityClient.fetch(`
-      *[_type == "subscription" && _id == $subscriptionId && user->clerkId == $userId][0] {
+      *[_type == "subscription" && _id == $subscriptionId && user._ref in $userReferenceIds][0] {
         _id,
         passName,
         type,
@@ -37,7 +40,7 @@ export async function POST(request: NextRequest) {
         passId,
         tenant->{_id, slug}
       }
-    `, { subscriptionId, userId: user.id });
+    `, { subscriptionId, userReferenceIds });
 
     if (!currentSubscription) {
       return NextResponse.json({ error: 'Subscription not found' }, { status: 404 });
