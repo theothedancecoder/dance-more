@@ -17,6 +17,10 @@ const isDebugRoute = createRouteMatcher([
   '/api/debug/(.*)',
 ])
 
+const isAllowedProductionDebugApiRoute = createRouteMatcher([
+  '/api/debug/pass-visibility(.*)',
+])
+
 const isPublicRoute = createRouteMatcher([
   '/',
   '/sign-in(.*)',
@@ -133,8 +137,8 @@ export default clerkMiddleware(async (auth, req) => {
   const url = req.nextUrl.clone();
   const host = req.headers.get('host') || '';
 
-  // Block debug routes in production
-  if (isDebugRoute(req) && process.env.NODE_ENV === 'production') {
+  // Block debug routes in production, except explicitly allowed admin-safe diagnostics
+  if (isDebugRoute(req) && process.env.NODE_ENV === 'production' && !isAllowedProductionDebugApiRoute(req)) {
     return NextResponse.redirect(new URL('/unauthorized', req.url));
   }
 
