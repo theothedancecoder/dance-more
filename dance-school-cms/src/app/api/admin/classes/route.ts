@@ -3,32 +3,39 @@ import { auth } from '@clerk/nextjs/server';
 import { sanityClient, writeClient } from '@/lib/sanity';
 import { isAdmin } from '@/lib/admin-utils';
 
+interface WeeklyScheduleItem {
+  dayOfWeek: string;
+  startTime: string;
+  endTime?: string;
+}
+
+interface GenerateClassInstancesInput {
+  recurringSchedule: {
+    startDate: string;
+    endDate: string;
+    weeklySchedule: WeeklyScheduleItem[];
+  };
+  capacity: number;
+  tenantId: string;
+}
+
 // Helper function to generate class instances for recurring classes
 function getDateForDayOfWeek(baseDate: Date, dayOfWeek: string): Date {
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const targetDay = days.indexOf(dayOfWeek.toLowerCase());
-  
+  const date = new Date(baseDate);
+
   if (targetDay === -1) {
     throw new Error(`Invalid day of week: ${dayOfWeek}`);
   }
-  
-  const date = new Date(baseDate);
+
   const currentDay = date.getDay();
-  
-  // Calculate days to add to get to the target day
-  let daysToAdd = targetDay - currentDay;
-  
-  // If the target day is today or in the past this week, move to next week
-  if (daysToAdd <= 0) {
-    daysToAdd += 7;
-  }
-  
-  date.setDate(date.getDate() + daysToAdd);
+  date.setDate(date.getDate() + (targetDay - currentDay));
   return date;
 }
 
-async function generateClassInstances(classId: string, classData: any) {
-  const { recurringSchedule, capacity } = classData;
+async function generateClassInstances(classId: string, classData: GenerateClassInstancesInput) {
+  const { recurringSchedule, capacity, tenantId } = classData;
   const { startDate, endDate, weeklySchedule } = recurringSchedule;
   const instances = [];
 
@@ -52,7 +59,7 @@ async function generateClassInstances(classId: string, classData: any) {
           },
           tenant: {
             _type: 'reference',
-            _ref: classData.tenant._ref,
+            _ref: tenantId,
           },
           date: instanceDate.toISOString(),
           isCancelled: false,
@@ -219,7 +226,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the class document in Sanity
-    const classDoc: any = {
+    const classDoc: Record<string, unknown> = {
       _type: 'class',
       title,
       slug: {
@@ -258,7 +265,11 @@ export async function POST(request: NextRequest) {
     let generatedInstances = [];
     if (isRecurring) {
       try {
-        generatedInstances = await generateClassInstances(result._id, { recurringSchedule, capacity });
+        generatedInstances = await generateClassInstances(result._id, {
+          recurringSchedule,
+          capacity,
+          tenantId: tenant._id
+        });
       } catch (instanceError) {
         console.error('Error generating instances:', instanceError);
         // Don't fail the class creation if instance generation fails
