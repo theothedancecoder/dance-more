@@ -497,13 +497,13 @@ export default function SubscriptionsPage() {
       )}
 
       {/* Hero Section */}
-      <section className="relative py-16">
+      <section className="relative py-10 sm:py-14">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h1 className="text-4xl font-bold mb-4" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
+            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
               Passes & Subscriptions
             </h1>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-base sm:text-lg text-gray-600 max-w-3xl mx-auto">
               Choose from our flexible class packages and subscription options. Find the perfect plan for your dance journey.
             </p>
           </div>
@@ -646,7 +646,7 @@ export default function SubscriptionsPage() {
                 {activeSubscriptions.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {activeSubscriptions.map((subscription: UserSubscription) => (
-                      <div key={subscription._id} className="bg-white rounded-xl shadow-lg p-6 border-l-4" style={{ borderLeftColor: tenant.branding?.primaryColor || '#3B82F6' }}>
+                      <div key={subscription._id} className="bg-white rounded-xl border border-gray-100 shadow-lg p-6 border-l-4" style={{ borderLeftColor: tenant.branding?.primaryColor || '#3B82F6' }}>
                         <div className="flex items-center justify-between mb-4">
                           <h3 className="text-lg font-semibold text-gray-900">
                             {subscription.passName || subscription.originalPass?.name || getPassDisplayName(subscription.type)}
@@ -743,7 +743,7 @@ export default function SubscriptionsPage() {
                 {expiredSubscriptions.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {expiredSubscriptions.map((subscription: UserSubscription) => (
-                      <div key={subscription._id} className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-gray-300 opacity-75">
+                      <div key={subscription._id} className="bg-white rounded-xl border border-gray-100 shadow-lg p-6 border-l-4 border-gray-300 opacity-75">
                         <div className="flex items-center justify-between mb-4">
                           <h3 className="text-lg font-semibold text-gray-700">
                             {subscription.passName || subscription.originalPass?.name || getPassDisplayName(subscription.type)}
@@ -808,11 +808,11 @@ export default function SubscriptionsPage() {
             <h2 className="text-2xl font-bold mb-5" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
               {groupName}
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {groupPasses.map((pass) => (
                 <div 
                   key={pass._id} 
-                  className={`relative bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 ${
+                  className={`relative bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 ${
                     pass.isPopular ? 'ring-2 ring-blue-500' : ''
                   }`}
                 >
@@ -886,7 +886,7 @@ export default function SubscriptionsPage() {
                     <SignedOut>
                       <Link
                         href={`/${tenantSlug}/sign-in`}
-                        className={`w-full py-3 px-4 rounded-lg font-medium transition-colors block text-center ${
+                        className={`w-full py-3 px-4 rounded-lg font-medium transition-colors block text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 ${
                           pass.isPopular
                             ? 'bg-blue-600 text-white hover:bg-blue-700'
                             : 'border-2 text-blue-600 hover:bg-blue-50'

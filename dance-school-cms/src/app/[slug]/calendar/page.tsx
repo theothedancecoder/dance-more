@@ -195,13 +195,13 @@ export default function CalendarPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
       {/* Hero Section */}
-      <section className="relative py-6 sm:py-12">
+      <section className="relative py-8 sm:py-14">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h1 className="text-2xl sm:text-4xl font-bold mb-4" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
+            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
               Class Schedule
             </h1>
-            <p className="text-base sm:text-xl text-gray-600 max-w-3xl mx-auto mb-5 sm:mb-8">
+            <p className="text-base sm:text-lg text-gray-600 max-w-3xl mx-auto mb-6 sm:mb-8">
               Book your spot in our upcoming dance classes. Choose your preferred view below.
             </p>
             
@@ -209,11 +209,12 @@ export default function CalendarPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 max-w-2xl mx-auto">
               <button
                 onClick={() => setViewMode('weekly')}
-                className={`w-full flex items-center justify-center px-4 sm:px-6 py-3 rounded-lg font-medium transition-colors ${
+                className={`w-full flex items-center justify-center px-4 sm:px-6 py-3 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 ${
                   viewMode === 'weekly'
                     ? 'bg-blue-600 text-white'
                     : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                 }`}
+                aria-pressed={viewMode === 'weekly'}
               >
                 <TableCellsIcon className="h-5 w-5 mr-2" />
                 <span className="hidden sm:inline">Weekly Table</span>
@@ -221,11 +222,12 @@ export default function CalendarPage() {
               </button>
               <button
                 onClick={() => setViewMode('calendar')}
-                className={`w-full flex items-center justify-center px-4 sm:px-6 py-3 rounded-lg font-medium transition-colors ${
+                className={`w-full flex items-center justify-center px-4 sm:px-6 py-3 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 ${
                   viewMode === 'calendar'
                     ? 'bg-blue-600 text-white'
                     : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                 }`}
+                aria-pressed={viewMode === 'calendar'}
               >
                 <CalendarIcon className="h-5 w-5 mr-2" />
                 <span className="hidden sm:inline">Calendar View</span>
@@ -233,11 +235,12 @@ export default function CalendarPage() {
               </button>
               <button
                 onClick={() => setViewMode('daily')}
-                className={`w-full flex items-center justify-center px-4 sm:px-6 py-3 rounded-lg font-medium transition-colors ${
+                className={`w-full flex items-center justify-center px-4 sm:px-6 py-3 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 ${
                   viewMode === 'daily'
                     ? 'bg-blue-600 text-white'
                     : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                 }`}
+                aria-pressed={viewMode === 'daily'}
               >
                 <ViewColumnsIcon className="h-5 w-5 mr-2" />
                 <span className="hidden sm:inline">Daily View</span>
@@ -297,7 +300,7 @@ export default function CalendarPage() {
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-8">
             {/* Date Selector */}
             <div className="lg:col-span-1 order-2 lg:order-1">
-              <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-lg p-4 sm:p-6">
                 <h3 className="text-lg font-semibold mb-4" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
                   Select Date
                 </h3>
@@ -334,6 +337,7 @@ export default function CalendarPage() {
                               ? 'bg-blue-100 text-blue-800'
                               : 'hover:bg-gray-100'
                           }`}
+                          aria-pressed={selectedDate === dateStr}
                         >
                           {days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `${dayName} ${monthName} ${dayNum}`}
                         </button>
@@ -372,7 +376,7 @@ export default function CalendarPage() {
               ) : (
                 <div className="space-y-3 sm:space-y-4">
                   {filteredInstances.map((instance) => (
-                    <div key={instance._id} className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow">
+                    <div key={instance._id} className="bg-white rounded-2xl border border-gray-100 shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow">
                       <div className="flex flex-col space-y-4">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                           <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2 sm:mb-0">{instance.title}</h3>
