@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useTenant } from '@/contexts/TenantContext';
 import { SignedIn, SignedOut, SignInButton } from '@clerk/nextjs';
@@ -21,6 +21,7 @@ interface ClassInstance {
   price: number;
   level: string;
   location?: string;
+  isCancelled?: boolean;
 }
 
 type ViewMode = 'calendar' | 'weekly' | 'daily';
@@ -43,6 +44,15 @@ export default function CalendarPage() {
   const [confirmInstance, setConfirmInstance] = useState<ClassInstance | null>(null);
 
   const tenantSlug = params.slug as string;
+
+  const getInstanceDateTime = (instance: ClassInstance): Date => {
+    const datePart = instance.date.split('T')[0];
+    const parsed = new Date(`${datePart}T${instance.startTime}:00`);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed;
+    }
+    return new Date(instance.date);
+  };
 
   const handleBookClass = async (classInstanceId: string) => {
     // If called from the confirm modal, proceed; otherwise show the modal first
@@ -82,14 +92,15 @@ export default function CalendarPage() {
         // Clear success message after 3 seconds
         setTimeout(() => setBookingMessage(null), 3000);
       } else {
-        // Handle enhanced error messages with redirect URLs
-        let errorText = data.error || 'Failed to book class';
-        if (data.message) {
-          errorText = data.message;
-        }
-        if (data.redirectUrl) {
-          errorText += ` Click here to visit the Passes & Subscriptions page.`;
-        }
+        const messageByCode: Record<string, string> = {
+          already_booked: 'You are already booked for this class.',
+          class_full: 'This class is already full. Please choose another class.',
+          class_cancelled: 'This class has been cancelled.',
+          no_active_pass: 'No active pass found for booking.',
+          no_clips_remaining: 'Your pass has no classes remaining.',
+        };
+        const fallbackText = data.error || 'Failed to book class';
+        const errorText = data.message || messageByCode[data.code] || fallbackText;
         
         setBookingMessage({ 
           type: 'error', 
@@ -141,6 +152,15 @@ export default function CalendarPage() {
     return instanceDate === selectedDate;
   });
 
+  const nextBookableClass = useMemo(() => {
+    const now = new Date();
+    return [...classInstances]
+      .filter((instance) => !instance.isCancelled && instance.booked < instance.capacity)
+      .map((instance) => ({ instance, startAt: getInstanceDateTime(instance) }))
+      .filter(({ startAt }) => startAt > now)
+      .sort((a, b) => a.startAt.getTime() - b.startAt.getTime())[0]?.instance ?? null;
+  }, [classInstances]);
+
   if (isLoading || loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -155,7 +175,7 @@ export default function CalendarPage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">School Not Found</h1>
           <p className="text-gray-600 mb-6">
-            The dance school "{params.slug}" could not be found or is not available.
+            The dance school &quot;{params.slug}&quot; could not be found or is not available.
           </p>
           <Link
             href="/"
@@ -227,11 +247,15 @@ export default function CalendarPage() {
       {/* Booking Message */}
       {bookingMessage && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-4">
-          <div className={`p-4 rounded-lg ${
+          <div
+            role="alert"
+            aria-live="assertive"
+            className={`p-4 rounded-lg ${
             bookingMessage.type === 'success' 
               ? 'bg-green-100 text-green-800 border border-green-200' 
               : 'bg-red-100 text-red-800 border border-red-200'
-          }`}>
+            }`}
+          >
             {bookingMessage.redirectUrl ? (
               <div>
                 {bookingMessage.text.replace(' Click here to visit the Passes & Subscriptions page.', '')}{' '}
@@ -513,6 +537,43 @@ export default function CalendarPage() {
                 {bookingLoading === confirmInstance._id ? 'Booking...' : 'Confirm Booking'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sticky Mobile Booking CTA */}
+      {nextBookableClass && (
+        <div className="sm:hidden fixed bottom-4 inset-x-4 z-40">
+          <div className="rounded-2xl shadow-xl border border-gray-200 bg-white p-3">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <div className="min-w-0">
+                <p className="text-xs uppercase tracking-wide text-gray-500">Next available class</p>
+                <p className="text-sm font-semibold text-gray-900 truncate">{nextBookableClass.title}</p>
+              </div>
+              <span className="text-xs font-medium text-gray-600 whitespace-nowrap">
+                {nextBookableClass.startTime}
+              </span>
+            </div>
+            <SignedIn>
+              <button
+                onClick={() => handleBookClass(nextBookableClass._id)}
+                disabled={bookingLoading === nextBookableClass._id}
+                className="w-full px-4 py-2.5 rounded-lg text-white font-medium disabled:opacity-50"
+                style={{ backgroundColor: tenant.branding?.primaryColor || '#3B82F6' }}
+              >
+                {bookingLoading === nextBookableClass._id ? 'Booking...' : 'Book Next Class'}
+              </button>
+            </SignedIn>
+            <SignedOut>
+              <SignInButton mode="modal">
+                <button
+                  className="w-full px-4 py-2.5 rounded-lg text-white font-medium"
+                  style={{ backgroundColor: tenant.branding?.primaryColor || '#3B82F6' }}
+                >
+                  Sign In to Book Next Class
+                </button>
+              </SignInButton>
+            </SignedOut>
           </div>
         </div>
       )}

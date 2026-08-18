@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type TouchEvent } from 'react';
 import { useParams } from 'next/navigation';
 import { useTenant } from '@/contexts/TenantContext';
 import { SignedIn, SignedOut } from '@clerk/nextjs';
@@ -94,11 +94,20 @@ export default function SubscriptionsPage() {
   const [promoErrors, setPromoErrors] = useState<Record<string, string>>({});
   const [visibilityNotice, setVisibilityNotice] = useState<VisibilityState | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  const [pullDistance, setPullDistance] = useState(0);
+  const pullStartYRef = useRef<number | null>(null);
 
   const tenantSlug = params.slug as string;
 
   const notify = (type: ToastState['type'], message: string) => {
     setToast({ type, message });
+  };
+
+  const formatSyncTime = (isoTime: string | null) => {
+    if (!isoTime) return 'Not synced yet';
+    const date = new Date(isoTime);
+    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   };
 
   useEffect(() => {
@@ -178,12 +187,12 @@ export default function SubscriptionsPage() {
         const data = await response.json();
         if (data.createdCount > 0) {
           setStatusMessage(`✅ Found and activated ${data.createdCount} missing pass${data.createdCount > 1 ? 'es' : ''}!`);
-          await fetchUserSubscriptions();
         } else if (data.skippedCount > 0) {
           setStatusMessage('✅ All your passes are already synced.');
         } else {
           setStatusMessage('ℹ️ No missing passes found. If you just made a purchase, please wait a moment and try again.');
         }
+        await fetchUserSubscriptions();
       } else {
         setStatusMessage('❌ Sync failed. Please try again or contact support.');
       }
@@ -337,6 +346,7 @@ export default function SubscriptionsPage() {
         setActiveSubscriptions(data.activeSubscriptions || []);
         setExpiredSubscriptions(data.expiredSubscriptions || []);
         setVisibilityNotice(data.visibility || null);
+        setLastSyncedAt(data.syncedAt || new Date().toISOString());
       } else {
         setActiveSubscriptions([]);
         setExpiredSubscriptions([]);
@@ -353,6 +363,28 @@ export default function SubscriptionsPage() {
         message: 'We could not load your passes right now. Please refresh or try syncing your passes.',
       });
     }
+  };
+
+  const onTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+    if (window.scrollY === 0 && !manualSyncLoading) {
+      pullStartYRef.current = event.touches[0].clientY;
+    }
+  };
+
+  const onTouchMove = (event: TouchEvent<HTMLDivElement>) => {
+    if (pullStartYRef.current === null || manualSyncLoading) return;
+    const delta = event.touches[0].clientY - pullStartYRef.current;
+    if (delta > 0) {
+      setPullDistance(Math.min(delta, 96));
+    }
+  };
+
+  const onTouchEnd = async () => {
+    if (pullStartYRef.current !== null && pullDistance > 72 && !manualSyncLoading) {
+      await handleManualSync();
+    }
+    pullStartYRef.current = null;
+    setPullDistance(0);
   };
 
   useEffect(() => {
@@ -427,7 +459,12 @@ export default function SubscriptionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
+    <div
+      className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
       {toast && (
         <div className="fixed top-4 right-4 z-[60] max-w-sm w-[calc(100%-2rem)] sm:w-full">
           <div
@@ -442,6 +479,14 @@ export default function SubscriptionsPage() {
             }`}
           >
             {toast.message}
+          </div>
+        </div>
+      )}
+
+      {(pullDistance > 0 || manualSyncLoading) && (
+        <div className="fixed top-2 inset-x-0 z-[55] flex justify-center pointer-events-none">
+          <div className="rounded-full bg-white/95 border border-gray-200 px-4 py-2 text-xs font-medium text-gray-700 shadow">
+            {manualSyncLoading ? 'Refreshing passes…' : `Pull to refresh (${Math.round((pullDistance / 96) * 100)}%)`}
           </div>
         </div>
       )}
@@ -536,7 +581,20 @@ export default function SubscriptionsPage() {
               <h2 className="text-2xl font-bold" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
                 Your Passes
               </h2>
-              
+              <button
+                onClick={handleManualSync}
+                disabled={manualSyncLoading}
+                className="inline-flex items-center px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+              >
+                {manualSyncLoading ? 'Refreshing...' : 'Refresh'}
+              </button>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              Last synced: <span className="font-medium text-gray-800">{formatSyncTime(lastSyncedAt)}</span>
+            </p>
+            <p className="text-xs text-gray-500 mb-4 sm:hidden">Tip: pull down from the top to refresh pass status.</p>
+
+            <div className="flex items-center justify-between mb-6">
               {/* Tab Navigation */}
               <div className="flex items-center gap-4">
                 <div className="flex bg-gray-100 rounded-lg p-1" role="tablist" aria-label="Pass history tabs">

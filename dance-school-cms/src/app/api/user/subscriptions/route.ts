@@ -120,7 +120,14 @@ export async function GET(request: NextRequest) {
 
     console.log('📊 Found active subscriptions:', subscriptions.length);
     if (subscriptions.length > 0) {
-      console.log('📋 Subscription details:', subscriptions.map((sub: any) => ({
+      console.log('📋 Subscription details:', subscriptions.map((sub: {
+        _id: string;
+        passName?: string;
+        originalPass?: { name?: string };
+        type?: string;
+        daysRemaining?: number;
+        stripeSessionId?: string;
+      }) => ({
         id: sub._id,
         storedPassName: sub.passName,
         originalPassName: sub.originalPass?.name,
@@ -213,6 +220,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ 
       activeSubscriptions: subscriptions,
       expiredSubscriptions: expiredSubscriptions,
+      syncedAt: new Date().toISOString(),
       visibility: {
         reason: visibilityReason,
         message: visibilityMessage,

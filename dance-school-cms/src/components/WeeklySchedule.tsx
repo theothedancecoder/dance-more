@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTenant } from '@/contexts/TenantContext';
 import { SignedIn, SignedOut, SignInButton } from '@clerk/nextjs';
 import { ClockIcon, MapPinIcon } from '@heroicons/react/24/outline';
@@ -27,6 +27,8 @@ interface WeeklyScheduleProps {
   onBookClass?: (classInstanceId: string) => Promise<void>;
   bookingLoading?: string | null;
 }
+
+const WEEK_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
 export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading }: WeeklyScheduleProps) {
   const { tenant } = useTenant();
@@ -61,21 +63,23 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
   }
 
   // Navigate weeks
-  const goToPreviousWeek = () => {
+  const goToPreviousWeek = useCallback(() => {
     const newWeekStart = new Date(currentWeekStart);
     newWeekStart.setDate(currentWeekStart.getDate() - 7);
     setCurrentWeekStart(newWeekStart);
-  };
+  }, [currentWeekStart]);
 
-  const goToNextWeek = () => {
+  const goToNextWeek = useCallback(() => {
     const newWeekStart = new Date(currentWeekStart);
     newWeekStart.setDate(currentWeekStart.getDate() + 7);
     setCurrentWeekStart(newWeekStart);
-  };
+  }, [currentWeekStart]);
 
-  const goToCurrentWeek = () => {
+  const goToCurrentWeek = useCallback(() => {
     setCurrentWeekStart(getWeekStart(new Date()));
-  };
+  }, []);
+
+  const currentWeekEnd = useMemo(() => getWeekEnd(currentWeekStart), [currentWeekStart]);
 
   useEffect(() => {
     const fetchClassInstances = async () => {
@@ -83,9 +87,8 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
       
       setLoading(true);
       try {
-        const weekEnd = getWeekEnd(currentWeekStart);
         const response = await fetch(
-          `/api/classes/instances/public?startDate=${currentWeekStart.toISOString()}&endDate=${weekEnd.toISOString()}&tenantSlug=${tenantSlug}`
+          `/api/classes/instances/public?startDate=${currentWeekStart.toISOString()}&endDate=${currentWeekEnd.toISOString()}&tenantSlug=${tenantSlug}`
         );
 
         if (response.ok) {
@@ -104,14 +107,21 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
     };
 
     fetchClassInstances();
-  }, [tenantSlug, currentWeekStart]);
+  }, [tenantSlug, currentWeekStart, currentWeekEnd]);
 
-  // Group classes by day
-  const classesByDay = () => {
-    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+  const weekDayMeta = useMemo(() => {
+    return WEEK_DAYS.map((day, index) => {
+      const dayDate = new Date(currentWeekStart);
+      dayDate.setDate(currentWeekStart.getDate() + index);
+      const isToday = dayDate.toDateString() === new Date().toDateString();
+      return { day, dayDate, isToday };
+    });
+  }, [currentWeekStart]);
+
+  const groupedClasses = useMemo(() => {
     const grouped: { [key: string]: ClassInstance[] } = {};
-    
-    days.forEach(day => {
+
+    WEEK_DAYS.forEach(day => {
       grouped[day] = [];
     });
 
@@ -128,13 +138,7 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
       grouped[day].sort((a, b) => a.startTime.localeCompare(b.startTime));
     });
     return grouped;
-  };
-
-  const weekDays = [
-    'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'
-  ];
-
-  const groupedClasses = classesByDay();
+  }, [classInstances]);
 
   if (loading) {
     return (
@@ -160,7 +164,7 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
                 Weekly Schedule
               </h2>
               <p className="text-sm text-gray-600">
-                {formatDate(currentWeekStart)} - {formatDate(getWeekEnd(currentWeekStart))}
+                {formatDate(currentWeekStart)} - {formatDate(currentWeekEnd)}
               </p>
             </div>
             <div className="flex items-center space-x-2">
@@ -216,7 +220,7 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
               Weekly Schedule
             </h2>
             <p className="text-sm text-gray-600">
-              {formatDate(currentWeekStart)} - {formatDate(getWeekEnd(currentWeekStart))}
+              {formatDate(currentWeekStart)} - {formatDate(currentWeekEnd)}
             </p>
           </div>
           <div className="flex items-center space-x-2">
@@ -247,10 +251,7 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50">
-              {weekDays.map((day, index) => {
-                const dayDate = new Date(currentWeekStart);
-                dayDate.setDate(currentWeekStart.getDate() + index);
-                const isToday = dayDate.toDateString() === new Date().toDateString();
+              {weekDayMeta.map(({ day, dayDate, isToday }) => {
                 
                 return (
                   <th
@@ -272,11 +273,8 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
           </thead>
           <tbody>
             <tr>
-              {weekDays.map((day, index) => {
+              {weekDayMeta.map(({ day, isToday }) => {
                 const dayClasses = groupedClasses[day] || [];
-                const dayDate = new Date(currentWeekStart);
-                dayDate.setDate(currentWeekStart.getDate() + index);
-                const isToday = dayDate.toDateString() === new Date().toDateString();
                 
                 return (
                   <td
