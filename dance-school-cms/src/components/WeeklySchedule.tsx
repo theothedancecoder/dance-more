@@ -20,6 +20,7 @@ interface ClassInstance {
   location?: string;
   isCancelled: boolean;
   remainingCapacity: number;
+  isVirtual?: boolean;
 }
 
 interface WeeklyScheduleProps {
@@ -318,7 +319,9 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
                           )}
                         </div>
 
-                        {classInstance.isCancelled ? (
+                        {classInstance.isVirtual ? (
+                          <span className="text-xs text-gray-500 font-medium">Coming soon</span>
+                        ) : classInstance.isCancelled ? (
                           <span className="text-xs text-red-600 font-medium">Cancelled</span>
                         ) : classInstance.remainingCapacity === 0 ? (
                           <span className="text-xs text-yellow-700 font-medium">Full</span>
@@ -442,7 +445,9 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
                                 {classInstance.price} kr
                               </span>
                               
-                              {classInstance.isCancelled ? (
+                              {classInstance.isVirtual ? (
+                                <span className="text-xs text-gray-500 font-medium">Coming soon</span>
+                              ) : classInstance.isCancelled ? (
                                 <span className="text-xs text-red-600 font-medium">Cancelled</span>
                               ) : classInstance.remainingCapacity === 0 ? (
                                 <span className="text-xs text-yellow-600 font-medium">Full</span>

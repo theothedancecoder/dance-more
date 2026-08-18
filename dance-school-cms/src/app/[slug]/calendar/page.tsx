@@ -22,6 +22,7 @@ interface ClassInstance {
   level: string;
   location?: string;
   isCancelled?: boolean;
+  isVirtual?: boolean;
 }
 
 type ViewMode = 'calendar' | 'weekly' | 'daily';
@@ -159,7 +160,7 @@ export default function CalendarPage() {
   const nextBookableClass = useMemo(() => {
     const now = new Date();
     return [...classInstances]
-      .filter((instance) => !instance.isCancelled && instance.booked < instance.capacity)
+      .filter((instance) => !instance.isVirtual && !instance.isCancelled && instance.booked < instance.capacity)
       .map((instance) => ({ instance, startAt: getInstanceDateTime(instance) }))
       .filter(({ startAt }) => startAt > now)
       .sort((a, b) => a.startAt.getTime() - b.startAt.getTime())[0]?.instance ?? null;
@@ -413,7 +414,14 @@ export default function CalendarPage() {
                           </div>
                           
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                            {instance.booked >= instance.capacity ? (
+                            {instance.isVirtual ? (
+                              <button
+                                disabled
+                                className="w-full sm:w-auto px-4 sm:px-6 py-2 rounded-lg bg-gray-200 text-gray-500 font-medium cursor-not-allowed"
+                              >
+                                Coming Soon
+                              </button>
+                            ) : instance.booked >= instance.capacity ? (
                               <button 
                                 disabled
                                 className="w-full sm:w-auto px-4 sm:px-6 py-2 rounded-lg bg-gray-300 text-gray-500 font-medium cursor-not-allowed"
