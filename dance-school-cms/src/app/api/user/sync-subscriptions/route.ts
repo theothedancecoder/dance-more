@@ -3,6 +3,25 @@ import { auth } from '@clerk/nextjs/server';
 import { sanityClient, writeClient } from '@/lib/sanity';
 import { stripe } from '@/lib/stripe';
 
+function getSubscriptionDetailsFromPass(pass: {
+  _id: string;
+  type: string;
+  classesLimit?: number;
+}) {
+  switch (pass.type) {
+    case 'single':
+      return { subscriptionType: 'single', remainingClips: 1 as number | undefined };
+    case 'multi-pass':
+      return { subscriptionType: 'multi-pass', remainingClips: pass.classesLimit };
+    case 'multi':
+      return { subscriptionType: 'clipcard', remainingClips: pass.classesLimit };
+    case 'unlimited':
+      return { subscriptionType: 'monthly', remainingClips: undefined };
+    default:
+      throw new Error(`Invalid pass type: ${pass.type}`);
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { userId } = await auth();
@@ -106,18 +125,6 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Check if subscription already exists for this session (using both session ID and payment ID)
-      const existingSubscription = await sanityClient.fetch(
-        `*[_type == "subscription" && (stripeSessionId == $sessionId || stripePaymentId == $paymentId)][0]`,
-        { sessionId: session.id, paymentId: session.payment_intent }
-      );
-
-      if (existingSubscription) {
-        console.log('✅ Subscription already exists for session:', session.id);
-        skippedCount++;
-        continue;
-      }
-
       // Get pass details
       const pass = await sanityClient.fetch(
         `*[_type == "pass" && _id == $passId && isActive == true][0]`,
@@ -126,6 +133,74 @@ export async function POST(request: NextRequest) {
 
       if (!pass) {
         console.log('❌ Pass not found:', passId);
+        continue;
+      }
+
+      const { subscriptionType, remainingClips } = getSubscriptionDetailsFromPass(pass);
+
+      // Check if subscription already exists for this session (using both session ID and payment ID)
+      const existingSubscription = await sanityClient.fetch(
+        `*[_type == "subscription" && (stripeSessionId == $sessionId || stripePaymentId == $paymentId)][0]{
+          _id,
+          type,
+          remainingClips,
+          passId,
+          passName,
+          "tenantRef": tenant._ref,
+          "userRef": user._ref
+        }`,
+        { sessionId: session.id, paymentId: session.payment_intent }
+      );
+
+      if (existingSubscription) {
+        const shouldRepairType = existingSubscription.type !== subscriptionType;
+        const shouldRepairTenant = existingSubscription.tenantRef !== tenant._id;
+        const shouldRepairUser = existingSubscription.userRef !== user._id;
+        const shouldRepairPassName = existingSubscription.passName !== pass.name;
+        const shouldRepairPassId = existingSubscription.passId !== pass._id;
+        const shouldRepairClipCount =
+          subscriptionType === 'clipcard' &&
+          typeof remainingClips === 'number' &&
+          typeof existingSubscription.remainingClips === 'number' &&
+          existingSubscription.type === 'single' &&
+          existingSubscription.remainingClips <= 1;
+
+        if (
+          shouldRepairType ||
+          shouldRepairTenant ||
+          shouldRepairUser ||
+          shouldRepairPassName ||
+          shouldRepairPassId ||
+          shouldRepairClipCount
+        ) {
+          const adjustedRemainingClips = shouldRepairClipCount
+            ? Math.max(0, remainingClips - Math.max(0, 1 - existingSubscription.remainingClips))
+            : remainingClips;
+
+          await writeClient
+            .patch(existingSubscription._id)
+            .set({
+              user: { _type: 'reference', _ref: user._id },
+              tenant: { _type: 'reference', _ref: tenant._id },
+              type: subscriptionType,
+              remainingClips: adjustedRemainingClips,
+              passId: pass._id,
+              passName: pass.name,
+            })
+            .commit();
+
+          console.log('🛠️ Repaired existing subscription for session:', session.id, {
+            subscriptionId: existingSubscription._id,
+            previousType: existingSubscription.type,
+            repairedType: subscriptionType,
+            repairedRemainingClips: adjustedRemainingClips,
+          });
+          createdCount++;
+          continue;
+        }
+
+        console.log('✅ Subscription already exists for session:', session.id);
+        skippedCount++;
         continue;
       }
 
@@ -147,31 +222,6 @@ export async function POST(request: NextRequest) {
         errors.push(`Session ${session.id}: ${expiryError}`);
         errorCount++;
         continue;
-      }
-
-      let subscriptionType: string;
-      let remainingClips: number | undefined;
-
-      switch (pass.type) {
-        case 'single':
-          subscriptionType = 'single';
-          remainingClips = 1;
-          break;
-        case 'multi-pass':
-          subscriptionType = 'multi-pass';
-          remainingClips = pass.classesLimit;
-          break;
-        case 'multi':
-          subscriptionType = 'clipcard';
-          remainingClips = pass.classesLimit;
-          break;
-        case 'unlimited':
-          subscriptionType = 'monthly';
-          remainingClips = undefined;
-          break;
-        default:
-          console.error('❌ Invalid pass type:', pass.type);
-          continue;
       }
 
       const promoCode = session.metadata?.promoCode || null;
