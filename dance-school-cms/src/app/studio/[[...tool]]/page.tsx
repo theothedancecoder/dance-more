@@ -1,11 +1,10 @@
-import { redirect } from 'next/navigation'
+import { NextStudio } from 'next-sanity/studio'
+import config from '../../../../sanity.config'
 
 export const dynamic = 'force-dynamic'
 
+export { metadata, viewport } from 'next-sanity/studio'
+
 export default function StudioPage() {
-  const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID
-  if (projectId) {
-    redirect(`https://${projectId}.sanity.studio/`)
-  }
-  redirect('https://sanity.io/manage')
+  return <NextStudio config={config} />
 }
