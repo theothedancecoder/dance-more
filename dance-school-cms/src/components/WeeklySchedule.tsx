@@ -157,8 +157,8 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
   if (classInstances.length === 0) {
     return (
       <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-        <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
+        <div className="bg-gray-50 px-4 sm:px-6 py-4 border-b border-gray-200">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-xl font-bold text-gray-900">
                 Weekly Schedule
@@ -167,24 +167,26 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
                 {formatDate(currentWeekStart)} - {formatDate(currentWeekEnd)}
               </p>
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="grid grid-cols-3 gap-2 w-full sm:w-auto">
               <button
                 onClick={goToPreviousWeek}
-                className="px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                className="px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500"
               >
-                ← Previous
+                <span className="hidden sm:inline">← Previous</span>
+                <span className="sm:hidden">← Prev</span>
               </button>
               <button
                 onClick={goToCurrentWeek}
-                className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500"
               >
                 This Week
               </button>
               <button
                 onClick={goToNextWeek}
-                className="px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                className="px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500"
               >
-                Next →
+                <span className="hidden sm:inline">Next →</span>
+                <span className="sm:hidden">Next →</span>
               </button>
             </div>
           </div>
@@ -286,7 +288,7 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2 mb-2">
-                        <h4 className="text-sm font-semibold text-gray-900 leading-tight">{classInstance.title}</h4>
+                        <h4 className="text-sm font-semibold text-gray-900 leading-tight min-w-0 break-words">{classInstance.title}</h4>
                         <span className={`inline-block px-2 py-1 rounded text-[11px] font-medium whitespace-nowrap ${getLevelBadgeClasses(classInstance.level)}`}>
                           {classInstance.level}
                         </span>
@@ -300,10 +302,10 @@ export default function WeeklySchedule({ tenantSlug, onBookClass, bookingLoading
                         {classInstance.location && (
                           <div className="flex items-center">
                             <MapPinIcon className="h-3.5 w-3.5 mr-1.5" />
-                            <span>{classInstance.location}</span>
+                            <span className="break-words">{classInstance.location}</span>
                           </div>
                         )}
-                        <p className="font-medium text-gray-700">Instructor: {classInstance.instructor}</p>
+                        <p className="font-medium text-gray-700 break-words">Instructor: {classInstance.instructor}</p>
                       </div>
 
                       <div className="flex items-center justify-between gap-2">
