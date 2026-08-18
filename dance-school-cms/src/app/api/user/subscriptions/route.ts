@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { sanityClient } from '@/lib/sanity';
+import { uncachedSanityClient } from '@/lib/sanity';
 import { resolveUserReferenceIds } from '@/lib/user-references';
 
 export async function GET(request: NextRequest) {
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     console.log('🏢 Looking for tenant:', tenantSlug);
 
     // First get the tenant ID - try multiple ways to find the tenant
-    let tenant = await sanityClient.fetch(
+    let tenant = await uncachedSanityClient.fetch(
       `*[_type == "tenant" && slug.current == $tenantSlug][0] {
         _id,
         schoolName,
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
     // If not found by slug, try by subdomain
     if (!tenant) {
-      tenant = await sanityClient.fetch(
+      tenant = await uncachedSanityClient.fetch(
         `*[_type == "tenant" && subdomain.current == $tenantSlug][0] {
           _id,
           schoolName,
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
 
     // If still not found, try by school name (case insensitive)
     if (!tenant) {
-      tenant = await sanityClient.fetch(
+      tenant = await uncachedSanityClient.fetch(
         `*[_type == "tenant" && lower(schoolName) match lower($tenantSlug + "*")][0] {
           _id,
           schoolName,
@@ -75,13 +75,13 @@ export async function GET(request: NextRequest) {
     console.log('✅ Found tenant:', tenant.schoolName, 'ID:', tenant._id);
 
     const userReferenceIds = await resolveUserReferenceIds(userId);
-    const matchedUserDocuments = await sanityClient.fetch<number>(
+    const matchedUserDocuments = await uncachedSanityClient.fetch<number>(
       `count(*[_type == "user" && (clerkId == $clerkId || _id == $clerkId)])`,
       { clerkId: userId }
     );
     console.log('🔗 Resolved user references for subscriptions:', userReferenceIds);
 
-    const tenantPassIds = await sanityClient.fetch<string[]>(
+    const tenantPassIds = await uncachedSanityClient.fetch<string[]>(
       `*[_type == "pass" && tenant._ref == $tenantId]._id`,
       { tenantId: tenant._id }
     );
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
 
     // IMPORTANT: We prioritize the stored passName and only use originalPass as fallback
     // This ensures customers see the correct pass name they actually purchased
-    const subscriptions = await sanityClient.fetch(
+    const subscriptions = await uncachedSanityClient.fetch(
       `*[_type == "subscription" && user._ref in $userReferenceIds && isActive == true && endDate > $now && (tenant._ref == $tenantId || (!defined(tenant) && ((defined(passId) && passId in $tenantPassIds) || (defined(pass._ref) && pass._ref in $tenantPassIds))))] | order(_createdAt desc) {
         _id,
         type,
@@ -139,7 +139,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Debug: Check if there are any subscriptions at all for this user across all tenants
-    const userSubscriptionsAllTenants = await sanityClient.fetch(
+    const userSubscriptionsAllTenants = await uncachedSanityClient.fetch(
       `*[_type == "subscription" && user._ref in $userReferenceIds] {
         _id,
         type,
@@ -154,7 +154,7 @@ export async function GET(request: NextRequest) {
     console.log('🔍 All user subscriptions across tenants:', userSubscriptionsAllTenants.length);
 
     // Debug: Check if there are any subscriptions at all for this tenant
-    const allTenantSubscriptions = await sanityClient.fetch(
+    const allTenantSubscriptions = await uncachedSanityClient.fetch(
       `*[_type == "subscription" && tenant._ref == $tenantId] {
         _id,
         type,
@@ -171,7 +171,7 @@ export async function GET(request: NextRequest) {
 
     // Also get expired subscriptions for history (last 30 days)
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const expiredSubscriptions = await sanityClient.fetch(
+    const expiredSubscriptions = await uncachedSanityClient.fetch(
       `*[_type == "subscription" && user._ref in $userReferenceIds && (isActive == false || endDate <= $now) && endDate >= $thirtyDaysAgo && (tenant._ref == $tenantId || (!defined(tenant) && ((defined(passId) && passId in $tenantPassIds) || (defined(pass._ref) && pass._ref in $tenantPassIds))))] | order(_createdAt desc) {
         _id,
         type,

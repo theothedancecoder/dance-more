@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { sanityClient, writeClient } from '@/lib/sanity';
+import { uncachedSanityClient, writeClient } from '@/lib/sanity';
 import { stripe } from '@/lib/stripe';
 
 function getSubscriptionDetailsFromPass(pass: {
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get tenant info
-    const tenant = await sanityClient.fetch(
+    const tenant = await uncachedSanityClient.fetch(
       `*[_type == "tenant" && slug.current == $tenantSlug][0]{ _id, schoolName }`,
       { tenantSlug }
     );
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     console.log('🔄 Syncing subscriptions for user:', userId, 'tenant:', tenant.schoolName);
 
     // Ensure user exists in Sanity first (match webhook model by clerkId)
-    let user = await sanityClient.fetch(
+    let user = await uncachedSanityClient.fetch(
       `*[_type == "user" && clerkId == $userId][0]`,
       { userId }
     );
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Get pass details
-      const pass = await sanityClient.fetch(
+      const pass = await uncachedSanityClient.fetch(
         `*[_type == "pass" && _id == $passId && isActive == true][0]`,
         { passId }
       );
@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
       const { subscriptionType, remainingClips } = getSubscriptionDetailsFromPass(pass);
 
       // Check if subscription already exists for this session (using both session ID and payment ID)
-      const existingSubscription = await sanityClient.fetch(
+      const existingSubscription = await uncachedSanityClient.fetch(
         `*[_type == "subscription" && (stripeSessionId == $sessionId || stripePaymentId == $paymentId)][0]{
           _id,
           type,

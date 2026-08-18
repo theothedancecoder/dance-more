@@ -12,6 +12,15 @@ export const client = createClient({
 // Export as sanityClient for backward compatibility
 export const sanityClient = client;
 
+// Fresh read client for authenticated/user-specific routes where Studio edits must appear immediately
+export const uncachedSanityClient = createClient({
+  projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || '',
+  dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || 'production',
+  apiVersion: '2024-01-01',
+  useCdn: false,
+  token: process.env.SANITY_API_TOKEN,
+});
+
 // Write client with token for mutations
 export const writeClient = createClient({
   projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || '',
@@ -24,12 +33,12 @@ export const writeClient = createClient({
 // Image URL builder
 const builder = imageUrlBuilder(client);
 
-export function urlFor(source: any) {
+export function urlFor(source: unknown) {
   return builder.image(source);
 }
 
 // Helper function to get tenant-scoped query
-export const getTenantQuery = (baseQuery: string, tenantId: string) => {
+export const getTenantQuery = (baseQuery: string, _tenantId: string) => {
   // If the query starts with * and doesn't have a tenant filter, add it
   if (baseQuery.startsWith('*[') && !baseQuery.includes('tenant._ref')) {
     const insertPoint = baseQuery.indexOf(']');
@@ -41,7 +50,7 @@ export const getTenantQuery = (baseQuery: string, tenantId: string) => {
 };
 
 // Helper function to add tenant reference to document
-export const addTenantRef = (doc: any, tenantId: string) => {
+export const addTenantRef = <T extends Record<string, unknown>>(doc: T, tenantId: string) => {
   return {
     ...doc,
     tenant: {

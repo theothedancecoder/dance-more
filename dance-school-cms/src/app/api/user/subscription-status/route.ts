@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { sanityClient } from '@/lib/sanity';
+import { uncachedSanityClient } from '@/lib/sanity';
 import { resolveUserReferenceIds } from '@/lib/user-references';
 
 export async function POST(request: NextRequest) {
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const userReferenceIds = await resolveUserReferenceIds(userId);
 
     // Check if subscription exists for this session
-    const subscription = await sanityClient.fetch(
+    const subscription = await uncachedSanityClient.fetch(
       `*[_type == "subscription" && stripeSessionId == $sessionId && (user._ref in $userReferenceIds || user->clerkId == $userId)][0] {
         _id,
         type,
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check webhook logs to see if there was an error
-    const webhookLog = await sanityClient.fetch(
+    const webhookLog = await uncachedSanityClient.fetch(
       `*[_type == "webhookLog" && details.sessionId == $sessionId] | order(timestamp desc)[0] {
         eventType,
         status,

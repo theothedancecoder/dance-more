@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { sanityClient, writeClient } from '@/lib/sanity';
+import { uncachedSanityClient, writeClient } from '@/lib/sanity';
 import { resolveUserReferenceIds } from '@/lib/user-references';
 
 // Get user's bookings
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     // First get tenant and all supported user refs (legacy + current)
     const [tenant, userReferenceIds] = await Promise.all([
-      sanityClient.fetch(
+      uncachedSanityClient.fetch(
         `*[_type == "tenant" && slug.current == $tenantSlug][0] { _id }`,
         { tenantSlug }
       ),
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get class instances with user's bookings for this specific tenant
-    const bookings = await sanityClient.fetch(
+    const bookings = await uncachedSanityClient.fetch(
       `*[_type == "classInstance" && count(bookings[student._ref in $userReferenceIds]) > 0 && parentClass->tenant._ref == $tenantId] {
         _id,
         date,
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the class instance - it must exist in the database
-    const classInstance = await sanityClient.fetch(
+    const classInstance = await uncachedSanityClient.fetch(
       `*[_type == "classInstance" && _id == $classInstanceId && parentClass->tenant->slug.current == $tenantSlug][0] {
         _id,
         _rev,
@@ -170,11 +170,11 @@ export async function POST(request: NextRequest) {
     // Check user's active subscriptions - filter by tenant to prevent cross-school usage
     const tenantId = classInstance.parentClass.tenant?._ref;
     const now = new Date();
-    const tenantPassIds = await sanityClient.fetch<string[]>(
+    const tenantPassIds = await uncachedSanityClient.fetch<string[]>(
       `*[_type == "pass" && tenant._ref == $tenantId]._id`,
       { tenantId }
     );
-    const activeSubscriptions = await sanityClient.fetch<Array<{ _id: string; type: string; remainingClips?: number }>>(
+    const activeSubscriptions = await uncachedSanityClient.fetch<Array<{ _id: string; type: string; remainingClips?: number }>>(
       `*[_type == "subscription" && user._ref in $userReferenceIds && isActive == true && endDate > $now && (tenant._ref == $tenantId || (!defined(tenant) && ((defined(passId) && passId in $tenantPassIds) || (defined(pass._ref) && pass._ref in $tenantPassIds))))] | order(_createdAt desc)`,
       { userReferenceIds, tenantId, now: now.toISOString(), tenantPassIds }
     );
