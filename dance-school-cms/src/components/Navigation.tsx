@@ -50,6 +50,19 @@ export default function Navigation() {
     };
   }, [isMenuOpen]);
 
+  useEffect(() => {
+    if (!isMenuOpen) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsMenuOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isMenuOpen]);
+
   if (!isLoaded) return null;
 
   const brandName = tenant?.schoolName || 'Dance-More';
@@ -64,7 +77,7 @@ export default function Navigation() {
   };
 
   const getMobileQuickActionClass = (isActive: boolean) =>
-    `inline-flex items-center justify-center px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+    `inline-flex items-center justify-center px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
       isActive ? 'text-white shadow-sm' : 'text-gray-700 bg-gray-100 hover:bg-gray-200'
     }`;
 
@@ -84,7 +97,7 @@ export default function Navigation() {
             )}
             <Link 
               href={finalTenantSlug ? `/${finalTenantSlug}` : "/"} 
-              className="text-lg sm:text-xl font-bold truncate"
+              className="text-lg sm:text-xl font-bold truncate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
               style={{ color: brandColor }}
             >
               {brandName}
@@ -96,22 +109,22 @@ export default function Navigation() {
             {tenant || finalTenantSlug ? (
               // Tenant-specific navigation
               <>
-                <Link href={getTenantUrl("/classes")} className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                <Link href={getTenantUrl("/classes")} aria-current={pathname.includes('/classes') ? 'page' : undefined} className="text-gray-700 hover:text-blue-600 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded">
                   Classes
                 </Link>
-                <Link href={getTenantUrl("/calendar")} className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                <Link href={getTenantUrl("/calendar")} aria-current={pathname.includes('/calendar') ? 'page' : undefined} className="text-gray-700 hover:text-blue-600 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded">
                   Schedule
                 </Link>
                 {user && (
                   <>
-                    <Link href={getTenantUrl("/subscriptions")} className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                    <Link href={getTenantUrl("/subscriptions")} aria-current={pathname.includes('/subscriptions') ? 'page' : undefined} className="text-gray-700 hover:text-blue-600 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded">
                       My Passes
                     </Link>
-                    <Link href={getTenantUrl("/my-classes")} className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                    <Link href={getTenantUrl("/my-classes")} aria-current={pathname.includes('/my-classes') ? 'page' : undefined} className="text-gray-700 hover:text-blue-600 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded">
                       My Classes
                     </Link>
                     {userRole === 'admin' && (
-                      <Link href={getTenantUrl("/admin")} className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                      <Link href={getTenantUrl("/admin")} aria-current={pathname.includes('/admin') ? 'page' : undefined} className="text-gray-700 hover:text-blue-600 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded">
                         Admin
                       </Link>
                     )}
@@ -122,12 +135,12 @@ export default function Navigation() {
               // Platform navigation (only show when NOT in tenant context)
               <>
                 {user && !finalTenantSlug && (
-                  <Link href="/dashboard" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                  <Link href="/dashboard" aria-current={pathname === '/dashboard' ? 'page' : undefined} className="text-gray-700 hover:text-blue-600 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded">
                     Dashboard
                   </Link>
                 )}
                 {!finalTenantSlug && (
-                  <Link href="/register-school" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                  <Link href="/register-school" aria-current={pathname === '/register-school' ? 'page' : undefined} className="text-gray-700 hover:text-blue-600 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded">
                     Register School
                   </Link>
                 )}
@@ -140,10 +153,10 @@ export default function Navigation() {
               </div>
             ) : (
               <div className="flex items-center space-x-3">
-                <Link href={getTenantUrl("/sign-in")} className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                <Link href={getTenantUrl("/sign-in")} className="text-gray-700 hover:text-blue-600 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded">
                   Sign In
                 </Link>
-                <Link href={getTenantUrl("/sign-up")} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                <Link href={getTenantUrl("/sign-up")} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
                   Sign Up
                 </Link>
               </div>
@@ -159,8 +172,10 @@ export default function Navigation() {
             )}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="text-gray-700 hover:text-blue-600 focus:outline-none p-3 rounded-lg"
+              className="text-gray-700 hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 p-3 rounded-lg"
               aria-label="Toggle menu"
+              aria-expanded={isMenuOpen}
+              aria-controls="mobile-navigation-menu"
             >
               {isMenuOpen ? (
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -205,7 +220,13 @@ export default function Navigation() {
         )}
 
         {/* Mobile Navigation */}
-        <div className={`md:hidden fixed inset-0 z-50 transform ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out`}>
+        <div
+          id="mobile-navigation-menu"
+          className={`md:hidden fixed inset-0 z-50 transform ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out`}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Mobile navigation menu"
+        >
           {/* Backdrop */}
           <div 
             className={`absolute inset-0 bg-black bg-opacity-50 transition-opacity duration-300 ${isMenuOpen ? 'opacity-100' : 'opacity-0'}`}
@@ -221,7 +242,8 @@ export default function Navigation() {
                 </Link>
                 <button
                   onClick={() => setIsMenuOpen(false)}
-                  className="p-2 rounded-md text-gray-500 hover:text-gray-700 focus:outline-none"
+                  className="p-2 rounded-md text-gray-500 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  aria-label="Close menu"
                 >
                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

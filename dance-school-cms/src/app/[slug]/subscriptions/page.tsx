@@ -50,6 +50,11 @@ interface VisibilityState {
   message: string;
 }
 
+interface ToastState {
+  type: 'success' | 'error' | 'info';
+  message: string;
+}
+
 // Helper function to get display name for subscription types
 const getPassDisplayName = (type: string): string => {
   const typeNames: { [key: string]: string } = {
@@ -88,8 +93,19 @@ export default function SubscriptionsPage() {
   const [promoCodes, setPromoCodes] = useState<Record<string, string>>({});
   const [promoErrors, setPromoErrors] = useState<Record<string, string>>({});
   const [visibilityNotice, setVisibilityNotice] = useState<VisibilityState | null>(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
 
   const tenantSlug = params.slug as string;
+
+  const notify = (type: ToastState['type'], message: string) => {
+    setToast({ type, message });
+  };
+
+  useEffect(() => {
+    if (!toast) return;
+    const timeoutId = window.setTimeout(() => setToast(null), 4000);
+    return () => window.clearTimeout(timeoutId);
+  }, [toast]);
 
   // Check for success parameter in URL (after payment)
   useEffect(() => {
@@ -214,7 +230,7 @@ export default function SubscriptionsPage() {
       }
     } catch {
       if (!promoErrors[pass._id]) {
-        alert('Failed to process purchase. Please try again.');
+        notify('error', 'Failed to process purchase. Please try again.');
       }
     }
   };
@@ -281,7 +297,7 @@ export default function SubscriptionsPage() {
         throw new Error(data.error || 'Failed to create upgrade checkout session');
       }
     } catch {
-      alert('Failed to process upgrade. Please try again.');
+      notify('error', 'Failed to process upgrade. Please try again.');
     } finally {
       setUpgradeLoading(false);
     }
@@ -412,6 +428,24 @@ export default function SubscriptionsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
+      {toast && (
+        <div className="fixed top-4 right-4 z-[60] max-w-sm w-[calc(100%-2rem)] sm:w-full">
+          <div
+            role="alert"
+            aria-live="assertive"
+            className={`rounded-xl shadow-lg border px-4 py-3 text-sm font-medium ${
+              toast.type === 'success'
+                ? 'bg-green-50 border-green-200 text-green-800'
+                : toast.type === 'error'
+                ? 'bg-red-50 border-red-200 text-red-800'
+                : 'bg-blue-50 border-blue-200 text-blue-800'
+            }`}
+          >
+            {toast.message}
+          </div>
+        </div>
+      )}
+
       {/* Hero Section */}
       <section className="relative py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -437,7 +471,7 @@ export default function SubscriptionsPage() {
               statusMessage.includes('⚠️') ? 'bg-yellow-50 border border-yellow-200' :
               'bg-blue-50 border border-blue-200'
             }`}>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between" role="status" aria-live="polite">
                 <p className={`text-sm font-medium ${
                   statusMessage.includes('✅') ? 'text-green-800' :
                   statusMessage.includes('❌') ? 'text-red-800' :
@@ -454,7 +488,7 @@ export default function SubscriptionsPage() {
           )}
 
           {visibilityNotice && visibilityNotice.reason !== 'ok' && (
-            <div className="mb-6 p-4 rounded-lg bg-blue-50 border border-blue-200">
+            <div className="mb-6 p-4 rounded-lg bg-blue-50 border border-blue-200" role="status" aria-live="polite">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <p className="text-sm font-medium text-blue-900">{visibilityNotice.message}</p>
                 <button
@@ -505,9 +539,13 @@ export default function SubscriptionsPage() {
               
               {/* Tab Navigation */}
               <div className="flex items-center gap-4">
-                <div className="flex bg-gray-100 rounded-lg p-1">
+                <div className="flex bg-gray-100 rounded-lg p-1" role="tablist" aria-label="Pass history tabs">
                   <button
                     onClick={() => setActiveTab('active')}
+                    role="tab"
+                    aria-selected={activeTab === 'active'}
+                    aria-controls="active-passes-panel"
+                    id="active-passes-tab"
                     className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                       activeTab === 'active'
                         ? 'text-white shadow-sm'
@@ -520,6 +558,10 @@ export default function SubscriptionsPage() {
                   </button>
                   <button
                     onClick={() => setActiveTab('expired')}
+                    role="tab"
+                    aria-selected={activeTab === 'expired'}
+                    aria-controls="expired-passes-panel"
+                    id="expired-passes-tab"
                     className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                       activeTab === 'expired'
                         ? 'text-white shadow-sm'
@@ -536,7 +578,7 @@ export default function SubscriptionsPage() {
 
             {/* Active Passes Tab */}
             {activeTab === 'active' && (
-              <>
+              <div role="tabpanel" id="active-passes-panel" aria-labelledby="active-passes-tab">
                 {activeSubscriptions.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {activeSubscriptions.map((subscription: UserSubscription) => (
@@ -628,12 +670,12 @@ export default function SubscriptionsPage() {
                     </Link>
                   </div>
                 )}
-              </>
+              </div>
             )}
 
             {/* Expired Passes Tab */}
             {activeTab === 'expired' && (
-              <>
+              <div role="tabpanel" id="expired-passes-panel" aria-labelledby="expired-passes-tab">
                 {expiredSubscriptions.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {expiredSubscriptions.map((subscription: UserSubscription) => (
@@ -689,7 +731,7 @@ export default function SubscriptionsPage() {
                     </p>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </div>
         </section>
@@ -795,7 +837,11 @@ export default function SubscriptionsPage() {
                     </SignedOut>
                     <SignedIn>
                       <div className="mb-3">
+                        <label htmlFor={`promo-${pass._id}`} className="sr-only">
+                          Promo code for {pass.name}
+                        </label>
                         <input
+                          id={`promo-${pass._id}`}
                           type="text"
                           value={promoCodes[pass._id] || ''}
                           onChange={(e) => {
@@ -804,6 +850,7 @@ export default function SubscriptionsPage() {
                             setPromoErrors((prev) => ({ ...prev, [pass._id]: '' }));
                           }}
                           placeholder="Promo code (optional)"
+                          aria-invalid={Boolean(promoErrors[pass._id])}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                         {promoErrors[pass._id] && (
@@ -915,15 +962,21 @@ export default function SubscriptionsPage() {
       {/* Upgrade Modal */}
       {showUpgradeModal && selectedSubscription && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div
+            className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="upgrade-pass-title"
+          >
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
+                <h2 id="upgrade-pass-title" className="text-2xl font-bold" style={{ color: tenant.branding?.primaryColor || '#3B82F6' }}>
                   Upgrade Your Pass
                 </h2>
                 <button
                   onClick={() => setShowUpgradeModal(false)}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
+                  aria-label="Close upgrade modal"
                 >
                   <XCircleIcon className="h-6 w-6" />
                 </button>
