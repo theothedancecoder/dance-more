@@ -45,6 +45,11 @@ interface UserSubscription {
   };
 }
 
+interface VisibilityState {
+  reason: 'ok' | 'no-user-record' | 'no-subscriptions-found' | 'no-active-subscriptions';
+  message: string;
+}
+
 // Helper function to get display name for subscription types
 const getPassDisplayName = (type: string): string => {
   const typeNames: { [key: string]: string } = {
@@ -82,6 +87,7 @@ export default function SubscriptionsPage() {
   const [manualSyncLoading, setManualSyncLoading] = useState(false);
   const [promoCodes, setPromoCodes] = useState<Record<string, string>>({});
   const [promoErrors, setPromoErrors] = useState<Record<string, string>>({});
+  const [visibilityNotice, setVisibilityNotice] = useState<VisibilityState | null>(null);
 
   const tenantSlug = params.slug as string;
 
@@ -314,13 +320,22 @@ export default function SubscriptionsPage() {
         const data = await response.json();
         setActiveSubscriptions(data.activeSubscriptions || []);
         setExpiredSubscriptions(data.expiredSubscriptions || []);
+        setVisibilityNotice(data.visibility || null);
       } else {
         setActiveSubscriptions([]);
         setExpiredSubscriptions([]);
+        setVisibilityNotice({
+          reason: 'no-subscriptions-found',
+          message: 'We could not load your passes right now. Please refresh or try syncing your passes.',
+        });
       }
     } catch {
       setActiveSubscriptions([]);
       setExpiredSubscriptions([]);
+      setVisibilityNotice({
+        reason: 'no-subscriptions-found',
+        message: 'We could not load your passes right now. Please refresh or try syncing your passes.',
+      });
     }
   };
 
@@ -360,8 +375,18 @@ export default function SubscriptionsPage() {
 
   if (isLoading || loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 flex items-center justify-center px-4">
+        <div className="w-full max-w-5xl">
+          <div className="animate-pulse space-y-6">
+            <div className="h-10 w-64 bg-white rounded-xl shadow-sm" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[1, 2, 3].map((item) => (
+                <div key={item} className="h-40 bg-white rounded-2xl shadow-sm" />
+              ))}
+            </div>
+          </div>
+          <p className="mt-6 text-center text-gray-600 text-sm">Loading passes and subscription status...</p>
+        </div>
       </div>
     );
   }
@@ -424,6 +449,21 @@ export default function SubscriptionsPage() {
                 {checkingStatus && (
                   <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-blue-500"></div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {visibilityNotice && visibilityNotice.reason !== 'ok' && (
+            <div className="mb-6 p-4 rounded-lg bg-blue-50 border border-blue-200">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <p className="text-sm font-medium text-blue-900">{visibilityNotice.message}</p>
+                <button
+                  onClick={handleManualSync}
+                  disabled={manualSyncLoading}
+                  className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60"
+                >
+                  {manualSyncLoading ? 'Refreshing...' : 'Refresh Passes'}
+                </button>
               </div>
             </div>
           )}

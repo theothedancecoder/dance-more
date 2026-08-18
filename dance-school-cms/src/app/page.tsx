@@ -65,8 +65,18 @@ export default function HomePage() {
 
   if (isLoading || loadingUserData) {
     return (
-      <div className="min-h-screen gradient-rainbow particles flex items-center justify-center">
-        <div className="loading-shimmer rounded-full h-20 w-20 border-4 border-white/30"></div>
+      <div className="min-h-screen gradient-rainbow particles flex items-center justify-center px-4">
+        <div className="w-full max-w-xl rounded-3xl bg-white/10 backdrop-blur-md border border-white/20 p-8">
+          <div className="animate-pulse space-y-4">
+            <div className="h-6 w-2/3 rounded bg-white/30" />
+            <div className="h-4 w-full rounded bg-white/20" />
+            <div className="h-4 w-5/6 rounded bg-white/20" />
+            <div className="pt-4">
+              <div className="loading-shimmer rounded-full h-12 w-12 border-4 border-white/30 mx-auto"></div>
+            </div>
+          </div>
+          <p className="mt-6 text-center text-white/90 text-sm">Loading your dance experience...</p>
+        </div>
       </div>
     );
   }
