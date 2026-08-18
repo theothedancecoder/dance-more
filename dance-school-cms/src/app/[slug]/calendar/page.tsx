@@ -44,6 +44,10 @@ export default function CalendarPage() {
   const [confirmInstance, setConfirmInstance] = useState<ClassInstance | null>(null);
 
   const tenantSlug = params.slug as string;
+  const primaryButtonClass =
+    'inline-flex items-center justify-center w-full sm:w-auto px-4 sm:px-6 py-2 rounded-lg text-white font-medium transition-all duration-200 hover:opacity-90 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed';
+  const secondaryButtonClass =
+    'inline-flex items-center justify-center w-full sm:w-auto px-4 sm:px-6 py-2 rounded-lg border border-gray-300 text-gray-700 bg-white font-medium transition-all duration-200 hover:bg-gray-50 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500';
 
   const getInstanceDateTime = (instance: ClassInstance): Date => {
     const datePart = instance.date.split('T')[0];
@@ -250,7 +254,7 @@ export default function CalendarPage() {
           <div
             role="alert"
             aria-live="assertive"
-            className={`p-4 rounded-lg ${
+            className={`p-4 rounded-lg shadow-sm ${
             bookingMessage.type === 'success' 
               ? 'bg-green-100 text-green-800 border border-green-200' 
               : 'bg-red-100 text-red-800 border border-red-200'
@@ -261,7 +265,7 @@ export default function CalendarPage() {
                 {bookingMessage.text.replace(' Click here to visit the Passes & Subscriptions page.', '')}{' '}
                 <a 
                   href={bookingMessage.redirectUrl}
-                  className="underline font-medium hover:no-underline"
+                  className="underline font-semibold hover:no-underline"
                 >
                   Click here to visit the Passes & Subscriptions page.
                 </a>
@@ -417,7 +421,7 @@ export default function CalendarPage() {
                                 <SignedOut>
                                   <SignInButton mode="modal">
                                     <button 
-                                      className="w-full sm:w-auto px-4 sm:px-6 py-2 rounded-lg text-white font-medium transition-colors"
+                                      className={primaryButtonClass}
                                       style={{ backgroundColor: tenant.branding?.primaryColor || '#3B82F6' }}
                                     >
                                       Sign In to Book
@@ -428,7 +432,8 @@ export default function CalendarPage() {
                                   <button 
                                     onClick={() => handleBookClass(instance._id)}
                                     disabled={bookingLoading === instance._id}
-                                    className="w-full sm:w-auto px-4 sm:px-6 py-2 rounded-lg text-white font-medium transition-colors hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    aria-busy={bookingLoading === instance._id}
+                                    className={primaryButtonClass}
                                     style={{ backgroundColor: tenant.branding?.primaryColor || '#3B82F6' }}
                                   >
                                     {bookingLoading === instance._id ? 'Booking...' : 'Book Now'}
@@ -459,7 +464,7 @@ export default function CalendarPage() {
           </p>
           <Link
             href={`/${tenantSlug}/subscriptions`}
-            className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 rounded-xl text-white font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-lg inline-block"
+            className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 rounded-xl text-white font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-lg inline-block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500"
             style={{ backgroundColor: tenant.branding?.primaryColor || '#3B82F6' }}
           >
             View Passes & Subscriptions
@@ -524,14 +529,15 @@ export default function CalendarPage() {
             <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={() => setConfirmInstance(null)}
-                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+                className={`${secondaryButtonClass} flex-1 sm:w-full rounded-xl py-3`}
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleBookClass(confirmInstance._id)}
                 disabled={bookingLoading === confirmInstance._id}
-                className="flex-1 px-4 py-3 rounded-xl text-white font-medium transition-colors hover:opacity-90 disabled:opacity-50"
+                aria-busy={bookingLoading === confirmInstance._id}
+                className={`${primaryButtonClass} flex-1 sm:w-full rounded-xl py-3`}
                 style={{ backgroundColor: tenant.branding?.primaryColor || '#3B82F6' }}
               >
                 {bookingLoading === confirmInstance._id ? 'Booking...' : 'Confirm Booking'}
