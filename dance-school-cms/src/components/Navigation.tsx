@@ -23,6 +23,7 @@ export default function Navigation() {
   }
   const contextTenantSlug = tenant?.slug;
   const finalTenantSlug = tenantSlug || contextTenantSlug || null;
+  const isTenantContext = Boolean(tenant || finalTenantSlug);
 
   // Fetch user role for role-based nav items — must be before any early return
   useEffect(() => {
@@ -61,6 +62,11 @@ export default function Navigation() {
     }
     return path;
   };
+
+  const getMobileQuickActionClass = (isActive: boolean) =>
+    `inline-flex items-center justify-center px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+      isActive ? 'text-white shadow-sm' : 'text-gray-700 bg-gray-100 hover:bg-gray-200'
+    }`;
 
   return (
     <nav className="bg-white shadow-lg">
@@ -168,6 +174,35 @@ export default function Navigation() {
             </button>
           </div>
         </div>
+
+        {/* Mobile quick actions */}
+        {isTenantContext && user && (
+          <div className="md:hidden pb-3">
+            <div className="flex gap-2 overflow-x-auto no-scrollbar">
+              <Link
+                href={getTenantUrl('/calendar')}
+                className={getMobileQuickActionClass(pathname.includes('/calendar'))}
+                style={pathname.includes('/calendar') ? { backgroundColor: brandColor } : {}}
+              >
+                Book Class
+              </Link>
+              <Link
+                href={getTenantUrl('/subscriptions')}
+                className={getMobileQuickActionClass(pathname.includes('/subscriptions'))}
+                style={pathname.includes('/subscriptions') ? { backgroundColor: brandColor } : {}}
+              >
+                My Passes
+              </Link>
+              <Link
+                href={getTenantUrl('/classes')}
+                className={getMobileQuickActionClass(pathname.includes('/classes'))}
+                style={pathname.includes('/classes') ? { backgroundColor: brandColor } : {}}
+              >
+                Classes
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Mobile Navigation */}
         <div className={`md:hidden fixed inset-0 z-50 transform ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out`}>

@@ -196,9 +196,27 @@ export async function GET(request: NextRequest) {
       totalTenantSubscriptions: allTenantSubscriptions.length
     });
 
+    let visibilityReason: 'ok' | 'no-user-record' | 'no-subscriptions-found' | 'no-active-subscriptions' = 'ok';
+    let visibilityMessage = '';
+
+    if (matchedUserDocuments === 0) {
+      visibilityReason = 'no-user-record';
+      visibilityMessage = 'We could not find your user profile for this school yet. Please sign out/in and try again.';
+    } else if (userSubscriptionsAllTenants.length === 0) {
+      visibilityReason = 'no-subscriptions-found';
+      visibilityMessage = 'No passes were found on your account yet. If you already paid, tap refresh to sync your passes.';
+    } else if (subscriptions.length === 0) {
+      visibilityReason = 'no-active-subscriptions';
+      visibilityMessage = 'You have passes on record, but none are currently active for this school.';
+    }
+
     return NextResponse.json({ 
       activeSubscriptions: subscriptions,
       expiredSubscriptions: expiredSubscriptions,
+      visibility: {
+        reason: visibilityReason,
+        message: visibilityMessage,
+      },
       debug: {
         clerkId: userId,
         userReferenceIds,
