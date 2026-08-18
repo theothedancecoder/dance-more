@@ -104,6 +104,11 @@ export default function SubscriptionsPage() {
     setToast({ type, message });
   };
 
+  const primaryButtonClass =
+    'inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-md text-white transition-all duration-200 hover:opacity-90 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed';
+  const secondaryButtonClass =
+    'inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-md border transition-all duration-200 hover:bg-gray-50 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed';
+
   const formatSyncTime = (isoTime: string | null) => {
     if (!isoTime) return 'Not synced yet';
     const date = new Date(isoTime);
@@ -539,7 +544,8 @@ export default function SubscriptionsPage() {
                 <button
                   onClick={handleManualSync}
                   disabled={manualSyncLoading}
-                  className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60"
+                  className={primaryButtonClass}
+                  style={{ backgroundColor: tenant.branding?.primaryColor || '#3B82F6' }}
                 >
                   {manualSyncLoading ? 'Refreshing...' : 'Refresh Passes'}
                 </button>
@@ -584,7 +590,7 @@ export default function SubscriptionsPage() {
               <button
                 onClick={handleManualSync}
                 disabled={manualSyncLoading}
-                className="inline-flex items-center px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                className="inline-flex items-center px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {manualSyncLoading ? 'Refreshing...' : 'Refresh'}
               </button>
@@ -687,14 +693,14 @@ export default function SubscriptionsPage() {
                         <div className="mt-4 pt-4 border-t border-gray-200 space-y-2">
                           <Link
                             href={`/${tenantSlug}/calendar`}
-                            className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white hover:opacity-90 transition-colors"
+                            className={`w-full ${primaryButtonClass}`}
                             style={{ backgroundColor: tenant.branding?.primaryColor || '#3B82F6' }}
                           >
                             Book Classes
                           </Link>
                           <button
                             onClick={() => handleUpgradePass(subscription)}
-                            className="w-full inline-flex justify-center items-center px-4 py-2 border text-sm font-medium rounded-md hover:bg-gray-50 transition-colors"
+                            className={`w-full ${secondaryButtonClass}`}
                             style={{ 
                               borderColor: tenant.branding?.primaryColor || '#3B82F6',
                               color: tenant.branding?.primaryColor || '#3B82F6'
@@ -717,7 +723,7 @@ export default function SubscriptionsPage() {
                     </p>
                     <Link
                       href="#passes"
-                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white hover:opacity-90 transition-colors"
+                      className={primaryButtonClass}
                       style={{ backgroundColor: tenant.branding?.primaryColor || '#3B82F6' }}
                       onClick={(e) => {
                         e.preventDefault();
@@ -917,10 +923,11 @@ export default function SubscriptionsPage() {
                       </div>
                       <button 
                         onClick={() => handlePurchase(pass)}
+                        disabled={manualSyncLoading}
                         className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
                           pass.isPopular
-                            ? 'text-white hover:opacity-90'
-                            : 'border-2 hover:bg-blue-50'
+                            ? 'text-white hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed'
+                            : 'border-2 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed'
                         }`}
                         style={pass.isPopular ? { 
                           backgroundColor: tenant.branding?.primaryColor || '#3B82F6'
@@ -1001,14 +1008,14 @@ export default function SubscriptionsPage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href={`/${tenantSlug}/calendar`}
-              className="px-8 py-4 rounded-xl text-white font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-lg inline-block"
+              className="px-8 py-4 rounded-xl text-white font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-lg inline-block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500"
               style={{ backgroundColor: tenant.branding?.primaryColor || '#3B82F6' }}
             >
               View Class Schedule
             </Link>
             <Link
               href={`/${tenantSlug}/classes`}
-              className="px-8 py-4 rounded-xl text-white font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-lg inline-block"
+              className="px-8 py-4 rounded-xl text-white font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-lg inline-block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500"
               style={{ backgroundColor: tenant.branding?.secondaryColor || tenant.branding?.primaryColor || '#3B82F6' }}
             >
               Browse Classes
@@ -1108,7 +1115,7 @@ export default function SubscriptionsPage() {
                         <button
                           onClick={() => handleUpgradeConfirm(pass)}
                           disabled={upgradeLoading}
-                          className="w-full py-3 px-4 rounded-lg font-medium text-white transition-colors disabled:opacity-50"
+                          className="w-full py-3 px-4 rounded-lg font-medium text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                           style={{ backgroundColor: tenant.branding?.primaryColor || '#3B82F6' }}
                         >
                           {upgradeLoading ? 'Processing...' : `Upgrade for ${upgradeCost === 0 ? 'FREE' : `${upgradeCost} kr`}`}
