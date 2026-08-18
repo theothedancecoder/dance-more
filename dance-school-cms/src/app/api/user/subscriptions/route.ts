@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { uncachedSanityClient } from '@/lib/sanity';
+import { uncachedSanityClient, writeClient } from '@/lib/sanity';
 import { resolveUserReferenceIds } from '@/lib/user-references';
+
+function passTypeToSubscriptionType(passType: string): string {
+  switch (passType) {
+    case 'single': return 'single';
+    case 'multi': return 'clipcard';
+    case 'multi-pass': return 'multi-pass';
+    case 'unlimited': return 'monthly';
+    default: return passType;
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -117,6 +127,33 @@ export async function GET(request: NextRequest) {
       }`,
       { userReferenceIds, now: now.toISOString(), tenantId: tenant._id, tenantPassIds }
     );
+
+    // Self-heal: repair subscriptions whose type or remainingClips doesn't match the pass definition
+    for (const sub of subscriptions) {
+      const passType = sub.originalPass?.type;
+      if (!passType || !sub.passId) continue;
+      const expectedType = passTypeToSubscriptionType(passType);
+      if (sub.type !== expectedType) {
+        const pass = await uncachedSanityClient.fetch(
+          `*[_type == "pass" && _id == $passId][0]{type, classesLimit}`,
+          { passId: sub.passId }
+        );
+        if (!pass) continue;
+        const correctType = passTypeToSubscriptionType(pass.type);
+        const correctClips = pass.type === 'multi' ? pass.classesLimit : sub.remainingClips;
+        try {
+          await writeClient.patch(sub._id).set({
+            type: correctType,
+            ...(correctClips !== undefined ? { remainingClips: correctClips } : {}),
+          }).commit();
+          console.log(`🛠️ Auto-repaired subscription ${sub._id}: type ${sub.type} → ${correctType}, clips → ${correctClips}`);
+          sub.type = correctType;
+          if (correctClips !== undefined) sub.remainingClips = correctClips;
+        } catch (repairErr) {
+          console.error(`⚠️ Failed to repair subscription ${sub._id}:`, repairErr);
+        }
+      }
+    }
 
     console.log('📊 Found active subscriptions:', subscriptions.length);
     if (subscriptions.length > 0) {
