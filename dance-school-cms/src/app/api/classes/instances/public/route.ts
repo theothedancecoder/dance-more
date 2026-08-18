@@ -34,8 +34,62 @@ interface PublicClassInstance {
   };
 }
 
-function getDayOfWeekFromIsoDateTime(isoDateTime: string) {
-  return DAY_NAMES[new Date(isoDateTime).getUTCDay()];
+interface PublicClass {
+  _id: string;
+  title: string;
+  danceStyle?: string;
+  level?: string;
+  duration?: number;
+  capacity?: number;
+  price?: number;
+  location?: string;
+  isActive?: boolean;
+  isRecurring?: boolean;
+  recurringSchedule?: {
+    startDate?: string;
+    endDate?: string;
+    weeklySchedule?: WeeklyScheduleItem[];
+  };
+  instructor?: {
+    name?: string;
+    image?: unknown;
+  };
+}
+
+interface CalendarEventItem {
+  _id: string;
+  title: string;
+  instructor: string;
+  startTime: string;
+  endTime: string;
+  date: string;
+  dayOfWeek: string;
+  capacity?: number;
+  booked: number;
+  price?: number;
+  level?: string;
+  location?: string;
+  isCancelled: boolean;
+  remainingCapacity: number;
+  isVirtual?: boolean;
+}
+
+function getDateOnlyFromIsoDateTime(isoDateTime: string) {
+  return isoDateTime.split('T')[0];
+}
+
+function getDayOfWeekFromDateOnly(dateOnly: string) {
+  const [year, month, day] = dateOnly.split('-').map(Number);
+  return DAY_NAMES[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
+}
+
+function parseDateOnlyToUtc(dateOnly: string) {
+  const [year, month, day] = dateOnly.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+function toDateOnlyUtcString(date: Date) {
+  return date.toISOString().split('T')[0];
 }
 
 function addDurationToTime(startTime: string, durationMinutes: number) {
@@ -118,219 +172,151 @@ export async function GET(request: NextRequest) {
 
     console.log('Found class instances:', instances.length);
 
-    // Transform instances to calendar events
-    let calendarEvents = instances.map((instance: PublicClassInstance) => {
-      const dayOfWeek = getDayOfWeekFromIsoDateTime(instance.date);
-      const matchingSchedule = instance.parentClass?.recurringSchedule?.weeklySchedule?.find(
+    const classes: PublicClass[] = await sanityClient.fetch(
+      `*[_type == "class" && tenant._ref == $tenantId && isActive == true] {
+        _id,
+        title,
+        danceStyle,
+        level,
+        duration,
+        capacity,
+        price,
+        location,
+        isActive,
+        isRecurring,
+        recurringSchedule,
+        instructor->{
+          name,
+          image
+        }
+      }`,
+      { tenantId: tenant._id }
+    );
+
+    const classesById = new Map(classes.map((classData) => [classData._id, classData]));
+    const recurringClasses = classes.filter(
+      (classData) => classData.isRecurring && classData.recurringSchedule?.weeklySchedule?.length
+    );
+
+    const instanceBuckets = new Map<string, CalendarEventItem[]>();
+    const unmatchedOneOffEvents: CalendarEventItem[] = [];
+
+    for (const instance of instances as PublicClassInstance[]) {
+      const classData = classesById.get(instance.parentClass._id);
+      const dateOnly = getDateOnlyFromIsoDateTime(instance.date);
+      const dayOfWeek = getDayOfWeekFromDateOnly(dateOnly);
+      const matchingSchedule = classData?.recurringSchedule?.weeklySchedule?.find(
         (schedule) => schedule.dayOfWeek?.toLowerCase() === dayOfWeek
       );
-      const duration = instance.parentClass.duration || 60;
+      const duration = classData?.duration || instance.parentClass.duration || 60;
       const instanceDate = new Date(instance.date);
       const fallbackStartTime = `${instanceDate.getUTCHours().toString().padStart(2, '0')}:${instanceDate.getUTCMinutes().toString().padStart(2, '0')}`;
       const startTime = matchingSchedule?.startTime || fallbackStartTime;
       const endTime = matchingSchedule?.endTime || addDurationToTime(startTime, duration);
-       
-      return {
+
+      const event: CalendarEventItem = {
         _id: instance._id,
-        title: instance.parentClass.title,
-        instructor: instance.parentClass.instructor?.name || 'TBA',
-        startTime: startTime,
-        endTime: endTime,
-        date: instance.date.split('T')[0],
+        title: classData?.title || instance.parentClass.title,
+        instructor: classData?.instructor?.name || instance.parentClass.instructor?.name || 'TBA',
+        startTime,
+        endTime,
+        date: dateOnly,
         dayOfWeek,
-        capacity: instance.parentClass.capacity,
+        capacity: classData?.capacity ?? instance.parentClass.capacity,
         booked: instance.bookingCount || 0,
-        price: instance.parentClass.price,
-        level: instance.parentClass.level,
-        location: instance.parentClass.location,
+        price: classData?.price ?? instance.parentClass.price,
+        level: classData?.level || instance.parentClass.level,
+        location: classData?.location || instance.parentClass.location,
         isCancelled: instance.isCancelled,
         remainingCapacity: instance.remainingCapacity
       };
-    });
 
-    // If no instances found, create virtual instances from recurring classes
-    if (calendarEvents.length === 0) {
-      console.log('No instances found, fetching recurring classes for tenant:', tenant._id);
-      
-      const recurringClasses = await sanityClient.fetch(
-        `*[_type == "class" && tenant._ref == $tenantId && isActive == true] {
-          _id,
-          title,
-          danceStyle,
-          level,
-          duration,
-          capacity,
-          price,
-          location,
-          isActive,
-          isRecurring,
-          recurringSchedule,
-          instructor->{
-            name,
-            image
-          }
-        }`,
-        { tenantId: tenant._id }
-      );
-      
-      console.log('Found classes:', recurringClasses.length);
-      console.log('Classes data:', JSON.stringify(recurringClasses, null, 2));
+      if (!classData?.isRecurring || !classData?.recurringSchedule?.weeklySchedule?.length) {
+        unmatchedOneOffEvents.push(event);
+        continue;
+      }
 
-      // Generate virtual instances for the next 4 weeks
-      const virtualInstances = [];
-      const requestStartDate = new Date(startDate);
-      const requestEndDate = new Date(endDate);
-      
-      for (const classData of recurringClasses) {
-        // Skip inactive classes
-        if (classData.isActive === false) {
-          console.log('Skipping inactive class:', classData.title);
+      const key = `${instance.parentClass._id}|${dateOnly}|${startTime}`;
+      const bucket = instanceBuckets.get(key) || [];
+      bucket.push(event);
+      instanceBuckets.set(key, bucket);
+    }
+
+    const requestStart = new Date(startDate);
+    const requestEnd = new Date(endDate);
+    const requestStartDateOnly = parseDateOnlyToUtc(toDateOnlyUtcString(requestStart));
+    const requestEndDateOnly = parseDateOnlyToUtc(toDateOnlyUtcString(requestEnd));
+    const expectedRecurringEvents: CalendarEventItem[] = [];
+    const usedInstanceIds = new Set<string>();
+
+    for (const classData of recurringClasses) {
+      const scheduleStart = classData.recurringSchedule?.startDate
+        ? parseDateOnlyToUtc(classData.recurringSchedule.startDate)
+        : requestStartDateOnly;
+      const scheduleEnd = classData.recurringSchedule?.endDate
+        ? parseDateOnlyToUtc(classData.recurringSchedule.endDate)
+        : requestEndDateOnly;
+
+      const effectiveStart = new Date(Math.max(requestStartDateOnly.getTime(), scheduleStart.getTime()));
+      const effectiveEnd = new Date(Math.min(requestEndDateOnly.getTime(), scheduleEnd.getTime()));
+
+      if (effectiveStart > effectiveEnd) {
+        continue;
+      }
+
+      for (const schedule of classData.recurringSchedule?.weeklySchedule || []) {
+        const scheduleDay = schedule.dayOfWeek?.toLowerCase();
+        const scheduleStartTime = schedule.startTime;
+
+        if (!scheduleDay || !scheduleStartTime) {
           continue;
         }
 
-        console.log('Processing class:', classData.title, 'isRecurring:', classData.isRecurring);
-        
-        // Handle both recurring and non-recurring classes
-        if (classData.isRecurring && classData.recurringSchedule?.weeklySchedule) {
-          console.log('Processing recurring class with schedule:', classData.recurringSchedule.weeklySchedule);
-          
-          for (const schedule of classData.recurringSchedule.weeklySchedule) {
-            console.log('Processing schedule:', schedule);
-            
-            // Generate instances for each week in the date range
-            const classStartDate = classData.recurringSchedule?.startDate ? new Date(classData.recurringSchedule.startDate) : new Date();
-            const classEndDate = classData.recurringSchedule?.endDate ? new Date(classData.recurringSchedule.endDate) : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-            
-            // Start from the later of request start date or class start date
-            const effectiveStartDate = new Date(Math.max(requestStartDate.getTime(), classStartDate.getTime()));
-            const effectiveEndDate = new Date(Math.min(requestEndDate.getTime(), classEndDate.getTime()));
-            
-            // If there's no overlap, skip this class
-            if (effectiveStartDate > effectiveEndDate) {
-              console.log('No overlap between request range and class schedule for:', classData.title);
-              continue;
-            }
-            
-            // Find the target day of the week
-            const dayMap = {
-              'monday': 1, 'tuesday': 2, 'wednesday': 3, 'thursday': 4,
-              'friday': 5, 'saturday': 6, 'sunday': 0
-            };
-            
-            const targetDay = dayMap[schedule.dayOfWeek?.toLowerCase() as keyof typeof dayMap];
-            if (targetDay === undefined) {
-              console.log('Invalid day of week:', schedule.dayOfWeek);
-              continue;
-            }
-            
-            // Generate instances week by week within the effective date range
-            const currentWeekStart = new Date(effectiveStartDate);
-            // Adjust to the start of the week (Monday)
-            const currentDayOfWeek = currentWeekStart.getDay();
-            const daysToMonday = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
-            currentWeekStart.setDate(currentWeekStart.getDate() + daysToMonday);
-            
-            while (currentWeekStart <= effectiveEndDate) {
-              // Calculate the date for the target day of this week
-              const instanceDate = new Date(currentWeekStart);
-              
-              // Calculate days to add to get to the target day
-              let daysToAdd = targetDay - 1; // Convert to 0-based (Monday = 0)
-              if (targetDay === 0) { // Sunday
-                daysToAdd = 6;
-              }
-              
-              instanceDate.setDate(currentWeekStart.getDate() + daysToAdd);
-              
-              // Set the time
-              if (schedule.startTime) {
-                const [hours, minutes] = schedule.startTime.split(':');
-                instanceDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-              } else {
-                console.log('No start time for schedule:', schedule);
-                continue;
-              }
-              
-              // Only include if within all the required ranges
-              // Use date-only comparison to avoid timezone issues
-              const instanceDateOnly = new Date(instanceDate.getFullYear(), instanceDate.getMonth(), instanceDate.getDate());
-              const requestStartDateOnly = new Date(requestStartDate.getFullYear(), requestStartDate.getMonth(), requestStartDate.getDate());
-              const requestEndDateOnly = new Date(requestEndDate.getFullYear(), requestEndDate.getMonth(), requestEndDate.getDate());
-              const classStartDateOnly = new Date(classStartDate.getFullYear(), classStartDate.getMonth(), classStartDate.getDate());
-              const classEndDateOnly = new Date(classEndDate.getFullYear(), classEndDate.getMonth(), classEndDate.getDate());
-              
-              if (instanceDateOnly >= requestStartDateOnly && instanceDateOnly <= requestEndDateOnly && 
-                  instanceDateOnly >= classStartDateOnly && instanceDateOnly <= classEndDateOnly) {
-                console.log('Adding virtual instance for:', classData.title, 'on', instanceDate.toISOString());
-                
-                // Use the scheduled time directly instead of converting UTC
-                const startTime = schedule.startTime;
-                
-                const duration = classData.duration || 60; // Default 60 minutes
-                const endTime = schedule.endTime || addDurationToTime(startTime, duration);
-                 
-                virtualInstances.push({
-                  _id: `virtual-${classData._id}-${instanceDate.getTime()}`,
-                  title: classData.title,
-                  instructor: classData.instructor?.name || 'TBA',
-                  startTime: startTime,
-                  endTime: endTime,
-                  date: instanceDate.toISOString().split('T')[0],
-                  dayOfWeek: schedule.dayOfWeek?.toLowerCase(),
-                  capacity: classData.capacity || 10,
-                  booked: 0,
-                  price: classData.price || 0,
-                  level: classData.level || 'beginner',
-                  location: classData.location || '',
-                  isCancelled: false,
-                  remainingCapacity: classData.capacity || 10,
-                  isVirtual: true // Flag to indicate this is a virtual instance
-                });
-              } else {
-                console.log('Instance date', instanceDateOnly.toISOString(), 'not in range:', requestStartDateOnly.toISOString(), 'to', requestEndDateOnly.toISOString());
-              }
-              
-              // Move to next week
-              currentWeekStart.setDate(currentWeekStart.getDate() + 7);
-            }
-          }
-        } else {
-          // For non-recurring classes or classes without proper schedule, create a sample instance
-          console.log('Creating sample instance for non-recurring class:', classData.title);
-          
-          const sampleDate = new Date(requestStartDate);
-          sampleDate.setDate(sampleDate.getDate() + 1); // Tomorrow
-          sampleDate.setHours(18, 0, 0, 0); // 6 PM
-          
-          if (sampleDate <= requestEndDate) {
-            // Use fixed time for non-recurring classes
-            const startTime = '18:00';
-            const endTime = '19:00';
-            
-            virtualInstances.push({
-              _id: `virtual-${classData._id}-${sampleDate.getTime()}`,
+        const duration = classData.duration || 60;
+        const scheduleEndTime = schedule.endTime || addDurationToTime(scheduleStartTime, duration);
+
+        const firstDate = new Date(effectiveStart);
+        while (firstDate <= effectiveEnd && getDayOfWeekFromDateOnly(toDateOnlyUtcString(firstDate)) !== scheduleDay) {
+          firstDate.setUTCDate(firstDate.getUTCDate() + 1);
+        }
+
+        for (const cursor = new Date(firstDate); cursor <= effectiveEnd; cursor.setUTCDate(cursor.getUTCDate() + 7)) {
+          const dateOnly = toDateOnlyUtcString(cursor);
+          const key = `${classData._id}|${dateOnly}|${scheduleStartTime}`;
+          const bucket = instanceBuckets.get(key) || [];
+          const matchedInstance = bucket.find((candidate) => !usedInstanceIds.has(candidate._id));
+
+          if (matchedInstance) {
+            usedInstanceIds.add(matchedInstance._id);
+            expectedRecurringEvents.push(matchedInstance);
+          } else {
+            expectedRecurringEvents.push({
+              _id: `virtual-${classData._id}-${dateOnly}-${scheduleStartTime.replace(':', '')}`,
               title: classData.title,
               instructor: classData.instructor?.name || 'TBA',
-              startTime: startTime,
-              endTime: endTime,
-              date: sampleDate.toISOString().split('T')[0],
-              dayOfWeek: getDayOfWeekFromIsoDateTime(sampleDate.toISOString()),
-              capacity: classData.capacity || 10,
+              startTime: scheduleStartTime,
+              endTime: scheduleEndTime,
+              date: dateOnly,
+              dayOfWeek: scheduleDay,
+              capacity: classData.capacity || 0,
               booked: 0,
               price: classData.price || 0,
               level: classData.level || 'beginner',
               location: classData.location || '',
               isCancelled: false,
-              remainingCapacity: classData.capacity || 10,
+              remainingCapacity: classData.capacity || 0,
               isVirtual: true
             });
           }
         }
       }
-      
-      console.log('Generated virtual instances:', virtualInstances.length);
-      calendarEvents = virtualInstances;
     }
+
+    const calendarEvents = [...expectedRecurringEvents, ...unmatchedOneOffEvents].sort((a, b) => {
+      const dateSort = a.date.localeCompare(b.date);
+      if (dateSort !== 0) return dateSort;
+      return a.startTime.localeCompare(b.startTime);
+    });
 
     console.log('Returning calendar events:', calendarEvents.length);
     return NextResponse.json({ 
