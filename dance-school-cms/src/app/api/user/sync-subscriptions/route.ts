@@ -22,6 +22,46 @@ function getSubscriptionDetailsFromPass(pass: {
   }
 }
 
+function getSessionType(session: { metadata?: Record<string, string | undefined> }) {
+  const sessionType = session.metadata?.type;
+  if (sessionType === 'pass_purchase' || sessionType === 'pass_upgrade') {
+    return sessionType;
+  }
+  const passType = session.metadata?.passType;
+  if (passType === 'pass_purchase' || passType === 'pass_upgrade') {
+    return passType;
+  }
+  return undefined;
+}
+
+function sessionMatchesUser(
+  session: {
+    metadata?: Record<string, string | undefined>;
+    client_reference_id?: string | null;
+    customer_details?: { email?: string | null } | null;
+    customer_email?: string | null;
+    payment_status?: string | null;
+    status?: string | null;
+  },
+  userId: string,
+  tenantId: string,
+  userEmail?: string | null
+) {
+  const metadata = session.metadata || {};
+  const metadataUserId = metadata.userId || session.client_reference_id;
+  const metadataTenantId = metadata.tenantId || metadata.tenant || metadata.tenant_id;
+  const sessionEmail = session.customer_details?.email || session.customer_email;
+  const matchesUser =
+    metadataUserId === userId ||
+    (!!userEmail && !!sessionEmail && sessionEmail.toLowerCase() === userEmail.toLowerCase());
+  const matchesTenant =
+    !metadataTenantId || metadataTenantId === tenantId || metadataTenantId === String(tenantId);
+  const isRecoverableType = getSessionType(session) !== undefined;
+  const isPaid = session.payment_status === 'paid' || session.status === 'complete';
+
+  return matchesUser && matchesTenant && isRecoverableType && isPaid;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { userId } = await auth();
@@ -77,24 +117,15 @@ export async function POST(request: NextRequest) {
     // Check for recent Stripe sessions for this user that might not have been processed
     // Increased to 30 days to catch any missed subscriptions
     const recentSessions = await stripe.checkout.sessions.list({
-      limit: 50, // Increased limit to catch more sessions
+      limit: 100,
       created: {
-        gte: Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000), // Last 30 days
+        gte: Math.floor((Date.now() - 90 * 24 * 60 * 60 * 1000) / 1000),
       },
     });
 
-    const userSessions = recentSessions.data.filter(session => {
-      const metadataUserId = session.metadata?.userId || session.client_reference_id;
-      const metadataTenantId = session.metadata?.tenantId || session.metadata?.tenant || session.metadata?.tenant_id;
-      const sessionType = session.metadata?.type;
-
-      const matchesUser = metadataUserId === userId;
-      const matchesTenant = metadataTenantId === tenant._id;
-      const isRecoverableType = sessionType === 'pass_purchase' || sessionType === 'pass_upgrade';
-      const isPaid = session.payment_status === 'paid';
-
-      return matchesUser && matchesTenant && isRecoverableType && isPaid;
-    });
+    const userSessions = recentSessions.data.filter(session =>
+      sessionMatchesUser(session, userId, tenant._id, user.email)
+    );
 
     console.log('💳 Found recent paid sessions for user:', userSessions.length);
 
@@ -105,12 +136,36 @@ export async function POST(request: NextRequest) {
 
     for (const session of userSessions) {
       const metadata = session.metadata || {};
-      const passId = metadata.passId;
-      const sessionType = metadata.type;
+      const sessionType = getSessionType(session);
       const upgradeFromSubscriptionId = metadata.upgradeFromSubscriptionId;
+      let passId = metadata.passId || metadata.pass_id;
       
       if (!passId) {
-        const msg = `Session ${session.id}: missing passId in metadata`;
+        const passName = metadata.passName || metadata.pass_name || metadata.productName;
+        if (passName) {
+          const recoveredPass = await uncachedSanityClient.fetch(
+            `*[_type == "pass" && tenant._ref == $tenantId && isActive == true && name == $passName][0] {
+              _id,
+              name,
+              type,
+              classesLimit,
+              price,
+              validityDays,
+              validityType,
+              expiryDate
+            }`,
+            { tenantId: tenant._id, passName }
+          );
+
+          if (recoveredPass) {
+            passId = recoveredPass._id;
+            console.log('🔎 Recovered pass ID from pass name for session:', session.id, recoveredPass._id);
+          }
+        }
+      }
+
+      if (!passId) {
+        const msg = `Session ${session.id}: missing passId in metadata and no recoverable pass name`;
         console.log('⚠️', msg);
         errors.push(msg);
         errorCount++;
@@ -132,8 +187,14 @@ export async function POST(request: NextRequest) {
       );
 
       if (!pass) {
-        console.log('❌ Pass not found:', passId);
-        continue;
+        const fallbackPass = await uncachedSanityClient.fetch(
+          `*[_type == "pass" && tenant._ref == $tenantId && isActive == true && name == $passName][0]`,
+          { tenantId: tenant._id, passName: metadata.passName || metadata.pass_name || metadata.productName }
+        );
+        if (!fallbackPass) {
+          console.log('❌ Pass not found:', passId);
+          continue;
+        }
       }
 
       const { subscriptionType, remainingClips } = getSubscriptionDetailsFromPass(pass);
