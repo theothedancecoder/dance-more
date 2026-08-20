@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -8,16 +9,19 @@ type BeforeInstallPromptEvent = Event & {
 };
 
 export default function InstallAppButton({ className = '' }: { className?: string }) {
+  const pathname = usePathname();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+
+  const isTenantRoute = !!pathname && pathname.split('/').filter(Boolean).length > 0 && !pathname.startsWith('/studio');
 
   useEffect(() => {
     const ua = window.navigator.userAgent.toLowerCase();
     const ios = /iphone|ipad|ipod/.test(ua);
     const standalone =
       window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as any).standalone === true;
+      Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
 
     setIsIOS(ios);
     setIsStandalone(standalone);
@@ -37,6 +41,10 @@ export default function InstallAppButton({ className = '' }: { className?: strin
     await deferredPrompt.userChoice;
     setDeferredPrompt(null);
   };
+
+  if (!isTenantRoute) {
+    return null;
+  }
 
   if (isStandalone) {
     return (
