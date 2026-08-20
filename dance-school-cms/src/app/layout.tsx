@@ -19,7 +19,6 @@ export const metadata: Metadata = {
   title: "Dance School CMS",
   description: "Comprehensive dance school management system",
   applicationName: "Dance School CMS",
-  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
