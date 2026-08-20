@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useTenant } from '@/contexts/TenantContext';
-import { SignedIn, SignedOut, SignInButton } from '@clerk/nextjs';
+import { SignedIn, SignedOut } from '@clerk/nextjs';
 import Link from 'next/link';
 import { AcademicCapIcon, ClockIcon, UserGroupIcon } from '@heroicons/react/24/outline';
 import ReadMoreText from '@/components/ReadMoreText';
@@ -198,15 +198,14 @@ export default function ClassesPage() {
                     {classItem.price} kr
                   </div>
                   <SignedOut>
-                    <SignInButton mode="modal">
-                      <button 
-                        className="w-full sm:w-auto px-4 sm:px-6 py-2 rounded-lg text-white font-medium transition-colors text-sm sm:text-base"
-                        style={{ backgroundColor: tenant.branding?.primaryColor || '#3B82F6' }}
-                      >
-                        <span className="sm:hidden">Sign In</span>
-                        <span className="hidden sm:inline">Sign In to Book</span>
-                      </button>
-                    </SignInButton>
+                    <Link
+                      href={`/${tenantSlug}/sign-in`}
+                      className="w-full sm:w-auto px-4 sm:px-6 py-2 rounded-lg text-white font-medium transition-colors inline-block text-center text-sm sm:text-base"
+                      style={{ backgroundColor: tenant.branding?.primaryColor || '#3B82F6' }}
+                    >
+                      <span className="sm:hidden">Sign In</span>
+                      <span className="hidden sm:inline">Sign In to Book</span>
+                    </Link>
                   </SignedOut>
                   <SignedIn>
                     <Link

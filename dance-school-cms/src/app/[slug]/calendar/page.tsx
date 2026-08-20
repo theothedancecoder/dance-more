@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useTenant } from '@/contexts/TenantContext';
-import { SignedIn, SignedOut, SignInButton } from '@clerk/nextjs';
+import { SignedIn, SignedOut } from '@clerk/nextjs';
 import Link from 'next/link';
 import { CalendarIcon, ClockIcon, MapPinIcon, TableCellsIcon, ViewColumnsIcon } from '@heroicons/react/24/outline';
 import WeeklySchedule from '@/components/WeeklySchedule';
@@ -431,14 +431,13 @@ export default function CalendarPage() {
                             ) : (
                               <>
                                 <SignedOut>
-                                  <SignInButton mode="modal">
-                                    <button 
-                                      className={primaryButtonClass}
-                                      style={{ backgroundColor: tenant.branding?.primaryColor || '#3B82F6' }}
-                                    >
-                                      Sign In to Book
-                                    </button>
-                                  </SignInButton>
+                                  <Link
+                                    href={`/${tenantSlug}/sign-in`}
+                                    className={`${primaryButtonClass} inline-block text-center`}
+                                    style={{ backgroundColor: tenant.branding?.primaryColor || '#3B82F6' }}
+                                  >
+                                    Sign In to Book
+                                  </Link>
                                 </SignedOut>
                                 <SignedIn>
                                   <button 
@@ -583,14 +582,13 @@ export default function CalendarPage() {
               </button>
             </SignedIn>
             <SignedOut>
-              <SignInButton mode="modal">
-                <button
-                  className="w-full px-4 py-2.5 rounded-lg text-white font-medium"
-                  style={{ backgroundColor: tenant.branding?.primaryColor || '#3B82F6' }}
-                >
-                  Sign In to Book Next Class
-                </button>
-              </SignInButton>
+              <Link
+                href={`/${tenantSlug}/sign-in`}
+                className="w-full px-4 py-2.5 rounded-lg text-white font-medium inline-block text-center"
+                style={{ backgroundColor: tenant.branding?.primaryColor || '#3B82F6' }}
+              >
+                Sign In to Book Next Class
+              </Link>
             </SignedOut>
           </div>
         </div>

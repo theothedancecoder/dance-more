@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useTenant } from '@/contexts/TenantContext';
-import { SignedIn, SignedOut, SignInButton, useAuth } from '@clerk/nextjs';
+import { SignedIn, SignedOut, useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
 import Image from 'next/image';
 import CookiePolicy from '@/components/CookiePolicy';
@@ -310,19 +310,18 @@ export default function TenantHomePage() {
                 Join our vibrant community and begin your dance journey today!
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in">
-                <SignInButton mode="modal">
-                  <button 
-                    className="w-full sm:w-auto px-8 sm:px-10 py-4 rounded-2xl text-white font-bold text-base sm:text-lg transition-all duration-500 transform sm:hover:scale-110 hover:shadow-2xl animate-bounce-in shadow-lg"
-                    style={{ 
-                      background: `linear-gradient(135deg, ${tenant?.branding?.primaryColor || '#3B82F6'}, ${tenant?.branding?.secondaryColor || '#8B5CF6'})`,
-                      boxShadow: `0 10px 30px ${tenant?.branding?.primaryColor || '#3B82F6'}40`
-                    }}
-                  >
-                    Sign In
-                  </button>
-                </SignInButton>
                 <Link
-                  href="/sign-up"
+                  href={`/${tenantSlug}/sign-in`}
+                  className="w-full sm:w-auto px-8 sm:px-10 py-4 rounded-2xl text-white font-bold text-base sm:text-lg transition-all duration-500 transform sm:hover:scale-110 hover:shadow-2xl inline-block animate-bounce-in shadow-lg"
+                  style={{ 
+                    background: `linear-gradient(135deg, ${tenant?.branding?.primaryColor || '#3B82F6'}, ${tenant?.branding?.secondaryColor || '#8B5CF6'})`,
+                    boxShadow: `0 10px 30px ${tenant?.branding?.primaryColor || '#3B82F6'}40`
+                  }}
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href={`/${tenantSlug}/sign-up`}
                   className="w-full sm:w-auto px-8 sm:px-10 py-4 rounded-2xl text-white font-bold text-base sm:text-lg transition-all duration-500 transform sm:hover:scale-110 hover:shadow-2xl inline-block animate-bounce-in shadow-lg"
                   style={{ 
                     background: `linear-gradient(135deg, ${tenant?.branding?.secondaryColor || '#8B5CF6'}, ${tenant?.branding?.accentColor || '#F59E0B'})`,
