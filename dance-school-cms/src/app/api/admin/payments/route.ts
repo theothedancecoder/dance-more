@@ -4,9 +4,84 @@ import { writeClient } from '@/lib/sanity';
 import { stripe } from '@/lib/stripe';
 import { isAdmin } from '@/lib/admin-utils';
 
+function escapeCsvValue(value: string | number) {
+  const raw = String(value);
+  if (raw.includes(',') || raw.includes('"') || raw.includes('\n')) {
+    return `"${raw.replace(/"/g, '""')}"`;
+  }
+  return raw;
+}
+
+type ExportPaymentRecord = {
+  _id?: string;
+  createdAt?: string;
+  type?: string;
+  status?: string;
+  paymentStatus?: string;
+  paymentMethod?: string;
+  paymentId?: string | null;
+  amount?: number;
+  currency?: string;
+  customerName?: string;
+  customerEmail?: string;
+  email?: string;
+  passName?: string;
+  user?: {
+    name?: string;
+    email?: string;
+  };
+  pass?: {
+    name?: string;
+    type?: string;
+  };
+};
+
+function toExcelCsv(payments: ExportPaymentRecord[]) {
+  const headers = [
+    'Transaction ID',
+    'Date',
+    'Type',
+    'Student Name',
+    'Student Email',
+    'Item',
+    'Pass Type',
+    'Amount',
+    'Currency',
+    'Status',
+    'Payment Status',
+    'Payment Method',
+    'Payment ID',
+  ];
+
+  const rows = payments.map((payment) => [
+    payment._id || '',
+    payment.createdAt ? new Date(payment.createdAt).toISOString() : '',
+    payment.type || '',
+    payment.user?.name || payment.customerName || '',
+    payment.user?.email || payment.customerEmail || payment.email || '',
+    payment.pass?.name || payment.passName || '',
+    payment.pass?.type || '',
+    typeof payment.amount === 'number' ? payment.amount.toFixed(2) : '0.00',
+    payment.currency || 'NOK',
+    payment.status || '',
+    payment.paymentStatus || '',
+    payment.paymentMethod || '',
+    payment.paymentId || '',
+  ]);
+
+  const csvBody = [headers, ...rows]
+    .map((row) => row.map((value) => escapeCsvValue(value)).join(','))
+    .join('\n');
+
+  // UTF-8 BOM helps Excel parse UTF-8 characters correctly.
+  return `\uFEFF${csvBody}`;
+}
+
 // Get all payments/bookings for a tenant directly from Stripe
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const exportFormat = searchParams.get('format');
     const { userId } = await auth();
     
     if (!userId) {
@@ -51,6 +126,19 @@ export async function GET(request: NextRequest) {
 
     // Check if tenant has Stripe Connect account
     if (!tenant.stripeConnect?.accountId) {
+      if (exportFormat === 'excel') {
+        const csvContent = toExcelCsv([]);
+        const today = new Date().toISOString().split('T')[0];
+        return new NextResponse(csvContent, {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/csv; charset=utf-8',
+            'Content-Disposition': `attachment; filename="transactions-${today}.csv"`,
+            'Cache-Control': 'no-store',
+          },
+        });
+      }
+
       return NextResponse.json({
         payments: [],
         monthlyRevenue: 0,
@@ -301,7 +389,20 @@ export async function GET(request: NextRequest) {
       console.log(`📊 Monthly Payments: ${monthlyPayments.length}`);
       console.log(`📊 Total Completed Payments: ${payments.filter((p: any) => p.status === 'completed').length}`);
 
-      return NextResponse.json({ 
+      if (exportFormat === 'excel') {
+        const csvContent = toExcelCsv(payments);
+        const today = new Date().toISOString().split('T')[0];
+        return new NextResponse(csvContent, {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/csv; charset=utf-8',
+            'Content-Disposition': `attachment; filename="transactions-${today}.csv"`,
+            'Cache-Control': 'no-store',
+          },
+        });
+      }
+
+      return NextResponse.json({
         payments,
         monthlyRevenue,
         totalRevenue,
@@ -391,7 +492,20 @@ export async function GET(request: NextRequest) {
       const monthlyRevenue = monthlyPayments.reduce((total: number, payment: any) => total + (payment.amount || 0), 0);
       const totalRevenue = payments.filter((p: any) => p.status === 'completed').reduce((total: number, payment: any) => total + (payment.amount || 0), 0);
 
-      return NextResponse.json({ 
+      if (exportFormat === 'excel') {
+        const csvContent = toExcelCsv(payments);
+        const today = new Date().toISOString().split('T')[0];
+        return new NextResponse(csvContent, {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/csv; charset=utf-8',
+            'Content-Disposition': `attachment; filename="transactions-${today}.csv"`,
+            'Cache-Control': 'no-store',
+          },
+        });
+      }
+
+      return NextResponse.json({
         payments,
         monthlyRevenue,
         totalRevenue,
