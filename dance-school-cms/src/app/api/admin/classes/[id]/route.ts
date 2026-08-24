@@ -202,28 +202,79 @@ export async function PUT(
 
     // Handle instructor creation or reference
     let finalInstructorId = instructorId;
-    
-    if (instructorName && !instructorId) {
-      // Create new instructor
-      const instructorSlug = instructorName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '');
 
-      const instructorDoc = {
-        _type: 'instructor',
-        name: instructorName,
-        slug: {
-          _type: 'slug',
-          current: instructorSlug
-        },
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+    const normalizedInstructorName = typeof instructorName === 'string' ? instructorName.trim() : '';
 
-      const instructorResult = await writeClient.create(instructorDoc);
-      finalInstructorId = instructorResult._id;
+    if (normalizedInstructorName) {
+      if (instructorId) {
+        const currentInstructor = await sanityClient.fetch<{ _id: string; name?: string } | null>(
+          `*[_type == "instructor" && _id == $instructorId][0]{ _id, name }`,
+          { instructorId }
+        );
+
+        const currentName = currentInstructor?.name?.trim() || '';
+        if (currentName.toLowerCase() !== normalizedInstructorName.toLowerCase()) {
+          // If the typed name differs, link this class to an instructor matching that name.
+          // Reuse existing instructor when possible, otherwise create a new one.
+          const existingInstructorWithName = await sanityClient.fetch<{ _id: string } | null>(
+            `*[_type == "instructor" && lower(name) == lower($name)][0]{ _id }`,
+            { name: normalizedInstructorName }
+          );
+
+          if (existingInstructorWithName?._id) {
+            finalInstructorId = existingInstructorWithName._id;
+          } else {
+            const instructorSlug = normalizedInstructorName
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, '-')
+              .replace(/(^-|-$)/g, '');
+
+            const instructorDoc = {
+              _type: 'instructor',
+              name: normalizedInstructorName,
+              slug: {
+                _type: 'slug',
+                current: instructorSlug
+              },
+              isActive: true,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            };
+
+            const instructorResult = await writeClient.create(instructorDoc);
+            finalInstructorId = instructorResult._id;
+          }
+        }
+      } else {
+        const existingInstructorWithName = await sanityClient.fetch<{ _id: string } | null>(
+          `*[_type == "instructor" && lower(name) == lower($name)][0]{ _id }`,
+          { name: normalizedInstructorName }
+        );
+
+        if (existingInstructorWithName?._id) {
+          finalInstructorId = existingInstructorWithName._id;
+        } else {
+          const instructorSlug = normalizedInstructorName
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/(^-|-$)/g, '');
+
+          const instructorDoc = {
+            _type: 'instructor',
+            name: normalizedInstructorName,
+            slug: {
+              _type: 'slug',
+              current: instructorSlug
+            },
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+
+          const instructorResult = await writeClient.create(instructorDoc);
+          finalInstructorId = instructorResult._id;
+        }
+      }
     }
 
     // Ensure we have an instructor ID
@@ -238,7 +289,7 @@ export async function PUT(
       .replace(/(^-|-$)/g, '');
 
     // Prepare update data
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       title,
       slug: {
         _type: 'slug',
@@ -356,7 +407,7 @@ export async function DELETE(
     }
 
     // Instead of deleting, mark as inactive
-    const result = await writeClient
+    await writeClient
       .patch(classId)
       .set({ 
         isActive: false,
