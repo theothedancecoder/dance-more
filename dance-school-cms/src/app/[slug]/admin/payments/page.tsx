@@ -60,6 +60,7 @@ export default function PaymentsPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
+  const [exportingTransactions, setExportingTransactions] = useState(false);
   const [monthlyRevenue, setMonthlyRevenue] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [monthlyPaymentsCount, setMonthlyPaymentsCount] = useState(0);
@@ -119,6 +120,40 @@ export default function PaymentsPage() {
       setMonthlyPaymentsCount(0);
     } finally {
       setLoadingTransactions(false);
+    }
+  };
+
+  const exportTransactionsToExcel = async () => {
+    if (!tenant?._id || exportingTransactions) return;
+
+    setExportingTransactions(true);
+    try {
+      const response = await fetch('/api/admin/payments?format=excel', {
+        headers: {
+          'x-tenant-id': tenant._id,
+          'x-tenant-slug': tenantSlug,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Export failed with status ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const today = new Date().toISOString().split('T')[0];
+      link.href = downloadUrl;
+      link.download = `transactions-${tenantSlug}-${today}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('❌ Error exporting transactions:', error);
+      alert('Failed to export transactions. Please try again.');
+    } finally {
+      setExportingTransactions(false);
     }
   };
 
@@ -273,13 +308,22 @@ export default function PaymentsPage() {
                 <h2 className="text-xl font-semibold text-gray-900">Recent Transactions</h2>
                 <p className="text-sm text-gray-600">View and manage your payment transactions</p>
               </div>
-              <button
-                onClick={fetchTransactions}
-                disabled={loadingTransactions}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {loadingTransactions ? 'Refreshing...' : 'Refresh'}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={exportTransactionsToExcel}
+                  disabled={loadingTransactions || exportingTransactions}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {exportingTransactions ? 'Exporting...' : 'Export Excel'}
+                </button>
+                <button
+                  onClick={fetchTransactions}
+                  disabled={loadingTransactions || exportingTransactions}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {loadingTransactions ? 'Refreshing...' : 'Refresh'}
+                </button>
+              </div>
             </div>
             {loadingTransactions ? (
               <div className="flex items-center justify-center py-12">
