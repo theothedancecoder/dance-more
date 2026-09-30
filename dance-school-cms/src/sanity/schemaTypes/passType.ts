@@ -92,6 +92,13 @@ export const passType = defineType({
       validation: (Rule) => Rule.min(1),
     }),
     defineField({
+      name: 'selectedClass',
+      title: 'Associated Class',
+      type: 'reference',
+      to: [{ type: 'class' }],
+      description: 'Optional: link this pass to a specific class so the customer sees the class in the pass name, e.g. "One Course Pass - Salsa Level 1".',
+    }),
+    defineField({
       name: 'features',
       title: 'Features',
       type: 'array',

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { uncachedSanityClient, writeClient } from '@/lib/sanity';
 import { stripe } from '@/lib/stripe';
+import { getPassDisplayName } from '@/lib/pass-display';
 
 function getSubscriptionDetailsFromPass(pass: {
   _id: string;
@@ -149,6 +150,12 @@ export async function POST(request: NextRequest) {
               name,
               type,
               classesLimit,
+              selectedClass->{
+                _id,
+                title,
+                danceStyle,
+                level
+              },
               price,
               validityDays,
               validityType,
@@ -198,6 +205,7 @@ export async function POST(request: NextRequest) {
       }
 
       const { subscriptionType, remainingClips } = getSubscriptionDetailsFromPass(pass);
+      const passDisplayName = getPassDisplayName(pass);
 
       // Check if subscription already exists for this session (using both session ID and payment ID)
       const existingSubscription = await uncachedSanityClient.fetch(
@@ -217,7 +225,7 @@ export async function POST(request: NextRequest) {
         const shouldRepairType = existingSubscription.type !== subscriptionType;
         const shouldRepairTenant = existingSubscription.tenantRef !== tenant._id;
         const shouldRepairUser = existingSubscription.userRef !== user._id;
-        const shouldRepairPassName = existingSubscription.passName !== pass.name;
+        const shouldRepairPassName = existingSubscription.passName !== passDisplayName;
         const shouldRepairPassId = existingSubscription.passId !== pass._id;
         const shouldRepairClipCount =
           subscriptionType === 'clipcard' &&
@@ -246,7 +254,7 @@ export async function POST(request: NextRequest) {
               type: subscriptionType,
               remainingClips: adjustedRemainingClips,
               passId: pass._id,
-              passName: pass.name,
+              passName: passDisplayName,
             })
             .commit();
 
@@ -305,7 +313,7 @@ export async function POST(request: NextRequest) {
         endDate: endDate.toISOString(),
         remainingClips,
         passId: pass._id, // Store original pass ID
-        passName: pass.name,
+        passName: passDisplayName,
         purchasePrice: session.amount_total ? session.amount_total / 100 : pass.price,
         originalPrice: originalPrice ?? pass.price,
         finalPrice: finalPrice ?? (session.amount_total ? session.amount_total / 100 : pass.price),
@@ -323,11 +331,11 @@ export async function POST(request: NextRequest) {
 
       try {
         const createdSubscription = await writeClient.create(subscriptionData);
-        console.log('🎉 Created missing subscription:', createdSubscription._id, 'for pass:', pass.name);
+        console.log('🎉 Created missing subscription:', createdSubscription._id, 'for pass:', passDisplayName);
         console.log('📋 Subscription details:', {
           id: createdSubscription._id,
           type: subscriptionType,
-          passName: pass.name,
+          passName: passDisplayName,
           remainingClips,
           validUntil: endDate.toISOString(),
           sessionId: session.id
