@@ -52,18 +52,24 @@ export async function GET(request: NextRequest) {
       validityDays,
       expiryDate,
       classesLimit,
-      isActive,
-      promoActive,
-      promoCode,
-      promoDiscountType,
-      promoDiscountValue,
-      tenant->{
-        _id,
-        schoolName,
-        "subdomain": subdomain.current
-      },
-      _createdAt,
-      _updatedAt
+     selectedClass->{
+       _id,
+       title,
+       danceStyle,
+       level
+     },
+     isActive,
+     promoActive,
+     promoCode,
+     promoDiscountType,
+     promoDiscountValue,
+     tenant->{
+       _id,
+       schoolName,
+       "subdomain": subdomain.current
+     },
+     _createdAt,
+     _updatedAt
     }`;
 
     const passes = await sanityClient.fetch(query, { tenantId });
@@ -114,6 +120,7 @@ export async function POST(request: NextRequest) {
       validityDays,
       expiryDate,
       classesLimit,
+      selectedClassId,
       isActive,
       promoActive,
       promoCode,
@@ -187,6 +194,12 @@ export async function POST(request: NextRequest) {
       validityDays: validityType === 'days' ? validityDays : null,
       expiryDate: validityType === 'date' ? expiryDate : null,
       classesLimit: ['multi', 'multi-pass'].includes(type) ? classesLimit : null,
+      selectedClass: selectedClassId
+        ? {
+            _type: 'reference',
+            _ref: selectedClassId,
+          }
+        : null,
       isActive: isActive ?? true,
       promoActive: promoActive ?? false,
       promoCode: promoActive && promoCode ? String(promoCode).trim().toUpperCase() : null,

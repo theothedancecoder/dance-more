@@ -15,6 +15,12 @@ interface PassData {
   validityDays?: number;
   expiryDate?: string;
   classesLimit?: number;
+  selectedClass?: {
+    _id: string;
+    title?: string;
+    danceStyle?: string;
+    level?: string;
+  } | null;
   isActive: boolean;
   description?: string;
   promoActive?: boolean;
@@ -23,10 +29,18 @@ interface PassData {
   promoDiscountValue?: number;
 }
 
+const getClassOptionLabel = (classInfo?: { title?: string; danceStyle?: string; level?: string } | null) => {
+  if (!classInfo) return 'No class selected';
+  const title = classInfo.title?.trim();
+  const styleAndLevel = [classInfo.danceStyle, classInfo.level].filter(Boolean).join(' ');
+  return title || styleAndLevel || 'Class';
+};
+
 export default function PassesManagementPage() {
   const params = useParams();
   const { isLoaded, isSignedIn, userId } = useAuth();
   const [passes, setPasses] = useState<PassData[]>([]);
+  const [classes, setClasses] = useState<Array<{ _id: string; title?: string; danceStyle?: string; level?: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -56,12 +70,32 @@ export default function PassesManagementPage() {
         setPasses(data.passes || []);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
+      }
+    };
+
+    const fetchClasses = async () => {
+      try {
+        const response = await fetch('/api/admin/classes', {
+          headers: {
+            'x-tenant-slug': tenantSlug,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch classes');
+        }
+
+        const data = await response.json();
+        setClasses(data.classes || []);
+      } catch (err) {
+        console.error('Failed to fetch classes for pass form:', err);
       } finally {
         setLoading(false);
       }
     };
 
     fetchPasses();
+    fetchClasses();
   }, [isLoaded, isSignedIn, userId, tenantSlug]);
 
   const handleCreatePass = async (formData: {
@@ -73,6 +107,7 @@ export default function PassesManagementPage() {
     validityDays?: number;
     expiryDate?: string;
     classesLimit?: number;
+    selectedClassId?: string;
     isActive: boolean;
     promoActive?: boolean;
     promoCode?: string;
@@ -141,6 +176,7 @@ export default function PassesManagementPage() {
     validityDays?: number;
     expiryDate?: string;
     classesLimit?: number;
+    selectedClassId?: string;
     isActive: boolean;
     promoActive?: boolean;
     promoCode?: string;
@@ -580,6 +616,7 @@ export default function PassesManagementPage() {
                   validityDays: validityType === 'days' ? Number(formData.get('validityDays')) : undefined,
                   expiryDate: validityType === 'date' ? formData.get('expiryDate') as string : undefined,
                   classesLimit: ['multi', 'multi-pass'].includes(formData.get('type') as string) ? Number(formData.get('classesLimit')) : undefined,
+                  selectedClassId: String(formData.get('selectedClassId') || '').trim() || undefined,
                   isActive: formData.get('isActive') === 'on',
                   promoActive,
                   promoCode: promoActive ? String(formData.get('promoCode') || '').trim().toUpperCase() : undefined,
@@ -622,6 +659,22 @@ export default function PassesManagementPage() {
                       <option value="multi">Multi-Class Package</option>
                       <option value="unlimited">Unlimited</option>
                       <option value="subscription">Subscription</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Linked class (optional)</label>
+                    <select
+                      name="selectedClassId"
+                      defaultValue=""
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">No class selected</option>
+                      {classes.map((classItem) => (
+                        <option key={classItem._id} value={classItem._id}>
+                          {getClassOptionLabel(classItem)}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -793,6 +846,7 @@ export default function PassesManagementPage() {
                   validityDays: validityType === 'days' ? Number(formData.get('validityDays')) : undefined,
                   expiryDate: validityType === 'date' ? formData.get('expiryDate') as string : undefined,
                   classesLimit: ['multi', 'multi-pass'].includes(formData.get('type') as string) ? Number(formData.get('classesLimit')) : undefined,
+                  selectedClassId: String(formData.get('selectedClassId') || '').trim() || undefined,
                   isActive: formData.get('isActive') === 'on',
                   promoActive,
                   promoCode: promoActive ? String(formData.get('promoCode') || '').trim().toUpperCase() : undefined,
@@ -838,6 +892,22 @@ export default function PassesManagementPage() {
                       <option value="multi">Multi-Class Package</option>
                       <option value="unlimited">Unlimited</option>
                       <option value="multi-pass">Multi-Pass</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Linked class (optional)</label>
+                    <select
+                      name="selectedClassId"
+                      defaultValue={editingPass.selectedClass?._id || ''}
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">No class selected</option>
+                      {classes.map((classItem) => (
+                        <option key={classItem._id} value={classItem._id}>
+                          {getClassOptionLabel(classItem)}
+                        </option>
+                      ))}
                     </select>
                   </div>
 

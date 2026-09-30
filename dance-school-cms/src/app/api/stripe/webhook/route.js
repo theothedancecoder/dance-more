@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@sanity/client';
+import { getPassDisplayName } from '@/lib/pass-display';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -205,7 +206,8 @@ async function createSubscriptionFromSession(session, eventId) {
     const pass = await retryOperation(async () => {
       return await sanityClient.fetch(
         `*[_type == "pass" && _id == $passId][0] {
-          _id, name, type, price, validityDays, classesLimit, validityType, expiryDate
+          _id, name, type, price, validityDays, classesLimit, validityType, expiryDate,
+          selectedClass->{ _id, title, danceStyle, level }
         }`,
         { passId }
       );
@@ -300,6 +302,7 @@ async function createSubscriptionFromSession(session, eventId) {
     const originalPrice = session.metadata?.originalPrice ? parseFloat(session.metadata.originalPrice) : null;
     const finalPrice = session.metadata?.finalPrice ? parseFloat(session.metadata.finalPrice) : null;
     const discountAmount = session.metadata?.discountAmount ? parseFloat(session.metadata.discountAmount) : 0;
+    const passDisplayName = getPassDisplayName(pass);
 
     const subscriptionData = {
       _type: 'subscription',
@@ -316,7 +319,7 @@ async function createSubscriptionFromSession(session, eventId) {
       endDate: endDate.toISOString(),
       remainingClips,
       passId: pass._id,
-      passName: pass.name,
+      passName: passDisplayName,
       purchasePrice: session.amount_total ? session.amount_total / 100 : pass.price,
       originalPrice: originalPrice ?? pass.price,
       finalPrice: finalPrice ?? (session.amount_total ? session.amount_total / 100 : pass.price),
@@ -413,7 +416,8 @@ async function handlePassUpgrade(session, eventId) {
     const newPass = await retryOperation(async () => {
       return await sanityClient.fetch(
         `*[_type == "pass" && _id == $passId][0] {
-          _id, name, type, price, validityDays, classesLimit, validityType, expiryDate
+          _id, name, type, price, validityDays, classesLimit, validityType, expiryDate,
+          selectedClass->{ _id, title, danceStyle, level }
         }`,
         { passId }
       );
@@ -428,6 +432,7 @@ async function handlePassUpgrade(session, eventId) {
     console.log('✅ Found new pass:', newPass.name, '(' + newPass.type + ')');
 
     // Calculate new subscription details
+    const passDisplayName = getPassDisplayName(newPass);
     const now = new Date();
     let endDate;
 
@@ -481,7 +486,7 @@ async function handlePassUpgrade(session, eventId) {
           isActive: false,
           upgradedAt: now.toISOString(),
           upgradedToPassId: newPass._id,
-          upgradedToPassName: newPass.name
+          upgradedToPassName: passDisplayName
         })
         .commit();
     });
@@ -504,7 +509,7 @@ async function handlePassUpgrade(session, eventId) {
       endDate: endDate.toISOString(),
       remainingClips,
       passId: newPass._id,
-      passName: newPass.name,
+      passName: passDisplayName,
       purchasePrice: parseFloat(newPassPrice) || newPass.price,
       stripePaymentId: session.payment_intent,
       stripeSessionId: session.id,
@@ -517,7 +522,7 @@ async function handlePassUpgrade(session, eventId) {
     };
 
     console.log('📝 Creating upgraded subscription:');
-    console.log('   Pass:', newPass.name, '(' + subscriptionType + ')');
+    console.log('   Pass:', passDisplayName, '(' + subscriptionType + ')');
     console.log('   Classes:', remainingClips || 'Unlimited');
     console.log('   Valid until:', endDate.toLocaleDateString());
 

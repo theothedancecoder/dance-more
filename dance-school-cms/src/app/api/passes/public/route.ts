@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sanityClient } from '@/lib/sanity';
+import { getPassDisplayName } from '@/lib/pass-display';
 
 // Get public passes (for users to view and purchase)
 export async function GET(request: NextRequest) {
@@ -41,15 +42,45 @@ export async function GET(request: NextRequest) {
       validityDays,
       expiryDate,
       classesLimit,
+      selectedClass->{
+        _id,
+        title,
+        danceStyle,
+        level
+      },
       isActive,
       features
     }`;
 
-    const passes = await sanityClient.fetch(query, { tenantId: tenant._id });
+    const classQuery = `*[_type == "class" && tenant._ref == $tenantId && isActive == true] | order(title asc) {
+      _id,
+      title,
+      danceStyle,
+      level
+    }`;
+
+    const [passes, classes] = await Promise.all([
+      sanityClient.fetch(query, { tenantId: tenant._id }),
+      sanityClient.fetch(classQuery, { tenantId: tenant._id })
+    ]);
 
     // Add backward compatibility for existing passes without validityType and features
-    const passesWithDefaults = passes.map((pass: any) => ({
+    type PublicPass = {
+      _id: string;
+      name?: string;
+      selectedClass?: { _id?: string; title?: string; danceStyle?: string; level?: string } | null;
+      displayName?: string;
+      validityType?: string;
+      validityDays?: number;
+      features?: string[];
+      [key: string]: unknown;
+    };
+
+    const passesWithDefaults = passes.map((pass: PublicPass) => ({
       ...pass,
+      selectedClass: pass.selectedClass || null,
+      displayName: getPassDisplayName(pass),
+      classOptions: classes,
       validityType: pass.validityType || 'days',
       validityDays: pass.validityDays || 30,
       features: pass.features || [], // Ensure features is always an array

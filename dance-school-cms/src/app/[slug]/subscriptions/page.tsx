@@ -17,6 +17,18 @@ interface PassData {
   validityDays?: number;
   expiryDate?: string;
   classesLimit?: number;
+  selectedClass?: {
+    _id: string;
+    title?: string;
+    danceStyle?: string;
+    level?: string;
+  } | null;
+  classOptions?: Array<{
+    _id: string;
+    title?: string;
+    danceStyle?: string;
+    level?: string;
+  }>;
   description: string;
   features: string[];
   isPopular?: boolean;
@@ -75,6 +87,13 @@ const groupPassesByCategory = (passes: PassData[]): Record<string, PassData[]> =
   }, {} as Record<string, PassData[]>);
 };
 
+const getClassLabel = (classInfo?: { title?: string; danceStyle?: string; level?: string } | null) => {
+  if (!classInfo) return 'Class';
+  if (classInfo.title) return classInfo.title;
+  const normalized = [classInfo.danceStyle, classInfo.level].filter(Boolean).join(' ');
+  return normalized || 'Class';
+};
+
 export default function SubscriptionsPage() {
   const params = useParams();
   const { tenant, isLoading, error } = useTenant();
@@ -92,6 +111,7 @@ export default function SubscriptionsPage() {
   const [manualSyncLoading, setManualSyncLoading] = useState(false);
   const [promoCodes, setPromoCodes] = useState<Record<string, string>>({});
   const [promoErrors, setPromoErrors] = useState<Record<string, string>>({});
+  const [selectedClassIds, setSelectedClassIds] = useState<Record<string, string>>({});
   const [visibilityNotice, setVisibilityNotice] = useState<VisibilityState | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
@@ -213,6 +233,9 @@ export default function SubscriptionsPage() {
   const handlePurchase = async (pass: PassData) => {
     try {
       const enteredPromo = (promoCodes[pass._id] || '').trim();
+      const selectedClassId = pass.type === 'unlimited'
+        ? undefined
+        : (selectedClassIds[pass._id] || pass.selectedClass?._id || undefined);
       setPromoErrors((prev) => ({ ...prev, [pass._id]: '' }));
 
       // Create Stripe checkout session for pass purchase
@@ -225,6 +248,7 @@ export default function SubscriptionsPage() {
         },
         body: JSON.stringify({
           passId: pass._id,
+          selectedClassId,
           promoCode: enteredPromo || undefined,
           successUrl: `${window.location.origin}/${tenantSlug}/payment/success`,
           cancelUrl: window.location.href,
@@ -285,6 +309,9 @@ export default function SubscriptionsPage() {
 
     try {
       setUpgradeLoading(true);
+      const selectedClassId = targetPass.type === 'unlimited'
+        ? undefined
+        : (selectedClassIds[targetPass._id] || targetPass.selectedClass?._id || undefined);
 
       // Create Stripe checkout session for upgrade
       const response = await fetch('/api/stripe/checkout-pass', {
@@ -296,6 +323,7 @@ export default function SubscriptionsPage() {
         },
         body: JSON.stringify({
           passId: targetPass._id,
+          selectedClassId,
           upgradeFromSubscriptionId: selectedSubscription._id,
           successUrl: `${window.location.origin}/${tenantSlug}/payment/success`,
           cancelUrl: window.location.href,
@@ -403,7 +431,16 @@ export default function SubscriptionsPage() {
 
         if (response.ok) {
           const data = await response.json();
-          setPasses(data.passes || []);
+          const nextPasses = data.passes || [];
+          setPasses(nextPasses);
+
+          const defaults: Record<string, string> = {};
+          nextPasses.forEach((pass: PassData) => {
+            if (pass.type !== 'unlimited' && pass.classOptions?.length) {
+              defaults[pass._id] = pass.selectedClass?._id || pass.classOptions[0]._id;
+            }
+          });
+          setSelectedClassIds(defaults);
         } else {
           setPasses([]);
         }
@@ -832,7 +869,7 @@ export default function SubscriptionsPage() {
                           <TicketIcon className="h-8 w-8 text-green-500 mr-3" />
                         )}
                         <div>
-                          <h3 className="text-xl font-semibold text-gray-900">{pass.name}</h3>
+                          <h3 className="text-xl font-semibold text-gray-900">{pass.displayName || pass.name}</h3>
                           <span className={`text-xs px-2 py-1 rounded-full ${
                             pass.type === 'unlimited'
                               ? 'bg-blue-100 text-blue-800'
@@ -883,6 +920,26 @@ export default function SubscriptionsPage() {
                       ))}
                     </ul>
 
+                    {pass.type !== 'unlimited' && (pass.classOptions?.length ?? 0) > 0 && (
+                      <div className="mb-4">
+                        <label htmlFor={`class-${pass._id}`} className="block text-xs font-semibold uppercase tracking-wide text-gray-600 mb-2">
+                          Select class
+                        </label>
+                        <select
+                          id={`class-${pass._id}`}
+                          value={selectedClassIds[pass._id] ?? pass.selectedClass?._id ?? pass.classOptions?.[0]?._id ?? ''}
+                          onChange={(e) => setSelectedClassIds((prev) => ({ ...prev, [pass._id]: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          {pass.classOptions?.map((classOption) => (
+                            <option key={classOption._id} value={classOption._id}>
+                              {getClassLabel(classOption)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
                     <SignedOut>
                       <Link
                         href={`/${tenantSlug}/sign-in`}
@@ -902,7 +959,7 @@ export default function SubscriptionsPage() {
                     <SignedIn>
                       <div className="mb-3">
                         <label htmlFor={`promo-${pass._id}`} className="sr-only">
-                          Promo code for {pass.name}
+                          Promo code for {pass.displayName || pass.name}
                         </label>
                         <input
                           id={`promo-${pass._id}`}

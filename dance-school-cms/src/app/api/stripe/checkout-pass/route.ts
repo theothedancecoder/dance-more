@@ -3,6 +3,7 @@ import { stripeConnect, resolveStripeCurrency } from '@/lib/stripe';
 import { auth } from '@clerk/nextjs/server';
 import { sanityClient } from '@/lib/sanity';
 import { resolveUserReferenceIds } from '@/lib/user-references';
+import { getPassDisplayName } from '@/lib/pass-display';
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Tenant context required' }, { status: 403 });
     }
 
-    const { passId, promoCode, successUrl, cancelUrl, upgradeFromSubscriptionId } = await request.json();
+    const { passId, promoCode, successUrl, cancelUrl, upgradeFromSubscriptionId, selectedClassId } = await request.json();
 
     if (!passId) {
       return NextResponse.json({ error: 'Pass ID is required' }, { status: 400 });
@@ -84,6 +85,12 @@ export async function POST(request: NextRequest) {
         price,
         validityDays,
         classesLimit,
+        selectedClass->{
+          _id,
+          title,
+          danceStyle,
+          level
+        },
         promoActive,
         promoCode,
         promoDiscountType,
@@ -99,6 +106,23 @@ export async function POST(request: NextRequest) {
 
     if (!passData) {
       return NextResponse.json({ error: 'Pass not found or inactive' }, { status: 404 });
+    }
+
+    const chosenClass = selectedClassId
+      ? await sanityClient.fetch(
+          `*[_type == "class" && _id == $selectedClassId && tenant._ref == $tenantId && isActive == true][0] {
+            _id,
+            title,
+            danceStyle,
+            level,
+            tenant->{ _id }
+          }`,
+          { selectedClassId, tenantId }
+        )
+      : passData.selectedClass;
+
+    if (selectedClassId && !chosenClass) {
+      return NextResponse.json({ error: 'Selected class is not available for this pass' }, { status: 400 });
     }
 
     // Verify pass belongs to the correct tenant
@@ -121,7 +145,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Create description based on pass type
+    const passDisplayName = getPassDisplayName({ ...passData, selectedClass: chosenClass || passData.selectedClass });
     let description = passData.description || '';
+    if (chosenClass || passData.selectedClass) {
+      const classLabel = (chosenClass || passData.selectedClass)?.title || (chosenClass || passData.selectedClass)?.danceStyle || 'Class booking';
+      description += ` - ${classLabel}`;
+    }
     if (passData.type === 'unlimited') {
       description += ` - Unlimited classes for ${passData.validityDays} days`;
     } else if (['single', 'multi-pass', 'multi'].includes(passData.type)) {
@@ -165,11 +194,12 @@ export async function POST(request: NextRequest) {
       appliedPromoCode = normalizedPromoCode;
     }
 
-    let productName = passData.name;
+    let productName = passDisplayName;
     let productDescription = description;
-    let sessionMetadata: any = {
+    const sessionMetadata: Record<string, string> = {
       passId: passData._id,
       passType: passData.type,
+      passName: passDisplayName,
       userId: userId,
       type: 'pass_purchase',
       tenantId: passData.tenant._id,
@@ -177,6 +207,7 @@ export async function POST(request: NextRequest) {
       originalPrice: String(originalPrice),
       finalPrice: String(finalPrice),
       discountAmount: String(discountAmount),
+      ...(chosenClass?._id ? { selectedClassId: chosenClass._id } : passData.selectedClass?._id ? { selectedClassId: passData.selectedClass._id } : {}),
       ...(appliedPromoCode ? { promoCode: appliedPromoCode } : {}),
     };
 
@@ -184,15 +215,15 @@ export async function POST(request: NextRequest) {
       // Calculate upgrade cost (difference between new pass and current pass)
       const upgradeCost = Math.max(0, passData.price - upgradeInfo.currentPassPrice);
       finalPrice = upgradeCost;
-      productName = `Upgrade to ${passData.name}`;
-      productDescription = `Upgrade from "${upgradeInfo.passName}" to "${passData.name}" - Pay only the difference`;
+      productName = `Upgrade to ${passDisplayName}`;
+      productDescription = `Upgrade from "${upgradeInfo.passName}" to "${passDisplayName}" - Pay only the difference`;
       
       // Add upgrade metadata
       sessionMetadata.type = 'pass_upgrade';
       sessionMetadata.upgradeFromSubscriptionId = upgradeInfo.subscriptionId;
-      sessionMetadata.originalPassPrice = upgradeInfo.currentPassPrice;
-      sessionMetadata.newPassPrice = passData.price;
-      sessionMetadata.upgradeCost = upgradeCost;
+      sessionMetadata.originalPassPrice = String(upgradeInfo.currentPassPrice);
+      sessionMetadata.newPassPrice = String(passData.price);
+      sessionMetadata.upgradeCost = String(upgradeCost);
 
       // If upgrade cost is 0, we still need to process it but with minimal charge
       if (upgradeCost === 0) {
@@ -245,15 +276,22 @@ export async function POST(request: NextRequest) {
       url: session.url,
       connectedAccountId: passData.tenant.stripeConnect.accountId
     });
-  } catch (error: any) {
-    const stripeErrorCode = error?.code || error?.raw?.code || 'unknown_error';
-    const stripeErrorMessage = error?.message || error?.raw?.message || 'Failed to create checkout session';
+  } catch (error: unknown) {
+    const err = error as {
+      code?: string;
+      type?: string;
+      requestId?: string;
+      message?: string;
+      raw?: { code?: string; message?: string };
+    };
+    const stripeErrorCode = err?.code || err?.raw?.code || 'unknown_error';
+    const stripeErrorMessage = err?.message || err?.raw?.message || 'Failed to create checkout session';
 
     console.error('Stripe Connect pass checkout error:', {
       code: stripeErrorCode,
       message: stripeErrorMessage,
-      type: error?.type,
-      requestId: error?.requestId,
+      type: err?.type,
+      requestId: err?.requestId,
     });
 
     return NextResponse.json(
