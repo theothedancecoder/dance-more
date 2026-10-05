@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { uncachedSanityClient, writeClient } from '@/lib/sanity';
 import { resolveUserReferenceIds } from '@/lib/user-references';
+import { getPassDisplayName } from '@/lib/pass-display';
 
 function passTypeToSubscriptionType(passType: string): string {
   switch (passType) {
@@ -123,13 +124,29 @@ export async function GET(request: NextRequest) {
         _createdAt,
         "daysRemaining": round((dateTime(endDate) - dateTime(now())) / 86400),
         "isExpired": dateTime(endDate) < dateTime(now()),
-        "originalPass": *[_type == "pass" && _id == coalesce(^.passId, ^.pass._ref)][0]{name, type}
+        "originalPass": *[_type == "pass" && _id == coalesce(^.passId, ^.pass._ref)][0]{
+          name,
+          type,
+          selectedClass->{ _id, title, danceStyle, level }
+        }
       }`,
       { userReferenceIds, now: now.toISOString(), tenantId: tenant._id, tenantPassIds }
     );
 
+    const normalizedSubscriptions = subscriptions.map((sub: any) => {
+      const displayName = getPassDisplayName({
+        name: sub.passName || sub.originalPass?.name,
+        selectedClass: sub.originalPass?.selectedClass,
+      });
+
+      return {
+        ...sub,
+        passName: displayName,
+      };
+    });
+
     // Self-heal: repair subscriptions whose type or remainingClips doesn't match the pass definition
-    for (const sub of subscriptions) {
+    for (const sub of normalizedSubscriptions) {
       const passType = sub.originalPass?.type;
       if (!passType || !sub.passId) continue;
       const expectedType = passTypeToSubscriptionType(passType);
@@ -145,6 +162,10 @@ export async function GET(request: NextRequest) {
           await writeClient.patch(sub._id).set({
             type: correctType,
             ...(correctClips !== undefined ? { remainingClips: correctClips } : {}),
+            passName: getPassDisplayName({
+              name: sub.passName || sub.originalPass?.name,
+              selectedClass: sub.originalPass?.selectedClass,
+            }),
           }).commit();
           console.log(`🛠️ Auto-repaired subscription ${sub._id}: type ${sub.type} → ${correctType}, clips → ${correctClips}`);
           sub.type = correctType;
@@ -155,9 +176,9 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    console.log('📊 Found active subscriptions:', subscriptions.length);
-    if (subscriptions.length > 0) {
-      console.log('📋 Subscription details:', subscriptions.map((sub: {
+    console.log('📊 Found active subscriptions:', normalizedSubscriptions.length);
+    if (normalizedSubscriptions.length > 0) {
+      console.log('📋 Subscription details:', normalizedSubscriptions.map((sub: {
         _id: string;
         passName?: string;
         originalPass?: { name?: string };
@@ -213,6 +234,7 @@ export async function GET(request: NextRequest) {
         _id,
         type,
         passName,
+        passId,
         startDate,
         endDate,
         remainingClips,
@@ -220,12 +242,29 @@ export async function GET(request: NextRequest) {
         purchasePrice,
         _createdAt,
         "daysRemaining": round((dateTime(endDate) - dateTime(now())) / 86400),
-        "isExpired": dateTime(endDate) < dateTime(now())
+        "isExpired": dateTime(endDate) < dateTime(now()),
+        "originalPass": *[_type == "pass" && _id == coalesce(^.passId, ^.pass._ref)][0]{
+          name,
+          type,
+          selectedClass->{ _id, title, danceStyle, level }
+        }
       }`,
       { userReferenceIds, now: now.toISOString(), thirtyDaysAgo: thirtyDaysAgo.toISOString(), tenantId: tenant._id, tenantPassIds }
     );
 
-    console.log('📊 Found expired subscriptions:', expiredSubscriptions.length);
+    const normalizedExpiredSubscriptions = expiredSubscriptions.map((sub: any) => {
+      const displayName = getPassDisplayName({
+        name: sub.passName || sub.originalPass?.name,
+        selectedClass: sub.originalPass?.selectedClass,
+      });
+
+      return {
+        ...sub,
+        passName: displayName,
+      };
+    });
+
+    console.log('📊 Found expired subscriptions:', normalizedExpiredSubscriptions.length);
 
     // Log summary for debugging
     console.log('📈 SUBSCRIPTION FETCH SUMMARY:', {
@@ -255,8 +294,8 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ 
-      activeSubscriptions: subscriptions,
-      expiredSubscriptions: expiredSubscriptions,
+      activeSubscriptions: normalizedSubscriptions,
+      expiredSubscriptions: normalizedExpiredSubscriptions,
       syncedAt: new Date().toISOString(),
       visibility: {
         reason: visibilityReason,

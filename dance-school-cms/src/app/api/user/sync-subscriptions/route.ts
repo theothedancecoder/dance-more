@@ -189,7 +189,17 @@ export async function POST(request: NextRequest) {
 
       // Get pass details
       const pass = await uncachedSanityClient.fetch(
-        `*[_type == "pass" && _id == $passId && isActive == true][0]`,
+        `*[_type == "pass" && _id == $passId && isActive == true][0] {
+          _id,
+          name,
+          type,
+          price,
+          validityDays,
+          validityType,
+          expiryDate,
+          classesLimit,
+          selectedClass->{ _id, title, danceStyle, level }
+        }`,
         { passId }
       );
 

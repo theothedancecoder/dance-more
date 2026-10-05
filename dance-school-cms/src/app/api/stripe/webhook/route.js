@@ -302,7 +302,21 @@ async function createSubscriptionFromSession(session, eventId) {
     const originalPrice = session.metadata?.originalPrice ? parseFloat(session.metadata.originalPrice) : null;
     const finalPrice = session.metadata?.finalPrice ? parseFloat(session.metadata.finalPrice) : null;
     const discountAmount = session.metadata?.discountAmount ? parseFloat(session.metadata.discountAmount) : 0;
-    const passDisplayName = getPassDisplayName(pass);
+    const selectedClassId = session.metadata?.selectedClassId || session.metadata?.selected_class_id;
+    const chosenClass = selectedClassId
+      ? await retryOperation(async () => {
+          return await sanityClient.fetch(
+            `*[_type == "class" && _id == $selectedClassId && tenant._ref == $tenantId && isActive == true][0] {
+              _id,
+              title,
+              danceStyle,
+              level
+            }`,
+            { selectedClassId, tenantId: session.metadata?.tenantId }
+          );
+        })
+      : pass.selectedClass;
+    const passDisplayName = getPassDisplayName({ ...pass, selectedClass: chosenClass || pass.selectedClass });
 
     const subscriptionData = {
       _type: 'subscription',
