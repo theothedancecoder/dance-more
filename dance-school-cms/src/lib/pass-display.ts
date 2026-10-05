@@ -50,3 +50,19 @@ export function getPassDisplayName(pass?: {
 
   return `${baseName} - ${classLabel}`;
 }
+
+export function getSubscriptionDisplayName(subscription?: {
+  passName?: string | null;
+  originalPass?: {
+    name?: string | null;
+    selectedClass?: PassClassLike | null;
+  } | null;
+} | null): string {
+  const passName = subscription?.passName?.trim() || subscription?.originalPass?.name?.trim() || 'Class Pass';
+  const selectedClass = subscription?.originalPass?.selectedClass || null;
+
+  return getPassDisplayName({
+    name: passName,
+    selectedClass,
+  });
+}
