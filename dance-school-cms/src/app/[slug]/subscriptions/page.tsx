@@ -95,12 +95,15 @@ const getClassLabel = (classInfo?: { title?: string; danceStyle?: string; level?
   return normalized || 'Class';
 };
 
-const getCourseSelectionLabel = (classesLimit?: number) => {
-  if (!classesLimit || classesLimit <= 1) {
-    return 'Select the course related to your pass';
-  }
+const MAX_PASS_CLASS_CHOICES = 4;
 
-  return `Select ${classesLimit} courses related to your pass`;
+const getCourseSelectionLabel = () => {
+  return 'Select your course according to your pass';
+};
+
+const getMaxCourseChoices = (classesLimit?: number, classOptionsLength = 0) => {
+  const requestedLimit = Math.max(1, classesLimit || 1);
+  return Math.min(requestedLimit, MAX_PASS_CLASS_CHOICES, classOptionsLength || requestedLimit);
 };
 
 export default function SubscriptionsPage() {
@@ -449,8 +452,8 @@ export default function SubscriptionsPage() {
           nextPasses.forEach((pass: PassData) => {
             const classOptions = pass.classOptions || [];
             if (pass.type !== 'unlimited' && classOptions.length) {
-              const classLimit = Math.max(1, pass.classesLimit || 1);
-              const selectedValues = Array.from({ length: Math.min(classLimit, classOptions.length) }, (_, index) => {
+             const classLimit = getMaxCourseChoices(pass.classesLimit, classOptions.length);
+             const selectedValues = Array.from({ length: classLimit }, (_, index) => {
                 if (pass.selectedClass?._id && index === 0) return pass.selectedClass._id;
                 return classOptions[index]?._id || classOptions[0]._id;
               });
@@ -940,10 +943,10 @@ export default function SubscriptionsPage() {
                     {pass.type !== 'unlimited' && (pass.classOptions?.length ?? 0) > 0 && (
                       <div className="mb-4">
                         <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600 mb-2">
-                          {getCourseSelectionLabel(pass.classesLimit)}
+                          {getCourseSelectionLabel()}
                         </label>
                         <div className="space-y-2">
-                          {Array.from({ length: Math.min(pass.classesLimit || 1, pass.classOptions?.length || 1) }, (_, index) => {
+                          {Array.from({ length: getMaxCourseChoices(pass.classesLimit, pass.classOptions?.length || 0) }, (_, index) => {
                             const selectedValue = (selectedClassIds[pass._id] || [pass.selectedClass?._id || pass.classOptions?.[0]?._id].filter(Boolean) as string[])[index] || pass.classOptions?.[index]?._id || pass.classOptions?.[0]?._id || '';
                             return (
                               <select
