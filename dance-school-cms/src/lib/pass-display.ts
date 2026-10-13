@@ -28,9 +28,13 @@ export function getClassLabel(classInfo?: PassClassLike | null): string | null {
 export function getPassDisplayName(pass?: {
   name?: string | null;
   selectedClass?: PassClassLike | null;
+  selectedClasses?: PassClassLike[] | null;
 } | null): string {
   const baseName = pass?.name?.trim();
-  const classLabel = getClassLabel(pass?.selectedClass);
+  const selectedClasses = pass?.selectedClasses?.filter(Boolean) ?? [];
+  const classLabel = selectedClasses.length > 0
+    ? selectedClasses.map(getClassLabel).filter(Boolean).join(' + ')
+    : getClassLabel(pass?.selectedClass);
 
   if (!baseName && !classLabel) {
     return 'Class Pass';
@@ -56,13 +60,15 @@ export function getSubscriptionDisplayName(subscription?: {
   originalPass?: {
     name?: string | null;
     selectedClass?: PassClassLike | null;
+    selectedClasses?: PassClassLike[] | null;
   } | null;
 } | null): string {
   const passName = subscription?.passName?.trim() || subscription?.originalPass?.name?.trim() || 'Class Pass';
-  const selectedClass = subscription?.originalPass?.selectedClass || null;
+  const selectedClasses = subscription?.originalPass?.selectedClasses ?? (subscription?.originalPass?.selectedClass ? [subscription.originalPass.selectedClass] : []) ;
 
   return getPassDisplayName({
     name: passName,
-    selectedClass,
+    selectedClasses,
+    selectedClass: subscription?.originalPass?.selectedClass,
   });
 }

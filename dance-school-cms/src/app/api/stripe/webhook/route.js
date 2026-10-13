@@ -302,21 +302,39 @@ async function createSubscriptionFromSession(session, eventId) {
     const originalPrice = session.metadata?.originalPrice ? parseFloat(session.metadata.originalPrice) : null;
     const finalPrice = session.metadata?.finalPrice ? parseFloat(session.metadata.finalPrice) : null;
     const discountAmount = session.metadata?.discountAmount ? parseFloat(session.metadata.discountAmount) : 0;
-    const selectedClassId = session.metadata?.selectedClassId || session.metadata?.selected_class_id;
-    const chosenClass = selectedClassId
-      ? await retryOperation(async () => {
-          return await sanityClient.fetch(
-            `*[_type == "class" && _id == $selectedClassId && tenant._ref == $tenantId && isActive == true][0] {
-              _id,
-              title,
-              danceStyle,
-              level
-            }`,
-            { selectedClassId, tenantId: session.metadata?.tenantId }
-          );
-        })
-      : pass.selectedClass;
-    const passDisplayName = getPassDisplayName({ ...pass, selectedClass: chosenClass || pass.selectedClass });
+    const selectedClassIdsRaw = session.metadata?.selectedClassIds || session.metadata?.selected_class_ids || session.metadata?.selectedClassId || session.metadata?.selected_class_id;
+    let selectedClassIds = [];
+    if (selectedClassIdsRaw) {
+      try {
+        selectedClassIds = Array.isArray(JSON.parse(selectedClassIdsRaw))
+          ? JSON.parse(selectedClassIdsRaw)
+          : [selectedClassIdsRaw];
+      } catch {
+        selectedClassIds = Array.isArray(selectedClassIdsRaw) ? selectedClassIdsRaw : [selectedClassIdsRaw];
+      }
+    }
+    const chosenClasses = selectedClassIds.length > 0
+      ? await Promise.all(selectedClassIds.map(async (selectedClassId) => {
+          if (!selectedClassId) return null;
+          return await retryOperation(async () => {
+            return await sanityClient.fetch(
+              `*[_type == "class" && _id == $selectedClassId && tenant._ref == $tenantId && isActive == true][0] {
+                _id,
+                title,
+                danceStyle,
+                level
+              }`,
+              { selectedClassId, tenantId: session.metadata?.tenantId }
+            );
+          });
+        }))
+      : [];
+    const validChosenClasses = chosenClasses.filter(Boolean);
+    const passDisplayName = getPassDisplayName({
+      ...pass,
+      selectedClasses: validChosenClasses.length > 0 ? validChosenClasses : (pass.selectedClass ? [pass.selectedClass] : []),
+      selectedClass: validChosenClasses[0] || pass.selectedClass,
+    });
 
     const subscriptionData = {
       _type: 'subscription',
