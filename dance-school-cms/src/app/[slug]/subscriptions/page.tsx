@@ -95,6 +95,14 @@ const getClassLabel = (classInfo?: { title?: string; danceStyle?: string; level?
   return normalized || 'Class';
 };
 
+const getCourseSelectionLabel = (classesLimit?: number) => {
+  if (!classesLimit || classesLimit <= 1) {
+    return 'Select the course related to your pass';
+  }
+
+  return `Select ${classesLimit} courses related to your pass`;
+};
+
 export default function SubscriptionsPage() {
   const params = useParams();
   const { tenant, isLoading, error } = useTenant();
@@ -932,7 +940,7 @@ export default function SubscriptionsPage() {
                     {pass.type !== 'unlimited' && (pass.classOptions?.length ?? 0) > 0 && (
                       <div className="mb-4">
                         <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600 mb-2">
-                          {pass.classesLimit && pass.classesLimit > 1 ? `Select ${pass.classesLimit} classes` : 'Select class'}
+                          {getCourseSelectionLabel(pass.classesLimit)}
                         </label>
                         <div className="space-y-2">
                           {Array.from({ length: Math.min(pass.classesLimit || 1, pass.classOptions?.length || 1) }, (_, index) => {
