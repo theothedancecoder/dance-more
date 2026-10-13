@@ -23,7 +23,7 @@ function getSubscriptionDetailsFromPass(pass: {
   }
 }
 
-function getSessionType(session: { metadata?: Record<string, string | undefined> }) {
+function getSessionType(session: { metadata?: Record<string, string | undefined> | null }) {
   const sessionType = session.metadata?.type;
   if (sessionType === 'pass_purchase' || sessionType === 'pass_upgrade') {
     return sessionType;
@@ -37,7 +37,7 @@ function getSessionType(session: { metadata?: Record<string, string | undefined>
 
 function sessionMatchesUser(
   session: {
-    metadata?: Record<string, string | undefined>;
+    metadata?: Record<string, string | undefined> | null;
     client_reference_id?: string | null;
     customer_details?: { email?: string | null } | null;
     customer_email?: string | null;
@@ -214,8 +214,39 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      const selectedClassIdsRaw = metadata.selectedClassIds || metadata.selected_class_ids || metadata.selectedClassId || metadata.selected_class_id;
+      let selectedClassIds: string[] = [];
+      if (selectedClassIdsRaw) {
+        try {
+          selectedClassIds = Array.isArray(JSON.parse(selectedClassIdsRaw))
+            ? JSON.parse(selectedClassIdsRaw)
+            : [selectedClassIdsRaw];
+        } catch {
+          selectedClassIds = Array.isArray(selectedClassIdsRaw) ? selectedClassIdsRaw : [selectedClassIdsRaw];
+        }
+      }
+
+      const selectedClasses = selectedClassIds.length > 0
+        ? await Promise.all(selectedClassIds.map(async (selectedClassId) => {
+            if (!selectedClassId) return null;
+            return uncachedSanityClient.fetch(
+              `*[_type == "class" && _id == $selectedClassId && tenant._ref == $tenantId && isActive == true][0] {
+                _id,
+                title,
+                danceStyle,
+                level
+              }`,
+              { selectedClassId, tenantId: tenant._id }
+            );
+          }))
+        : [];
+      const validSelectedClasses = selectedClasses.filter(Boolean);
       const { subscriptionType, remainingClips } = getSubscriptionDetailsFromPass(pass);
-      const passDisplayName = getPassDisplayName(pass);
+      const passDisplayName = getPassDisplayName({
+        ...pass,
+        selectedClasses: validSelectedClasses.length > 0 ? validSelectedClasses : (pass.selectedClass ? [pass.selectedClass] : []),
+        selectedClass: validSelectedClasses[0] || pass.selectedClass,
+      });
 
       // Check if subscription already exists for this session (using both session ID and payment ID)
       const existingSubscription = await uncachedSanityClient.fetch(

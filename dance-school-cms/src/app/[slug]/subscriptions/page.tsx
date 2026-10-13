@@ -30,6 +30,7 @@ interface PassData {
     level?: string;
   }>;
   description: string;
+  displayName?: string;
   features: string[];
   isPopular?: boolean;
   isActive: boolean;
@@ -111,7 +112,7 @@ export default function SubscriptionsPage() {
   const [manualSyncLoading, setManualSyncLoading] = useState(false);
   const [promoCodes, setPromoCodes] = useState<Record<string, string>>({});
   const [promoErrors, setPromoErrors] = useState<Record<string, string>>({});
-  const [selectedClassIds, setSelectedClassIds] = useState<Record<string, string>>({});
+  const [selectedClassIds, setSelectedClassIds] = useState<Record<string, string[]>>({});
   const [visibilityNotice, setVisibilityNotice] = useState<VisibilityState | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
@@ -233,9 +234,9 @@ export default function SubscriptionsPage() {
   const handlePurchase = async (pass: PassData) => {
     try {
       const enteredPromo = (promoCodes[pass._id] || '').trim();
-      const selectedClassId = pass.type === 'unlimited'
-        ? undefined
-        : (selectedClassIds[pass._id] || pass.selectedClass?._id || undefined);
+      const selectedClassIdsForPass = pass.type === 'unlimited'
+        ? []
+        : (selectedClassIds[pass._id] || [pass.selectedClass?._id || pass.classOptions?.[0]?._id].filter(Boolean) as string[]);
       setPromoErrors((prev) => ({ ...prev, [pass._id]: '' }));
 
       // Create Stripe checkout session for pass purchase
@@ -248,7 +249,8 @@ export default function SubscriptionsPage() {
         },
         body: JSON.stringify({
           passId: pass._id,
-          selectedClassId,
+          selectedClassIds: selectedClassIdsForPass,
+          selectedClassId: selectedClassIdsForPass[0],
           promoCode: enteredPromo || undefined,
           successUrl: `${window.location.origin}/${tenantSlug}/payment/success`,
           cancelUrl: window.location.href,
@@ -309,9 +311,9 @@ export default function SubscriptionsPage() {
 
     try {
       setUpgradeLoading(true);
-      const selectedClassId = targetPass.type === 'unlimited'
-        ? undefined
-        : (selectedClassIds[targetPass._id] || targetPass.selectedClass?._id || undefined);
+      const selectedClassIdsForPass = targetPass.type === 'unlimited'
+        ? []
+        : (selectedClassIds[targetPass._id] || [targetPass.selectedClass?._id || targetPass.classOptions?.[0]?._id].filter(Boolean) as string[]);
 
       // Create Stripe checkout session for upgrade
       const response = await fetch('/api/stripe/checkout-pass', {
@@ -323,7 +325,8 @@ export default function SubscriptionsPage() {
         },
         body: JSON.stringify({
           passId: targetPass._id,
-          selectedClassId,
+          selectedClassIds: selectedClassIdsForPass,
+          selectedClassId: selectedClassIdsForPass[0],
           upgradeFromSubscriptionId: selectedSubscription._id,
           successUrl: `${window.location.origin}/${tenantSlug}/payment/success`,
           cancelUrl: window.location.href,
@@ -434,10 +437,16 @@ export default function SubscriptionsPage() {
           const nextPasses = data.passes || [];
           setPasses(nextPasses);
 
-          const defaults: Record<string, string> = {};
+          const defaults: Record<string, string[]> = {};
           nextPasses.forEach((pass: PassData) => {
-            if (pass.type !== 'unlimited' && pass.classOptions?.length) {
-              defaults[pass._id] = pass.selectedClass?._id || pass.classOptions[0]._id;
+            const classOptions = pass.classOptions || [];
+            if (pass.type !== 'unlimited' && classOptions.length) {
+              const classLimit = Math.max(1, pass.classesLimit || 1);
+              const selectedValues = Array.from({ length: Math.min(classLimit, classOptions.length) }, (_, index) => {
+                if (pass.selectedClass?._id && index === 0) return pass.selectedClass._id;
+                return classOptions[index]?._id || classOptions[0]._id;
+              });
+              defaults[pass._id] = selectedValues;
             }
           });
           setSelectedClassIds(defaults);
@@ -922,21 +931,35 @@ export default function SubscriptionsPage() {
 
                     {pass.type !== 'unlimited' && (pass.classOptions?.length ?? 0) > 0 && (
                       <div className="mb-4">
-                        <label htmlFor={`class-${pass._id}`} className="block text-xs font-semibold uppercase tracking-wide text-gray-600 mb-2">
-                          Select class
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600 mb-2">
+                          {pass.classesLimit && pass.classesLimit > 1 ? `Select ${pass.classesLimit} classes` : 'Select class'}
                         </label>
-                        <select
-                          id={`class-${pass._id}`}
-                          value={selectedClassIds[pass._id] ?? pass.selectedClass?._id ?? pass.classOptions?.[0]?._id ?? ''}
-                          onChange={(e) => setSelectedClassIds((prev) => ({ ...prev, [pass._id]: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          {pass.classOptions?.map((classOption) => (
-                            <option key={classOption._id} value={classOption._id}>
-                              {getClassLabel(classOption)}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="space-y-2">
+                          {Array.from({ length: Math.min(pass.classesLimit || 1, pass.classOptions?.length || 1) }, (_, index) => {
+                            const selectedValue = (selectedClassIds[pass._id] || [pass.selectedClass?._id || pass.classOptions?.[0]?._id].filter(Boolean) as string[])[index] || pass.classOptions?.[index]?._id || pass.classOptions?.[0]?._id || '';
+                            return (
+                              <select
+                                key={`${pass._id}-class-${index}`}
+                                value={selectedValue}
+                                onChange={(e) => {
+                                  setSelectedClassIds((prev) => {
+                                    const currentChoices = prev[pass._id] || [];
+                                    const nextChoices = [...currentChoices];
+                                    nextChoices[index] = e.target.value;
+                                    return { ...prev, [pass._id]: nextChoices };
+                                  });
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                {pass.classOptions?.map((classOption) => (
+                                  <option key={classOption._id} value={classOption._id}>
+                                    {getClassLabel(classOption)}
+                                  </option>
+                                ))}
+                              </select>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
 

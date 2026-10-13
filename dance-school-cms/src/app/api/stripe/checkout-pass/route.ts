@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Tenant context required' }, { status: 403 });
     }
 
-    const { passId, promoCode, successUrl, cancelUrl, upgradeFromSubscriptionId, selectedClassId } = await request.json();
+    const { passId, promoCode, successUrl, cancelUrl, upgradeFromSubscriptionId, selectedClassId, selectedClassIds } = await request.json();
 
     if (!passId) {
       return NextResponse.json({ error: 'Pass ID is required' }, { status: 400 });
@@ -108,22 +108,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Pass not found or inactive' }, { status: 404 });
     }
 
-    const chosenClass = selectedClassId
-      ? await sanityClient.fetch(
-          `*[_type == "class" && _id == $selectedClassId && tenant._ref == $tenantId && isActive == true][0] {
-            _id,
-            title,
-            danceStyle,
-            level,
-            tenant->{ _id }
-          }`,
-          { selectedClassId, tenantId }
-        )
-      : passData.selectedClass;
+    const normalizedSelectedClassIds = Array.isArray(selectedClassIds)
+      ? selectedClassIds.filter(Boolean)
+      : selectedClassId
+        ? [selectedClassId]
+        : [];
 
-    if (selectedClassId && !chosenClass) {
+    const chosenClasses = normalizedSelectedClassIds.length > 0
+      ? await Promise.all(
+          normalizedSelectedClassIds.map(async (selectedClassIdValue) =>
+            sanityClient.fetch(
+              `*[_type == "class" && _id == $selectedClassId && tenant._ref == $tenantId && isActive == true][0] {
+                _id,
+                title,
+                danceStyle,
+                level,
+                tenant->{ _id }
+              }`,
+              { selectedClassId: selectedClassIdValue, tenantId }
+            )
+          )
+        )
+      : [];
+
+    const validChosenClasses = chosenClasses.filter(Boolean);
+
+    if (normalizedSelectedClassIds.length > 0 && validChosenClasses.length !== normalizedSelectedClassIds.length) {
       return NextResponse.json({ error: 'Selected class is not available for this pass' }, { status: 400 });
     }
+
+    const chosenClass = validChosenClasses[0] || passData.selectedClass;
 
     // Verify pass belongs to the correct tenant
     if (passData.tenant._id !== tenantId) {
@@ -145,9 +159,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Create description based on pass type
-    const passDisplayName = getPassDisplayName({ ...passData, selectedClass: chosenClass || passData.selectedClass });
+    const passDisplayName = getPassDisplayName({
+      ...passData,
+      selectedClasses: validChosenClasses.length > 0 ? validChosenClasses : (passData.selectedClass ? [passData.selectedClass] : []),
+      selectedClass: chosenClass || passData.selectedClass,
+    });
     let description = passData.description || '';
-    if (chosenClass || passData.selectedClass) {
+    if (validChosenClasses.length > 0) {
+      description += ` - ${validChosenClasses.map((classItem) => classItem.title || classItem.danceStyle || 'Class booking').join(' + ')}`;
+    } else if (chosenClass || passData.selectedClass) {
       const classLabel = (chosenClass || passData.selectedClass)?.title || (chosenClass || passData.selectedClass)?.danceStyle || 'Class booking';
       description += ` - ${classLabel}`;
     }
@@ -207,7 +227,8 @@ export async function POST(request: NextRequest) {
       originalPrice: String(originalPrice),
       finalPrice: String(finalPrice),
       discountAmount: String(discountAmount),
-      ...(chosenClass?._id ? { selectedClassId: chosenClass._id } : passData.selectedClass?._id ? { selectedClassId: passData.selectedClass._id } : {}),
+      ...(validChosenClasses.length > 0 ? { selectedClassIds: JSON.stringify(validChosenClasses.map((classItem) => classItem._id)) } : {}),
+      ...(validChosenClasses[0]?._id ? { selectedClassId: validChosenClasses[0]._id } : passData.selectedClass?._id ? { selectedClassId: passData.selectedClass._id } : {}),
       ...(appliedPromoCode ? { promoCode: appliedPromoCode } : {}),
     };
 
