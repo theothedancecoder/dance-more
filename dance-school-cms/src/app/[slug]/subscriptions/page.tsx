@@ -95,15 +95,13 @@ const getClassLabel = (classInfo?: { title?: string; danceStyle?: string; level?
   return normalized || 'Class';
 };
 
-const MAX_PASS_CLASS_CHOICES = 4;
-
 const getCourseSelectionLabel = () => {
-  return 'Select your course according to your pass';
+  return 'Select ur course according to ur pass';
 };
 
-const getMaxCourseChoices = (classesLimit?: number, classOptionsLength = 0) => {
+const getCourseChoiceCount = (classesLimit?: number, classOptionsLength = 0) => {
   const requestedLimit = Math.max(1, classesLimit || 1);
-  return Math.min(requestedLimit, MAX_PASS_CLASS_CHOICES, classOptionsLength || requestedLimit);
+  return Math.min(requestedLimit, classOptionsLength || requestedLimit);
 };
 
 export default function SubscriptionsPage() {
@@ -452,7 +450,7 @@ export default function SubscriptionsPage() {
           nextPasses.forEach((pass: PassData) => {
             const classOptions = pass.classOptions || [];
             if (pass.type !== 'unlimited' && classOptions.length) {
-             const classLimit = getMaxCourseChoices(pass.classesLimit, classOptions.length);
+             const classLimit = getCourseChoiceCount(pass.classesLimit, classOptions.length);
              const selectedValues = Array.from({ length: classLimit }, (_, index) => {
                 if (pass.selectedClass?._id && index === 0) return pass.selectedClass._id;
                 return classOptions[index]?._id || classOptions[0]._id;
@@ -946,7 +944,7 @@ export default function SubscriptionsPage() {
                           {getCourseSelectionLabel()}
                         </label>
                         <div className="space-y-2">
-                          {Array.from({ length: getMaxCourseChoices(pass.classesLimit, pass.classOptions?.length || 0) }, (_, index) => {
+                          {Array.from({ length: getCourseChoiceCount(pass.classesLimit, pass.classOptions?.length || 0) }, (_, index) => {
                             const selectedValue = (selectedClassIds[pass._id] || [pass.selectedClass?._id || pass.classOptions?.[0]?._id].filter(Boolean) as string[])[index] || pass.classOptions?.[index]?._id || pass.classOptions?.[0]?._id || '';
                             return (
                               <select

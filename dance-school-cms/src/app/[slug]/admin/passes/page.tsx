@@ -657,8 +657,8 @@ export default function PassesManagementPage() {
                       <option value="">Select type</option>
                       <option value="single">Single Class</option>
                       <option value="multi">Multi-Class Package</option>
+                      <option value="multi-pass">Multi-Pass</option>
                       <option value="unlimited">Unlimited</option>
-                      <option value="subscription">Subscription</option>
                     </select>
                   </div>
 
@@ -726,7 +726,7 @@ export default function PassesManagementPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Classes Limit (for multi-class packages)</label>
+                    <label className="block text-sm font-medium text-gray-700">Course selection count for this pass</label>
                     <input
                       type="number"
                       name="classesLimit"
@@ -964,7 +964,7 @@ export default function PassesManagementPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Classes Limit (for multi-class packages)</label>
+                    <label className="block text-sm font-medium text-gray-700">Course selection count for this pass</label>
                     <input
                       type="number"
                       name="classesLimit"

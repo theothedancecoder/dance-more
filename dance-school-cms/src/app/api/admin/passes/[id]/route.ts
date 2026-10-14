@@ -69,6 +69,13 @@ export async function PUT(
     // Note: We intentionally do NOT validate that expiryDate is in the future
     // on updates — admins must be able to deactivate passes that have already expired.
 
+    if (['multi', 'multi-pass'].includes(type) && (!classesLimit || classesLimit < 1)) {
+      return NextResponse.json(
+        { error: 'classesLimit must be at least 1 for multi-class passes' },
+        { status: 400 }
+      );
+    }
+
     // Update pass document in Sanity
     const result = await writeClient
       .patch(params.id)

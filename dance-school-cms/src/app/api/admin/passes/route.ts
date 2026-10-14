@@ -75,7 +75,17 @@ export async function GET(request: NextRequest) {
     const passes = await sanityClient.fetch(query, { tenantId });
 
     // Add backward compatibility for existing passes without validityType
-    const passesWithDefaults = passes.map((pass: any) => ({
+    type AdminPass = {
+      validityType?: string;
+      validityDays?: number;
+      promoActive?: boolean;
+      promoCode?: string;
+      promoDiscountType?: 'percentage' | 'fixed' | null;
+      promoDiscountValue?: number | null;
+      [key: string]: unknown;
+    };
+
+    const passesWithDefaults = passes.map((pass: AdminPass) => ({
       ...pass,
       validityType: pass.validityType || 'days',
       validityDays: pass.validityDays || 30,
@@ -159,6 +169,13 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+    }
+
+    if (['multi', 'multi-pass'].includes(type) && (!classesLimit || classesLimit < 1)) {
+      return NextResponse.json(
+        { error: 'classesLimit must be at least 1 for multi-class passes' },
+        { status: 400 }
+      );
     }
 
     // Get tenant from headers (set by middleware) - REQUIRED for security
