@@ -103,8 +103,12 @@ const getCourseChoiceCount = (classesLimit?: number) => {
   return Math.max(1, classesLimit || 1);
 };
 
+const requiresLinkedCourseSelection = (pass: PassData) => {
+  return pass.type === 'single' || pass.type === 'multi-pass';
+};
+
 const getRequiredCourseCount = (pass: PassData) => {
-  if (pass.type === 'unlimited') return 0;
+  if (!requiresLinkedCourseSelection(pass)) return 0;
   return Math.max(1, pass.classesLimit || 1);
 };
 
@@ -115,7 +119,7 @@ const getValidatedSelectedChoices = (pass: PassData) => {
     .filter(Boolean);
   const uniqueChoicesCount = new Set(selectedChoices).size;
 
-  if (pass.type !== 'unlimited') {
+  if (requiresLinkedCourseSelection(pass)) {
     if ((pass.classOptions?.length || 0) < requiredCourseCount) {
       return {
         isValid: false,
@@ -499,7 +503,7 @@ export default function SubscriptionsPage() {
           const defaults: Record<string, string[]> = {};
           nextPasses.forEach((pass: PassData) => {
             const classOptions = pass.classOptions || [];
-            if (pass.type !== 'unlimited' && classOptions.length) {
+            if (requiresLinkedCourseSelection(pass) && classOptions.length) {
              const classLimit = getCourseChoiceCount(pass.classesLimit);
              const selectedValues = Array.from({ length: classLimit }, () => '');
              defaults[pass._id] = selectedValues;
@@ -985,7 +989,7 @@ export default function SubscriptionsPage() {
                       ))}
                     </ul>
 
-                    {pass.type !== 'unlimited' && (pass.classOptions?.length ?? 0) > 0 && (
+                    {requiresLinkedCourseSelection(pass) && (pass.classOptions?.length ?? 0) > 0 && (
                       <div className="mb-4">
                         <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600 mb-2">
                           {getCourseSelectionLabel()}

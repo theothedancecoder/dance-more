@@ -330,10 +330,16 @@ async function createSubscriptionFromSession(session, eventId) {
         }))
       : [];
     const validChosenClasses = chosenClasses.filter(Boolean);
+    const requiresLinkedCourseSelection = pass.type === 'single' || pass.type === 'multi-pass';
+    const linkedSelectedClassIds = requiresLinkedCourseSelection
+      ? validChosenClasses.map((classItem) => classItem._id)
+      : [];
     const passDisplayName = getPassDisplayName({
       ...pass,
-      selectedClasses: validChosenClasses.length > 0 ? validChosenClasses : (pass.selectedClass ? [pass.selectedClass] : []),
-      selectedClass: validChosenClasses[0] || pass.selectedClass,
+      selectedClasses: requiresLinkedCourseSelection
+        ? (validChosenClasses.length > 0 ? validChosenClasses : (pass.selectedClass ? [pass.selectedClass] : []))
+        : [],
+      selectedClass: requiresLinkedCourseSelection ? (validChosenClasses[0] || pass.selectedClass) : null,
     });
 
     const subscriptionData = {
@@ -352,7 +358,7 @@ async function createSubscriptionFromSession(session, eventId) {
       remainingClips,
       passId: pass._id,
       passName: passDisplayName,
-      selectedClassIds: validChosenClasses.map((classItem) => classItem._id),
+      selectedClassIds: linkedSelectedClassIds,
       purchasePrice: session.amount_total ? session.amount_total / 100 : pass.price,
       originalPrice: originalPrice ?? pass.price,
       finalPrice: finalPrice ?? (session.amount_total ? session.amount_total / 100 : pass.price),
@@ -493,12 +499,18 @@ async function handlePassUpgrade(session, eventId) {
         }))
       : [];
     const validChosenClasses = chosenClasses.filter(Boolean);
+    const requiresLinkedCourseSelection = newPass.type === 'single' || newPass.type === 'multi-pass';
+    const linkedSelectedClassIds = requiresLinkedCourseSelection
+      ? validChosenClasses.map((classItem) => classItem._id)
+      : [];
 
     // Calculate new subscription details
     const passDisplayName = getPassDisplayName({
       ...newPass,
-      selectedClasses: validChosenClasses.length > 0 ? validChosenClasses : (newPass.selectedClass ? [newPass.selectedClass] : []),
-      selectedClass: validChosenClasses[0] || newPass.selectedClass,
+      selectedClasses: requiresLinkedCourseSelection
+        ? (validChosenClasses.length > 0 ? validChosenClasses : (newPass.selectedClass ? [newPass.selectedClass] : []))
+        : [],
+      selectedClass: requiresLinkedCourseSelection ? (validChosenClasses[0] || newPass.selectedClass) : null,
     });
     const now = new Date();
     let endDate;
@@ -577,7 +589,7 @@ async function handlePassUpgrade(session, eventId) {
       remainingClips,
       passId: newPass._id,
       passName: passDisplayName,
-      selectedClassIds: validChosenClasses.map((classItem) => classItem._id),
+      selectedClassIds: linkedSelectedClassIds,
       purchasePrice: parseFloat(newPassPrice) || newPass.price,
       stripePaymentId: session.payment_intent,
       stripeSessionId: session.id,

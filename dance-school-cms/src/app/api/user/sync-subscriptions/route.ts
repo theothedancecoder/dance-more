@@ -241,12 +241,17 @@ export async function POST(request: NextRequest) {
           }))
         : [];
       const validSelectedClasses = selectedClasses.filter(Boolean);
-      const validSelectedClassIds = validSelectedClasses.map((classItem) => classItem._id);
+      const requiresLinkedCourseSelection = pass.type === 'single' || pass.type === 'multi-pass';
+      const validSelectedClassIds = requiresLinkedCourseSelection
+        ? validSelectedClasses.map((classItem) => classItem._id)
+        : [];
       const { subscriptionType, remainingClips } = getSubscriptionDetailsFromPass(pass);
       const passDisplayName = getPassDisplayName({
         ...pass,
-        selectedClasses: validSelectedClasses.length > 0 ? validSelectedClasses : (pass.selectedClass ? [pass.selectedClass] : []),
-        selectedClass: validSelectedClasses[0] || pass.selectedClass,
+        selectedClasses: requiresLinkedCourseSelection
+          ? (validSelectedClasses.length > 0 ? validSelectedClasses : (pass.selectedClass ? [pass.selectedClass] : []))
+          : [],
+        selectedClass: requiresLinkedCourseSelection ? (validSelectedClasses[0] || pass.selectedClass) : null,
       });
 
       // Check if subscription already exists for this session (using both session ID and payment ID)

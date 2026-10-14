@@ -204,7 +204,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const isClassAllowedForSubscription = (subscription: { selectedClassIds?: string[] }) => {
+    const isClassAllowedForSubscription = (subscription: { type: string; selectedClassIds?: string[] }) => {
+      if (!['single', 'multi-pass'].includes(subscription.type)) {
+        return true;
+      }
       if (!Array.isArray(subscription.selectedClassIds) || subscription.selectedClassIds.length === 0) {
         return true;
       }

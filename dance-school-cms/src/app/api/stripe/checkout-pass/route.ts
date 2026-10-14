@@ -108,24 +108,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Pass not found or inactive' }, { status: 404 });
     }
 
-    const normalizedSelectedClassIds = Array.isArray(selectedClassIds)
+    const parsedSelectedClassIds = Array.isArray(selectedClassIds)
       ? selectedClassIds.filter(Boolean)
       : selectedClassId
         ? [selectedClassId]
         : [];
 
-    const requiredClassSelectionCount = passData.type === 'unlimited'
-      ? 0
-      : Math.max(1, passData.classesLimit || 1);
+    const requiresLinkedCourseSelection = passData.type === 'single' || passData.type === 'multi-pass';
+    const normalizedSelectedClassIds = requiresLinkedCourseSelection ? parsedSelectedClassIds : [];
+    const requiredClassSelectionCount = requiresLinkedCourseSelection
+      ? Math.max(1, passData.classesLimit || 1)
+      : 0;
 
-    if (passData.type !== 'unlimited' && normalizedSelectedClassIds.length !== requiredClassSelectionCount) {
+    if (requiresLinkedCourseSelection && normalizedSelectedClassIds.length !== requiredClassSelectionCount) {
       return NextResponse.json(
         { error: `Please select exactly ${requiredClassSelectionCount} course${requiredClassSelectionCount > 1 ? 's' : ''} for this pass` },
         { status: 400 }
       );
     }
 
-    if (new Set(normalizedSelectedClassIds).size !== normalizedSelectedClassIds.length) {
+    if (requiresLinkedCourseSelection && new Set(normalizedSelectedClassIds).size !== normalizedSelectedClassIds.length) {
       return NextResponse.json(
         { error: 'Please choose different courses for each selection' },
         { status: 400 }
@@ -155,7 +157,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Selected class is not available for this pass' }, { status: 400 });
     }
 
-    const chosenClass = validChosenClasses[0] || passData.selectedClass;
+    const chosenClass = requiresLinkedCourseSelection ? (validChosenClasses[0] || passData.selectedClass) : null;
 
     // Verify pass belongs to the correct tenant
     if (passData.tenant._id !== tenantId) {
@@ -179,13 +181,15 @@ export async function POST(request: NextRequest) {
     // Create description based on pass type
     const passDisplayName = getPassDisplayName({
       ...passData,
-      selectedClasses: validChosenClasses.length > 0 ? validChosenClasses : (passData.selectedClass ? [passData.selectedClass] : []),
-      selectedClass: chosenClass || passData.selectedClass,
+      selectedClasses: requiresLinkedCourseSelection
+        ? (validChosenClasses.length > 0 ? validChosenClasses : (passData.selectedClass ? [passData.selectedClass] : []))
+        : [],
+      selectedClass: requiresLinkedCourseSelection ? (chosenClass || passData.selectedClass) : null,
     });
     let description = passData.description || '';
-    if (validChosenClasses.length > 0) {
+    if (requiresLinkedCourseSelection && validChosenClasses.length > 0) {
       description += ` - ${validChosenClasses.map((classItem) => classItem.title || classItem.danceStyle || 'Class booking').join(' + ')}`;
-    } else if (chosenClass || passData.selectedClass) {
+    } else if (requiresLinkedCourseSelection && (chosenClass || passData.selectedClass)) {
       const classLabel = (chosenClass || passData.selectedClass)?.title || (chosenClass || passData.selectedClass)?.danceStyle || 'Class booking';
       description += ` - ${classLabel}`;
     }
@@ -245,8 +249,12 @@ export async function POST(request: NextRequest) {
       originalPrice: String(originalPrice),
       finalPrice: String(finalPrice),
       discountAmount: String(discountAmount),
-      ...(validChosenClasses.length > 0 ? { selectedClassIds: JSON.stringify(validChosenClasses.map((classItem) => classItem._id)) } : {}),
-      ...(validChosenClasses[0]?._id ? { selectedClassId: validChosenClasses[0]._id } : passData.selectedClass?._id ? { selectedClassId: passData.selectedClass._id } : {}),
+      ...(requiresLinkedCourseSelection && validChosenClasses.length > 0 ? { selectedClassIds: JSON.stringify(validChosenClasses.map((classItem) => classItem._id)) } : {}),
+      ...(requiresLinkedCourseSelection && validChosenClasses[0]?._id
+        ? { selectedClassId: validChosenClasses[0]._id }
+        : requiresLinkedCourseSelection && passData.selectedClass?._id
+        ? { selectedClassId: passData.selectedClass._id }
+        : {}),
       ...(appliedPromoCode ? { promoCode: appliedPromoCode } : {}),
     };
 
