@@ -241,7 +241,7 @@ export async function POST(request: NextRequest) {
           }))
         : [];
       const validSelectedClasses = selectedClasses.filter(Boolean);
-      const requiresLinkedCourseSelection = pass.type === 'single' || pass.type === 'multi-pass';
+      const requiresLinkedCourseSelection = pass.type !== 'unlimited' && Number(pass.classesLimit ?? 0) > 0;
       const validSelectedClassIds = requiresLinkedCourseSelection
         ? validSelectedClasses.map((classItem) => classItem._id)
         : [];

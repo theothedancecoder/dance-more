@@ -330,7 +330,7 @@ async function createSubscriptionFromSession(session, eventId) {
         }))
       : [];
     const validChosenClasses = chosenClasses.filter(Boolean);
-    const requiresLinkedCourseSelection = pass.type === 'single' || pass.type === 'multi-pass';
+    const requiresLinkedCourseSelection = pass.type !== 'unlimited' && Number(pass.classesLimit ?? 0) > 0;
     const linkedSelectedClassIds = requiresLinkedCourseSelection
       ? validChosenClasses.map((classItem) => classItem._id)
       : [];
@@ -499,7 +499,7 @@ async function handlePassUpgrade(session, eventId) {
         }))
       : [];
     const validChosenClasses = chosenClasses.filter(Boolean);
-    const requiresLinkedCourseSelection = newPass.type === 'single' || newPass.type === 'multi-pass';
+    const requiresLinkedCourseSelection = newPass.type !== 'unlimited' && Number(newPass.classesLimit ?? 0) > 0;
     const linkedSelectedClassIds = requiresLinkedCourseSelection
       ? validChosenClasses.map((classItem) => classItem._id)
       : [];
