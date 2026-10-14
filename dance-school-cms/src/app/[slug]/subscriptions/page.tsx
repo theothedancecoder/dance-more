@@ -105,15 +105,24 @@ const getCourseChoiceCount = (classesLimit?: number) => {
 };
 
 const requiresLinkedCourseSelection = (pass: PassData) => {
+  if (pass.type === 'unlimited' || pass.type === 'multi') {
+    return false;
+  }
   return Number(pass.classesLimit ?? 0) > 0;
 };
 
 const getRequiredCourseCount = (pass: PassData) => {
+  if (pass.type === 'unlimited' || pass.type === 'multi') {
+    return 0;
+  }
   const count = Number(pass.classesLimit ?? 0);
   return count > 0 ? count : 0;
 };
 
 const getLinkedCourseSummary = (pass: PassData) => {
+  if (pass.type === 'unlimited' || pass.type === 'multi') {
+    return pass.type === 'multi' ? 'Clipcard' : 'Unlimited';
+  }
   const count = Number(pass.classesLimit ?? 0);
   if (count > 0) {
     return `${count} class${count > 1 ? 'es' : ''}`;

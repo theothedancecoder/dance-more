@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
         ? [selectedClassId]
         : [];
 
-    const requiresLinkedCourseSelection = Number(passData.classesLimit ?? 0) > 0;
+    const requiresLinkedCourseSelection = (passData.type !== 'unlimited' && passData.type !== 'multi') && Number(passData.classesLimit ?? 0) > 0;
     const requiredClassSelectionCount = requiresLinkedCourseSelection ? Math.max(1, Number(passData.classesLimit || 1)) : 0;
 
     if (requiresLinkedCourseSelection && normalizedSelectedClassIds.length !== requiredClassSelectionCount) {
