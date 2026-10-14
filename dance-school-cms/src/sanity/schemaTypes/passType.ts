@@ -85,11 +85,10 @@ export const passType = defineType({
     }),
     defineField({
       name: 'classesLimit',
-      title: 'Number of Classes',
+      title: 'Linked class count required at purchase',
       type: 'number',
-      description: 'Only applicable for multi-class passes and clipcards',
-      hidden: ({ document }) => !['multi', 'multi-pass'].includes((document as any)?.type),
-      validation: (Rule) => Rule.min(1),
+      description: 'Set 0 for no linked class requirement. Set 2, 3, or 4 to require the student to choose that many classes when buying the pass.',
+      validation: (Rule) => Rule.min(0).max(4),
     }),
     defineField({
       name: 'selectedClass',

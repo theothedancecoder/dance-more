@@ -114,11 +114,9 @@ export async function POST(request: NextRequest) {
         ? [selectedClassId]
         : [];
 
-    const requiresLinkedCourseSelection = passData.type === 'single' || passData.type === 'multi-pass';
+    const requiresLinkedCourseSelection = (passData.type !== 'unlimited' && passData.type !== 'multi') && Number(passData.classesLimit ?? 0) > 0;
     const normalizedSelectedClassIds = requiresLinkedCourseSelection ? parsedSelectedClassIds : [];
-    const requiredClassSelectionCount = requiresLinkedCourseSelection
-      ? Math.max(1, passData.classesLimit || 1)
-      : 0;
+    const requiredClassSelectionCount = requiresLinkedCourseSelection ? Math.max(1, Number(passData.classesLimit || 1)) : 0;
 
     if (requiresLinkedCourseSelection && normalizedSelectedClassIds.length !== requiredClassSelectionCount) {
       return NextResponse.json(
@@ -195,7 +193,7 @@ export async function POST(request: NextRequest) {
     }
     if (passData.type === 'unlimited') {
       description += ` - Unlimited classes for ${passData.validityDays} days`;
-    } else if (['single', 'multi-pass', 'multi'].includes(passData.type)) {
+    } else if (Number(passData.classesLimit ?? 0) > 0) {
       description += ` - ${passData.classesLimit} classes valid for ${passData.validityDays} days`;
     }
 

@@ -262,17 +262,17 @@ export default function PassesManagementPage() {
                   />
                 </div>
 
-                {(formData.type === 'multi' || formData.type === 'multi-pass') && (
+                {formData.type !== 'unlimited' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Number of Classes *
+                      Linked classes required at purchase (0 = none, max 4)
                     </label>
                     <input
                       type="number"
                       name="classesLimit"
-                      required
-                      min="1"
-                      value={formData.classesLimit || ''}
+                      min="0"
+                      max="4"
+                      value={formData.classesLimit ?? 0}
                       onChange={handleInputChange}
                       className="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-gray-900"
                     />
