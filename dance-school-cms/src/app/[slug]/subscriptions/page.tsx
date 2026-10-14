@@ -99,9 +99,13 @@ const getCourseSelectionLabel = () => {
   return 'Select ur course according to ur pass';
 };
 
-const getCourseChoiceCount = (classesLimit?: number, classOptionsLength = 0) => {
-  const requestedLimit = Math.max(1, classesLimit || 1);
-  return Math.min(requestedLimit, classOptionsLength || requestedLimit);
+const getCourseChoiceCount = (classesLimit?: number) => {
+  return Math.max(1, classesLimit || 1);
+};
+
+const getRequiredCourseCount = (pass: PassData) => {
+  if (pass.type === 'unlimited') return 0;
+  return Math.max(1, pass.classesLimit || 1);
 };
 
 export default function SubscriptionsPage() {
@@ -243,9 +247,30 @@ export default function SubscriptionsPage() {
   const handlePurchase = async (pass: PassData) => {
     try {
       const enteredPromo = (promoCodes[pass._id] || '').trim();
+      const requiredCourseCount = getRequiredCourseCount(pass);
+      const selectedChoices = (selectedClassIds[pass._id] || [])
+        .slice(0, requiredCourseCount)
+        .filter(Boolean);
+      const uniqueChoicesCount = new Set(selectedChoices).size;
+
+      if (pass.type !== 'unlimited') {
+        if ((pass.classOptions?.length || 0) < requiredCourseCount) {
+          notify('error', `This pass requires ${requiredCourseCount} course selections, but there are not enough active courses available.`);
+          return;
+        }
+        if (selectedChoices.length !== requiredCourseCount) {
+          notify('error', `Please select ${requiredCourseCount} course${requiredCourseCount > 1 ? 's' : ''} before checkout.`);
+          return;
+        }
+        if (uniqueChoicesCount !== selectedChoices.length) {
+          notify('error', 'Please choose different courses for each selection.');
+          return;
+        }
+      }
+
       const selectedClassIdsForPass = pass.type === 'unlimited'
         ? []
-        : (selectedClassIds[pass._id] || [pass.selectedClass?._id || pass.classOptions?.[0]?._id].filter(Boolean) as string[]);
+        : selectedChoices;
       setPromoErrors((prev) => ({ ...prev, [pass._id]: '' }));
 
       // Create Stripe checkout session for pass purchase
@@ -450,12 +475,9 @@ export default function SubscriptionsPage() {
           nextPasses.forEach((pass: PassData) => {
             const classOptions = pass.classOptions || [];
             if (pass.type !== 'unlimited' && classOptions.length) {
-             const classLimit = getCourseChoiceCount(pass.classesLimit, classOptions.length);
-             const selectedValues = Array.from({ length: classLimit }, (_, index) => {
-                if (pass.selectedClass?._id && index === 0) return pass.selectedClass._id;
-                return classOptions[index]?._id || classOptions[0]._id;
-              });
-              defaults[pass._id] = selectedValues;
+             const classLimit = getCourseChoiceCount(pass.classesLimit);
+             const selectedValues = Array.from({ length: classLimit }, () => '');
+             defaults[pass._id] = selectedValues;
             }
           });
           setSelectedClassIds(defaults);
@@ -944,8 +966,8 @@ export default function SubscriptionsPage() {
                           {getCourseSelectionLabel()}
                         </label>
                         <div className="space-y-2">
-                          {Array.from({ length: getCourseChoiceCount(pass.classesLimit, pass.classOptions?.length || 0) }, (_, index) => {
-                            const selectedValue = (selectedClassIds[pass._id] || [pass.selectedClass?._id || pass.classOptions?.[0]?._id].filter(Boolean) as string[])[index] || pass.classOptions?.[index]?._id || pass.classOptions?.[0]?._id || '';
+                          {Array.from({ length: getCourseChoiceCount(pass.classesLimit) }, (_, index) => {
+                            const selectedValue = (selectedClassIds[pass._id] || [])[index] || '';
                             return (
                               <select
                                 key={`${pass._id}-class-${index}`}
@@ -960,6 +982,7 @@ export default function SubscriptionsPage() {
                                 }}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                               >
+                                <option value="">Select course {index + 1}</option>
                                 {pass.classOptions?.map((classOption) => (
                                   <option key={classOption._id} value={classOption._id}>
                                     {getClassLabel(classOption)}

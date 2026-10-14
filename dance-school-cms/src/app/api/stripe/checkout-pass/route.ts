@@ -114,6 +114,24 @@ export async function POST(request: NextRequest) {
         ? [selectedClassId]
         : [];
 
+    const requiredClassSelectionCount = passData.type === 'unlimited'
+      ? 0
+      : Math.max(1, passData.classesLimit || 1);
+
+    if (passData.type !== 'unlimited' && normalizedSelectedClassIds.length !== requiredClassSelectionCount) {
+      return NextResponse.json(
+        { error: `Please select exactly ${requiredClassSelectionCount} course${requiredClassSelectionCount > 1 ? 's' : ''} for this pass` },
+        { status: 400 }
+      );
+    }
+
+    if (new Set(normalizedSelectedClassIds).size !== normalizedSelectedClassIds.length) {
+      return NextResponse.json(
+        { error: 'Please choose different courses for each selection' },
+        { status: 400 }
+      );
+    }
+
     const chosenClasses = normalizedSelectedClassIds.length > 0
       ? await Promise.all(
           normalizedSelectedClassIds.map(async (selectedClassIdValue) =>

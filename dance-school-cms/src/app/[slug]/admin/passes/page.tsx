@@ -663,7 +663,7 @@ export default function PassesManagementPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Linked class (optional)</label>
+                    <label className="block text-sm font-medium text-gray-700">Linked class (optional default)</label>
                     <select
                       name="selectedClassId"
                       defaultValue=""
@@ -726,7 +726,7 @@ export default function PassesManagementPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Course selection count for this pass</label>
+                    <label className="block text-sm font-medium text-gray-700">How many courses customer must choose</label>
                     <input
                       type="number"
                       name="classesLimit"
@@ -896,7 +896,7 @@ export default function PassesManagementPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Linked class (optional)</label>
+                    <label className="block text-sm font-medium text-gray-700">Linked class (optional default)</label>
                     <select
                       name="selectedClassId"
                       defaultValue={editingPass.selectedClass?._id || ''}
@@ -964,7 +964,7 @@ export default function PassesManagementPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Course selection count for this pass</label>
+                    <label className="block text-sm font-medium text-gray-700">How many courses customer must choose</label>
                     <input
                       type="number"
                       name="classesLimit"
