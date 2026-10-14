@@ -105,7 +105,7 @@ const getCourseChoiceCount = (classesLimit?: number) => {
 };
 
 const requiresLinkedCourseSelection = (pass: PassData) => {
-  if (pass.type === 'unlimited' || pass.type === 'multi') {
+  if (pass.type === 'unlimited') {
     return false;
   }
   return Number(pass.classesLimit ?? 0) > 0;
@@ -120,14 +120,54 @@ const getRequiredCourseCount = (pass: PassData) => {
 };
 
 const getLinkedCourseSummary = (pass: PassData) => {
-  if (pass.type === 'unlimited' || pass.type === 'multi') {
-    return pass.type === 'multi' ? 'Clipcard' : 'Unlimited';
+  if (pass.type === 'unlimited') {
+    return 'Unlimited';
   }
   const count = Number(pass.classesLimit ?? 0);
   if (count > 0) {
     return `${count} class${count > 1 ? 'es' : ''}`;
   }
   return 'No linked class requirement';
+};
+
+const getPassTypeLabel = (passOrType: PassData | string, classesLimit?: number) => {
+  const count = typeof passOrType === 'string'
+    ? Number(classesLimit ?? 0)
+    : Number(passOrType.classesLimit ?? 0);
+
+  if (count > 0) {
+    return `${count} Course Pass`;
+  }
+
+  if (typeof passOrType === 'string') {
+    switch (passOrType) {
+      case 'single':
+        return 'Single Class';
+      case 'multi-pass':
+        return 'Multi-Class Pass';
+      case 'multi':
+        return 'Clipcard';
+      case 'monthly':
+      case 'unlimited':
+        return 'Unlimited';
+      default:
+        return 'Pass';
+    }
+  }
+
+  if (passOrType.type === 'unlimited') {
+    return 'Unlimited';
+  }
+  if (passOrType.type === 'single') {
+    return 'Single Class';
+  }
+  if (passOrType.type === 'multi-pass') {
+    return 'Multi-Class Pass';
+  }
+  if (passOrType.type === 'multi') {
+    return 'Clipcard';
+  }
+  return 'Pass';
 };
 
 const getValidatedSelectedChoices = (pass: PassData, selectedClassIds: Record<string, string[]>) => {
@@ -960,15 +1000,15 @@ export default function SubscriptionsPage() {
                         <div>
                           <h3 className="text-xl font-semibold text-gray-900">{pass.displayName || pass.name}</h3>
                           <span className={`text-xs px-2 py-1 rounded-full ${
-                            pass.type === 'unlimited'
+                            Number(pass.classesLimit ?? 0) > 0
+                              ? 'bg-green-100 text-green-800'
+                              : pass.type === 'unlimited'
                               ? 'bg-blue-100 text-blue-800'
                               : pass.type === 'multi'
                               ? 'bg-purple-100 text-purple-800'
                               : 'bg-green-100 text-green-800'
                           }`}>
-                            {pass.type === 'single' ? 'Single Class' : 
-                             pass.type === 'multi-pass' ? 'Multi-Class Pass' :
-                             pass.type === 'multi' ? 'Clipcard' : 'Unlimited'}
+                            {getPassTypeLabel(pass)}
                           </span>
                         </div>
                       </div>
