@@ -121,7 +121,7 @@ const getLinkedCourseSummary = (pass: PassData) => {
   return 'No linked class requirement';
 };
 
-const getValidatedSelectedChoices = (pass: PassData) => {
+const getValidatedSelectedChoices = (pass: PassData, selectedClassIds: Record<string, string[]>) => {
   const requiredCourseCount = getRequiredCourseCount(pass);
   const selectedChoices = (selectedClassIds[pass._id] || [])
     .slice(0, requiredCourseCount)
@@ -296,7 +296,7 @@ export default function SubscriptionsPage() {
   const handlePurchase = async (pass: PassData) => {
     try {
       const enteredPromo = (promoCodes[pass._id] || '').trim();
-      const { isValid, error, selectedChoices } = getValidatedSelectedChoices(pass);
+      const { isValid, error, selectedChoices } = getValidatedSelectedChoices(pass, selectedClassIds);
       if (!isValid) {
         notify('error', error || 'Please verify your class selections.');
         return;
@@ -379,7 +379,7 @@ export default function SubscriptionsPage() {
 
     try {
       setUpgradeLoading(true);
-      const { isValid, error, selectedChoices } = getValidatedSelectedChoices(targetPass);
+      const { isValid, error, selectedChoices } = getValidatedSelectedChoices(targetPass, selectedClassIds);
       if (!isValid) {
         notify('error', error || 'Please verify your class selections.');
         return;
