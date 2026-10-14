@@ -68,9 +68,10 @@ export async function PUT(
     // Note: We intentionally do NOT validate that expiryDate is in the future
     // on updates — admins must be able to deactivate passes that have already expired.
 
-    if (['multi', 'multi-pass'].includes(type) && (!classesLimit || classesLimit < 1)) {
+    const normalizedClassesLimit = Number(classesLimit ?? 0);
+    if (!Number.isInteger(normalizedClassesLimit) || normalizedClassesLimit < 0 || normalizedClassesLimit > 4) {
       return NextResponse.json(
-        { error: 'classesLimit must be at least 1 for multi-class passes' },
+        { error: 'classesLimit must be a whole number between 0 and 4' },
         { status: 400 }
       );
     }
@@ -86,7 +87,7 @@ export async function PUT(
         validityType: finalValidityType,
         validityDays: finalValidityDays,
         expiryDate: finalValidityType === 'date' ? expiryDate : null,
-        classesLimit: ['multi', 'multi-pass'].includes(type) ? classesLimit : null,
+        classesLimit: Number.isInteger(Number(classesLimit)) ? Number(classesLimit) : null,
         selectedClass: null,
         isActive: isActive ?? true,
         category: category?.trim() || null,

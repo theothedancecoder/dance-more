@@ -114,18 +114,17 @@ export async function POST(request: NextRequest) {
         ? [selectedClassId]
         : [];
 
-    const requiredClassSelectionCount = passData.type === 'unlimited'
-      ? 0
-      : Math.max(1, passData.classesLimit || 1);
+    const requiresLinkedCourseSelection = Number(passData.classesLimit ?? 0) > 0;
+    const requiredClassSelectionCount = requiresLinkedCourseSelection ? Math.max(1, Number(passData.classesLimit || 1)) : 0;
 
-    if (passData.type !== 'unlimited' && normalizedSelectedClassIds.length !== requiredClassSelectionCount) {
+    if (requiresLinkedCourseSelection && normalizedSelectedClassIds.length !== requiredClassSelectionCount) {
       return NextResponse.json(
         { error: `Please select exactly ${requiredClassSelectionCount} course${requiredClassSelectionCount > 1 ? 's' : ''} for this pass` },
         { status: 400 }
       );
     }
 
-    if (new Set(normalizedSelectedClassIds).size !== normalizedSelectedClassIds.length) {
+    if (requiresLinkedCourseSelection && new Set(normalizedSelectedClassIds).size !== normalizedSelectedClassIds.length) {
       return NextResponse.json(
         { error: 'Please choose different courses for each selection' },
         { status: 400 }
@@ -191,7 +190,7 @@ export async function POST(request: NextRequest) {
     }
     if (passData.type === 'unlimited') {
       description += ` - Unlimited classes for ${passData.validityDays} days`;
-    } else if (['single', 'multi-pass', 'multi'].includes(passData.type)) {
+    } else if (Number(passData.classesLimit ?? 0) > 0) {
       description += ` - ${passData.classesLimit} classes valid for ${passData.validityDays} days`;
     }
 

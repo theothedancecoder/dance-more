@@ -585,7 +585,7 @@ export default function PassesManagementPage() {
                   validityType,
                   validityDays: validityType === 'days' ? Number(formData.get('validityDays')) : undefined,
                   expiryDate: validityType === 'date' ? formData.get('expiryDate') as string : undefined,
-                  classesLimit: ['multi', 'multi-pass'].includes(formData.get('type') as string) ? Number(formData.get('classesLimit')) : undefined,
+                  classesLimit: Number(formData.get('classesLimit') || 0),
                   isActive: formData.get('isActive') === 'on',
                   promoActive,
                   promoCode: promoActive ? String(formData.get('promoCode') || '').trim().toUpperCase() : undefined,
@@ -679,13 +679,14 @@ export default function PassesManagementPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">How many linked courses customer must choose</label>
+                    <label className="block text-sm font-medium text-gray-700">How many linked courses customer must choose (0 = none)</label>
                     <input
                       type="number"
                       name="classesLimit"
-                      min="1"
+                      min="0"
+                      max="4"
                       className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="10"
+                      placeholder="0"
                     />
                   </div>
 
@@ -798,7 +799,7 @@ export default function PassesManagementPage() {
                   validityType,
                   validityDays: validityType === 'days' ? Number(formData.get('validityDays')) : undefined,
                   expiryDate: validityType === 'date' ? formData.get('expiryDate') as string : undefined,
-                  classesLimit: ['multi', 'multi-pass'].includes(formData.get('type') as string) ? Number(formData.get('classesLimit')) : undefined,
+                  classesLimit: Number(formData.get('classesLimit') || 0),
                   isActive: formData.get('isActive') === 'on',
                   promoActive,
                   promoCode: promoActive ? String(formData.get('promoCode') || '').trim().toUpperCase() : undefined,
@@ -900,14 +901,15 @@ export default function PassesManagementPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">How many linked courses customer must choose</label>
+                    <label className="block text-sm font-medium text-gray-700">How many linked courses customer must choose (0 = none, max 4)</label>
                     <input
                       type="number"
                       name="classesLimit"
-                      min="1"
-                      defaultValue={editingPass.classesLimit || ''}
+                      min="0"
+                      max="4"
+                      defaultValue={editingPass.classesLimit ?? 0}
                       className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="10"
+                      placeholder="0"
                     />
                   </div>
 

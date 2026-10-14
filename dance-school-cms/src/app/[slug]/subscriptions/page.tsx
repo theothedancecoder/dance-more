@@ -100,12 +100,25 @@ const getCourseSelectionLabel = () => {
 };
 
 const getCourseChoiceCount = (classesLimit?: number) => {
-  return Math.max(1, classesLimit || 1);
+  const count = Number(classesLimit ?? 0);
+  return count > 0 ? count : 0;
+};
+
+const requiresLinkedCourseSelection = (pass: PassData) => {
+  return Number(pass.classesLimit ?? 0) > 0;
 };
 
 const getRequiredCourseCount = (pass: PassData) => {
-  if (pass.type === 'unlimited') return 0;
-  return Math.max(1, pass.classesLimit || 1);
+  const count = Number(pass.classesLimit ?? 0);
+  return count > 0 ? count : 0;
+};
+
+const getLinkedCourseSummary = (pass: PassData) => {
+  const count = Number(pass.classesLimit ?? 0);
+  if (count > 0) {
+    return `${count} class${count > 1 ? 'es' : ''}`;
+  }
+  return 'No linked class requirement';
 };
 
 const getValidatedSelectedChoices = (pass: PassData) => {
@@ -115,28 +128,30 @@ const getValidatedSelectedChoices = (pass: PassData) => {
     .filter(Boolean);
   const uniqueChoicesCount = new Set(selectedChoices).size;
 
-  if (pass.type !== 'unlimited') {
-    if ((pass.classOptions?.length || 0) < requiredCourseCount) {
-      return {
-        isValid: false,
-        error: `This pass requires ${requiredCourseCount} course selections, but there are not enough active courses available.`,
-        selectedChoices: [] as string[],
-      };
-    }
-    if (selectedChoices.length !== requiredCourseCount) {
-      return {
-        isValid: false,
-        error: `Please select ${requiredCourseCount} course${requiredCourseCount > 1 ? 's' : ''} before checkout.`,
-        selectedChoices: [] as string[],
-      };
-    }
-    if (uniqueChoicesCount !== selectedChoices.length) {
-      return {
-        isValid: false,
-        error: 'Please choose different courses for each selection.',
-        selectedChoices: [] as string[],
-      };
-    }
+  if (!requiresLinkedCourseSelection(pass)) {
+    return { isValid: true, error: null, selectedChoices: [] as string[] };
+  }
+
+  if ((pass.classOptions?.length || 0) < requiredCourseCount) {
+    return {
+      isValid: false,
+      error: `This pass requires ${requiredCourseCount} course selections, but there are not enough active courses available.`,
+      selectedChoices: [] as string[],
+    };
+  }
+  if (selectedChoices.length !== requiredCourseCount) {
+    return {
+      isValid: false,
+      error: `Please select ${requiredCourseCount} course${requiredCourseCount > 1 ? 's' : ''} before checkout.`,
+      selectedChoices: [] as string[],
+    };
+  }
+  if (uniqueChoicesCount !== selectedChoices.length) {
+    return {
+      isValid: false,
+      error: 'Please choose different courses for each selection.',
+      selectedChoices: [] as string[],
+    };
   }
 
   return { isValid: true, error: null, selectedChoices };
@@ -287,9 +302,9 @@ export default function SubscriptionsPage() {
         return;
       }
 
-      const selectedClassIdsForPass = pass.type === 'unlimited'
-        ? []
-        : selectedChoices;
+      const selectedClassIdsForPass = requiresLinkedCourseSelection(pass)
+        ? selectedChoices
+        : [];
       setPromoErrors((prev) => ({ ...prev, [pass._id]: '' }));
 
       // Create Stripe checkout session for pass purchase
@@ -316,14 +331,14 @@ export default function SubscriptionsPage() {
         // Redirect to Stripe checkout
         window.location.href = data.url;
       } else {
-        if (data?.error) {
-          setPromoErrors((prev) => ({ ...prev, [pass._id]: data.error }));
-        }
-        throw new Error(data.error || 'Failed to create checkout session');
+        const message = data?.error || 'Failed to create checkout session';
+        setPromoErrors((prev) => ({ ...prev, [pass._id]: message }));
+        notify('error', message);
       }
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to process purchase. Please try again.';
       if (!promoErrors[pass._id]) {
-        notify('error', 'Failed to process purchase. Please try again.');
+        notify('error', message);
       }
     }
   };
@@ -370,9 +385,9 @@ export default function SubscriptionsPage() {
         return;
       }
 
-      const selectedClassIdsForPass = targetPass.type === 'unlimited'
-        ? []
-        : selectedChoices;
+      const selectedClassIdsForPass = requiresLinkedCourseSelection(targetPass)
+        ? selectedChoices
+        : [];
 
       // Create Stripe checkout session for upgrade
       const response = await fetch('/api/stripe/checkout-pass', {
@@ -398,10 +413,10 @@ export default function SubscriptionsPage() {
         // Redirect to Stripe checkout
         window.location.href = data.url;
       } else {
-        throw new Error(data.error || 'Failed to create upgrade checkout session');
+        notify('error', data?.error || 'Failed to create upgrade checkout session');
       }
-    } catch {
-      notify('error', 'Failed to process upgrade. Please try again.');
+    } catch (error) {
+      notify('error', error instanceof Error ? error.message : 'Failed to process upgrade. Please try again.');
     } finally {
       setUpgradeLoading(false);
     }
@@ -499,7 +514,7 @@ export default function SubscriptionsPage() {
           const defaults: Record<string, string[]> = {};
           nextPasses.forEach((pass: PassData) => {
             const classOptions = pass.classOptions || [];
-            if (pass.type !== 'unlimited' && classOptions.length) {
+            if (requiresLinkedCourseSelection(pass) && classOptions.length) {
              const classLimit = getCourseChoiceCount(pass.classesLimit);
              const selectedValues = Array.from({ length: classLimit }, () => '');
              defaults[pass._id] = selectedValues;
@@ -958,8 +973,7 @@ export default function SubscriptionsPage() {
                         <span className="text-gray-500 ml-1">kr</span>
                       </div>
                       <div className="text-sm text-gray-500 mt-1">
-                        {pass.type === 'unlimited' ? 'Unlimited classes' : 
-                         pass.classesLimit ? `${pass.classesLimit} class${pass.classesLimit > 1 ? 'es' : ''}` : '1 class'}
+                        {pass.type === 'unlimited' ? 'Unlimited classes' : getLinkedCourseSummary(pass)}
                         {' • '}
                         {pass.validityType === 'days' && pass.validityDays 
                           ? `Valid for ${pass.validityDays} days`
@@ -985,7 +999,7 @@ export default function SubscriptionsPage() {
                       ))}
                     </ul>
 
-                    {pass.type !== 'unlimited' && (pass.classOptions?.length ?? 0) > 0 && (
+                    {requiresLinkedCourseSelection(pass) && (pass.classOptions?.length ?? 0) > 0 && (
                       <div className="mb-4">
                         <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600 mb-2">
                           {getCourseSelectionLabel()}
