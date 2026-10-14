@@ -60,15 +60,30 @@ export const subscriptionType = defineType({
       name: 'remainingClips',
       title: 'Remaining Clips',
       type: 'number',
-      hidden: ({ document }) => !['single', 'multi-pass', 'clipcard'].includes((document as any)?.type),
+      hidden: ({ document }) => {
+        const subscriptionDoc = document as { type?: string } | undefined;
+        return !['single', 'multi-pass', 'clipcard'].includes(subscriptionDoc?.type || '');
+      },
       validation: (Rule) => 
         Rule.custom((value, { document }) => {
-          const type = (document as any)?.type;
+          const subscriptionDoc = document as { type?: string } | undefined;
+          const type = subscriptionDoc?.type;
           if (['single', 'multi-pass', 'clipcard'].includes(type) && (value === undefined || value < 0)) {
             return 'This subscription type must have a non-negative number of remaining clips';
           }
           return true;
         }),
+    }),
+    defineField({
+      name: 'selectedClassIds',
+      title: 'Selected Linked Course IDs',
+      type: 'array',
+      of: [{ type: 'string' }],
+      description: 'Class IDs selected by the customer when purchasing this pass',
+      hidden: ({ document }) => {
+        const subscriptionDoc = document as { type?: string } | undefined;
+        return subscriptionDoc?.type === 'monthly';
+      },
     }),
     defineField({
       name: 'isActive',

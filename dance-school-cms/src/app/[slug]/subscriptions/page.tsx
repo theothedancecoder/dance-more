@@ -108,6 +108,40 @@ const getRequiredCourseCount = (pass: PassData) => {
   return Math.max(1, pass.classesLimit || 1);
 };
 
+const getValidatedSelectedChoices = (pass: PassData) => {
+  const requiredCourseCount = getRequiredCourseCount(pass);
+  const selectedChoices = (selectedClassIds[pass._id] || [])
+    .slice(0, requiredCourseCount)
+    .filter(Boolean);
+  const uniqueChoicesCount = new Set(selectedChoices).size;
+
+  if (pass.type !== 'unlimited') {
+    if ((pass.classOptions?.length || 0) < requiredCourseCount) {
+      return {
+        isValid: false,
+        error: `This pass requires ${requiredCourseCount} course selections, but there are not enough active courses available.`,
+        selectedChoices: [] as string[],
+      };
+    }
+    if (selectedChoices.length !== requiredCourseCount) {
+      return {
+        isValid: false,
+        error: `Please select ${requiredCourseCount} course${requiredCourseCount > 1 ? 's' : ''} before checkout.`,
+        selectedChoices: [] as string[],
+      };
+    }
+    if (uniqueChoicesCount !== selectedChoices.length) {
+      return {
+        isValid: false,
+        error: 'Please choose different courses for each selection.',
+        selectedChoices: [] as string[],
+      };
+    }
+  }
+
+  return { isValid: true, error: null, selectedChoices };
+};
+
 export default function SubscriptionsPage() {
   const params = useParams();
   const { tenant, isLoading, error } = useTenant();
@@ -247,25 +281,10 @@ export default function SubscriptionsPage() {
   const handlePurchase = async (pass: PassData) => {
     try {
       const enteredPromo = (promoCodes[pass._id] || '').trim();
-      const requiredCourseCount = getRequiredCourseCount(pass);
-      const selectedChoices = (selectedClassIds[pass._id] || [])
-        .slice(0, requiredCourseCount)
-        .filter(Boolean);
-      const uniqueChoicesCount = new Set(selectedChoices).size;
-
-      if (pass.type !== 'unlimited') {
-        if ((pass.classOptions?.length || 0) < requiredCourseCount) {
-          notify('error', `This pass requires ${requiredCourseCount} course selections, but there are not enough active courses available.`);
-          return;
-        }
-        if (selectedChoices.length !== requiredCourseCount) {
-          notify('error', `Please select ${requiredCourseCount} course${requiredCourseCount > 1 ? 's' : ''} before checkout.`);
-          return;
-        }
-        if (uniqueChoicesCount !== selectedChoices.length) {
-          notify('error', 'Please choose different courses for each selection.');
-          return;
-        }
+      const { isValid, error, selectedChoices } = getValidatedSelectedChoices(pass);
+      if (!isValid) {
+        notify('error', error || 'Please verify your class selections.');
+        return;
       }
 
       const selectedClassIdsForPass = pass.type === 'unlimited'
@@ -345,9 +364,15 @@ export default function SubscriptionsPage() {
 
     try {
       setUpgradeLoading(true);
+      const { isValid, error, selectedChoices } = getValidatedSelectedChoices(targetPass);
+      if (!isValid) {
+        notify('error', error || 'Please verify your class selections.');
+        return;
+      }
+
       const selectedClassIdsForPass = targetPass.type === 'unlimited'
         ? []
-        : (selectedClassIds[targetPass._id] || [targetPass.selectedClass?._id || targetPass.classOptions?.[0]?._id].filter(Boolean) as string[]);
+        : selectedChoices;
 
       // Create Stripe checkout session for upgrade
       const response = await fetch('/api/stripe/checkout-pass', {

@@ -130,7 +130,6 @@ export async function POST(request: NextRequest) {
       validityDays,
       expiryDate,
       classesLimit,
-      selectedClassId,
       isActive,
       promoActive,
       promoCode,
@@ -211,12 +210,7 @@ export async function POST(request: NextRequest) {
       validityDays: validityType === 'days' ? validityDays : null,
       expiryDate: validityType === 'date' ? expiryDate : null,
       classesLimit: ['multi', 'multi-pass'].includes(type) ? classesLimit : null,
-      selectedClass: selectedClassId
-        ? {
-            _type: 'reference',
-            _ref: selectedClassId,
-          }
-        : null,
+      selectedClass: null,
       isActive: isActive ?? true,
       promoActive: promoActive ?? false,
       promoCode: promoActive && promoCode ? String(promoCode).trim().toUpperCase() : null,

@@ -31,7 +31,6 @@ export async function PUT(
       validityDays,
       expiryDate,
       classesLimit,
-      selectedClassId,
       isActive,
       category,
       promoActive,
@@ -88,12 +87,7 @@ export async function PUT(
         validityDays: finalValidityDays,
         expiryDate: finalValidityType === 'date' ? expiryDate : null,
         classesLimit: ['multi', 'multi-pass'].includes(type) ? classesLimit : null,
-        selectedClass: selectedClassId
-          ? {
-              _type: 'reference',
-              _ref: selectedClassId,
-            }
-          : null,
+        selectedClass: null,
         isActive: isActive ?? true,
         category: category?.trim() || null,
         promoActive: promoActive ?? false,

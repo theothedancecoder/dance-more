@@ -174,8 +174,13 @@ export async function POST(request: NextRequest) {
       `*[_type == "pass" && tenant._ref == $tenantId]._id`,
       { tenantId }
     );
-    const activeSubscriptions = await uncachedSanityClient.fetch<Array<{ _id: string; type: string; remainingClips?: number }>>(
-      `*[_type == "subscription" && user._ref in $userReferenceIds && isActive == true && endDate > $now && (tenant._ref == $tenantId || (!defined(tenant) && ((defined(passId) && passId in $tenantPassIds) || (defined(pass._ref) && pass._ref in $tenantPassIds))))] | order(_createdAt desc)`,
+    const activeSubscriptions = await uncachedSanityClient.fetch<Array<{ _id: string; type: string; remainingClips?: number; selectedClassIds?: string[] }>>(
+      `*[_type == "subscription" && user._ref in $userReferenceIds && isActive == true && endDate > $now && (tenant._ref == $tenantId || (!defined(tenant) && ((defined(passId) && passId in $tenantPassIds) || (defined(pass._ref) && pass._ref in $tenantPassIds))))] | order(_createdAt desc) {
+        _id,
+        type,
+        remainingClips,
+        selectedClassIds
+      }`,
       { userReferenceIds, tenantId, now: now.toISOString(), tenantPassIds }
     );
 
@@ -191,19 +196,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const classId = classInstance.parentClass?._id;
+    if (!classId) {
+      return NextResponse.json(
+        { code: 'class_not_found', error: 'Class instance is missing class reference' },
+        { status: 400 }
+      );
+    }
+
+    const isClassAllowedForSubscription = (subscription: { selectedClassIds?: string[] }) => {
+      if (!Array.isArray(subscription.selectedClassIds) || subscription.selectedClassIds.length === 0) {
+        return true;
+      }
+      return subscription.selectedClassIds.includes(classId);
+    };
+
     // Find a valid subscription to use
     let subscriptionToUse: { _id: string; type: string; remainingClips?: number } | null = null;
     let bookingType = '';
 
     // First try to use monthly pass (unlimited)
-    const monthlyPass = activeSubscriptions.find((sub) => sub.type === 'monthly');
+    const monthlyPass = activeSubscriptions.find((sub) => sub.type === 'monthly' && isClassAllowedForSubscription(sub));
     if (monthlyPass) {
       subscriptionToUse = monthlyPass;
       bookingType = 'monthly';
     } else {
       // Try to use any pass with remaining classes (single, multi-pass, clipcard)
       const validPass = activeSubscriptions.find(
-        (sub) => ['single', 'multi-pass', 'clipcard'].includes(sub.type) && (sub.remainingClips ?? 0) > 0
+        (sub) =>
+          ['single', 'multi-pass', 'clipcard'].includes(sub.type) &&
+          (sub.remainingClips ?? 0) > 0 &&
+          isClassAllowedForSubscription(sub)
       );
       if (validPass) {
         subscriptionToUse = validPass;
@@ -212,6 +235,23 @@ export async function POST(request: NextRequest) {
     }
 
     if (!subscriptionToUse) {
+      const hasAnyBookablePass = activeSubscriptions.some(
+        (sub) =>
+          sub.type === 'monthly' ||
+          (['single', 'multi-pass', 'clipcard'].includes(sub.type) && (sub.remainingClips ?? 0) > 0)
+      );
+
+      if (hasAnyBookablePass) {
+        return NextResponse.json(
+          {
+            code: 'class_not_linked_to_pass',
+            error: 'This class is not part of your linked course selection for your active pass',
+            message: 'Please book one of the courses you selected when purchasing this pass.',
+          },
+          { status: 400 }
+        );
+      }
+
       return NextResponse.json(
         { 
           code: 'no_clips_remaining',

@@ -241,6 +241,7 @@ export async function POST(request: NextRequest) {
           }))
         : [];
       const validSelectedClasses = selectedClasses.filter(Boolean);
+      const validSelectedClassIds = validSelectedClasses.map((classItem) => classItem._id);
       const { subscriptionType, remainingClips } = getSubscriptionDetailsFromPass(pass);
       const passDisplayName = getPassDisplayName({
         ...pass,
@@ -256,6 +257,7 @@ export async function POST(request: NextRequest) {
           remainingClips,
           passId,
           passName,
+          selectedClassIds,
           "tenantRef": tenant._ref,
           "userRef": user._ref
         }`,
@@ -268,6 +270,11 @@ export async function POST(request: NextRequest) {
         const shouldRepairUser = existingSubscription.userRef !== user._id;
         const shouldRepairPassName = existingSubscription.passName !== passDisplayName;
         const shouldRepairPassId = existingSubscription.passId !== pass._id;
+        const existingSelectedClassIds = Array.isArray(existingSubscription.selectedClassIds)
+          ? existingSubscription.selectedClassIds.filter(Boolean)
+          : [];
+        const shouldRepairSelectedClassIds =
+          JSON.stringify([...existingSelectedClassIds].sort()) !== JSON.stringify([...validSelectedClassIds].sort());
         const shouldRepairClipCount =
           subscriptionType === 'clipcard' &&
           typeof remainingClips === 'number' &&
@@ -281,6 +288,7 @@ export async function POST(request: NextRequest) {
           shouldRepairUser ||
           shouldRepairPassName ||
           shouldRepairPassId ||
+          shouldRepairSelectedClassIds ||
           shouldRepairClipCount
         ) {
           const adjustedRemainingClips = shouldRepairClipCount
@@ -296,6 +304,7 @@ export async function POST(request: NextRequest) {
               remainingClips: adjustedRemainingClips,
               passId: pass._id,
               passName: passDisplayName,
+              selectedClassIds: validSelectedClassIds,
             })
             .commit();
 
@@ -355,6 +364,7 @@ export async function POST(request: NextRequest) {
         remainingClips,
         passId: pass._id, // Store original pass ID
         passName: passDisplayName,
+        selectedClassIds: validSelectedClassIds,
         purchasePrice: session.amount_total ? session.amount_total / 100 : pass.price,
         originalPrice: originalPrice ?? pass.price,
         finalPrice: finalPrice ?? (session.amount_total ? session.amount_total / 100 : pass.price),
