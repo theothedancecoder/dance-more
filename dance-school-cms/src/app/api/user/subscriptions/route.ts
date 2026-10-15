@@ -127,6 +127,7 @@ export async function GET(request: NextRequest) {
         "originalPass": *[_type == "pass" && _id == coalesce(^.passId, ^.pass._ref)][0]{
           name,
           type,
+          classesLimit,
           selectedClass->{ _id, title, danceStyle, level }
         }
       }`,
@@ -246,6 +247,7 @@ export async function GET(request: NextRequest) {
         "originalPass": *[_type == "pass" && _id == coalesce(^.passId, ^.pass._ref)][0]{
           name,
           type,
+          classesLimit,
           selectedClass->{ _id, title, danceStyle, level }
         }
       }`,

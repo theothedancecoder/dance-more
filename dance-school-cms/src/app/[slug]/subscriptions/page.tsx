@@ -55,6 +55,7 @@ interface UserSubscription {
   originalPass?: {
     name: string;
     type: string;
+    classesLimit?: number;
   };
 }
 
@@ -832,9 +833,7 @@ export default function SubscriptionsPage() {
                           <div className="flex justify-between">
                             <span>Type:</span>
                             <span className="font-medium capitalize">
-                              {subscription.type === 'monthly' ? 'Unlimited' : 
-                               subscription.type === 'clipcard' ? 'Clipcard' :
-                               subscription.type === 'multi-pass' ? 'Multi-Pass' : 'Single Class'}
+                              {getPassTypeLabel(subscription.type, subscription.originalPass?.classesLimit)}
                             </span>
                           </div>
                           
@@ -924,9 +923,7 @@ export default function SubscriptionsPage() {
                           <div className="flex justify-between">
                             <span>Type:</span>
                             <span className="font-medium capitalize">
-                              {subscription.type === 'monthly' ? 'Unlimited' : 
-                               subscription.type === 'clipcard' ? 'Clipcard' :
-                               subscription.type === 'multi-pass' ? 'Multi-Pass' : 'Single Class'}
+                              {getPassTypeLabel(subscription.type, subscription.originalPass?.classesLimit)}
                             </span>
                           </div>
                           
@@ -1268,15 +1265,15 @@ export default function SubscriptionsPage() {
                         <div className="flex items-center justify-between mb-4">
                           <h3 className="text-lg font-semibold text-gray-900">{pass.name}</h3>
                           <span className={`text-xs px-2 py-1 rounded-full ${
-                            pass.type === 'unlimited'
+                            Number(pass.classesLimit ?? 0) > 0
+                              ? 'bg-green-100 text-green-800'
+                              : pass.type === 'unlimited'
                               ? 'bg-blue-100 text-blue-800'
                               : pass.type === 'multi'
                               ? 'bg-purple-100 text-purple-800'
                               : 'bg-green-100 text-green-800'
                           }`}>
-                            {pass.type === 'single' ? 'Single Class' : 
-                             pass.type === 'multi-pass' ? 'Multi-Class Pass' :
-                             pass.type === 'multi' ? 'Clipcard' : 'Unlimited'}
+                            {getPassTypeLabel(pass)}
                           </span>
                         </div>
 
