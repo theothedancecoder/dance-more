@@ -171,6 +171,18 @@ const getPassTypeLabel = (passOrType: PassData | string, classesLimit?: number) 
   return 'Pass';
 };
 
+const isUnlimitedSubscription = (subscription: UserSubscription) => {
+  return subscription.type === 'monthly' || subscription.originalPass?.type === 'unlimited';
+};
+
+const hasLowClipWarning = (subscription: UserSubscription) => {
+  return !isUnlimitedSubscription(subscription) && subscription.remainingClips !== undefined && subscription.remainingClips <= 2;
+};
+
+const hasExpiryWarning = (subscription: UserSubscription) => {
+  return subscription.daysRemaining <= 3;
+};
+
 const getValidatedSelectedChoices = (pass: PassData, selectedClassIds: Record<string, string[]>) => {
   const requiredCourseCount = getRequiredCourseCount(pass);
   const selectedChoices = (selectedClassIds[pass._id] || [])
@@ -721,20 +733,22 @@ export default function SubscriptionsPage() {
           )}
 
           {/* Pass Expiry Warnings */}
-          {activeSubscriptions.some(s => s.daysRemaining <= 3 || (s.remainingClips !== undefined && s.remainingClips <= 2)) && (
+          {activeSubscriptions.some((subscription) => hasExpiryWarning(subscription) || hasLowClipWarning(subscription)) && (
             <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
               <div className="flex items-start gap-3">
                 <svg className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
                 <div>
-                  <p className="text-sm font-semibold text-amber-800">Your pass is running low</p>
-                  {activeSubscriptions.filter(s => s.daysRemaining <= 3 || (s.remainingClips !== undefined && s.remainingClips <= 2)).map(s => (
-                    <p key={s._id} className="text-sm text-amber-700 mt-1">
-                      <span className="font-medium">{s.passName}</span>
-                      {s.remainingClips !== undefined && s.remainingClips <= 2
-                        ? ` — only ${s.remainingClips} class${s.remainingClips !== 1 ? 'es' : ''} remaining`
-                        : ` — expires in ${s.daysRemaining} day${s.daysRemaining !== 1 ? 's' : ''}`}
+                  <p className="text-sm font-semibold text-amber-800">Your pass needs attention</p>
+                  {activeSubscriptions
+                    .filter((subscription) => hasExpiryWarning(subscription) || hasLowClipWarning(subscription))
+                    .map((subscription) => (
+                    <p key={subscription._id} className="text-sm text-amber-700 mt-1">
+                      <span className="font-medium">{subscription.passName}</span>
+                      {hasLowClipWarning(subscription)
+                        ? ` — only ${subscription.remainingClips} class${subscription.remainingClips !== 1 ? 'es' : ''} remaining`
+                        : ` — expires in ${subscription.daysRemaining} day${subscription.daysRemaining !== 1 ? 's' : ''}`}
                     </p>
                   ))}
                   <a
@@ -837,7 +851,7 @@ export default function SubscriptionsPage() {
                             </span>
                           </div>
                           
-                          {subscription.remainingClips !== undefined && (
+                          {!isUnlimitedSubscription(subscription) && subscription.remainingClips !== undefined && (
                             <div className="flex justify-between">
                               <span>Classes remaining:</span>
                               <span className="font-medium">{subscription.remainingClips}</span>
